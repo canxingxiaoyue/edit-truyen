@@ -294,7 +294,7 @@ window.addEventListener('click', (e) => {
 
     if (e.target === modalReplace) {
         modalReplace.classList.remove('show');
-        if (typeof renderTable === 'function') renderTable();
+        // Không renderTable() ở đây để giữ lại lớp tô sáng màu vàng
     }
     if (e.target === modalHistory) {
         modalHistory.classList.remove('show');
@@ -308,7 +308,7 @@ window.addEventListener('click', (e) => {
     if (e.target.id === 'btn-close-modal' || e.target.closest('#btn-close-modal')) {
         if (modalReplace) {
             modalReplace.classList.remove('show');
-            if (typeof renderTable === 'function') renderTable();
+            // Không renderTable() ở đây để giữ lại lớp tô sáng màu vàng
         }
     }
     if (e.target.id === 'btn-close-nameqt-modal' || e.target.closest('#btn-close-nameqt-modal')) {

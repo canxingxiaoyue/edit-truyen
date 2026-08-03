@@ -1,10 +1,11 @@
 // =========================================================================
 // QUẢN LÝ TÌM KIẾM VÀ THAY THẾ CHUẨN XÁC
 // =========================================================================
+
 function runHighlightAll() {
     const findText = document.getElementById('find-text')?.value;
     const regex = buildFindRegex(
-        findText, 
+        findText,
         document.getElementById('opt-regex')?.checked,
         document.getElementById('opt-match-case')?.checked,
         document.getElementById('opt-whole-word')?.checked,
@@ -12,33 +13,66 @@ function runHighlightAll() {
         document.getElementById('opt-ignore-space')?.checked
     );
     if (!regex) return;
-    renderTable(); 
-    
-    const targetIndices = document.getElementById('opt-search-selection')?.checked && selectedRowIndices.length > 0 
-        ? selectedRowIndices 
+
+    const targetIndices = document.getElementById('opt-search-selection')?.checked && selectedRowIndices.length > 0
+        ? selectedRowIndices
         : data.map((_, idx) => idx);
-        
+
     let highlightedCount = 0;
     const colTarget = document.getElementById('replace-column')?.value;
-    
+
+    if (typeof saveEditorUndoState === 'function') saveEditorUndoState();
+
     targetIndices.forEach(rowIndex => {
         const cols = colTarget === 'all' ? columns : [colTarget];
         cols.forEach(col => {
             const originalHTML = data[rowIndex][col] || '';
             const highlightedHTML = highlightInHTMLString(originalHTML, regex);
             if (highlightedHTML !== originalHTML) {
-                const cellElement = document.getElementById('table-body')?.children[rowIndex]?.children[columns.indexOf(col)];
-                if (cellElement) {
-                    cellElement.innerHTML = highlightedHTML;
-                    highlightedCount++;
-                }
+                // LƯU TRỰC TIẾP VÀO DATA ĐỂ KHÔNG BỊ MẤT KHI ĐÓNG BẢNG
+                data[rowIndex][col] = highlightedHTML; 
+                highlightedCount++;
             }
         });
     });
+
     if (highlightedCount > 0) {
-        showToast(`🖌️ Đã tô sáng các kết quả tìm thấy!`, 'var(--btn-info)');
+        if (typeof renderTable === 'function') renderTable();
+        if (typeof debounceSave === 'function') debounceSave();
+        showToast(`🖌️ Đã tô sáng kết quả tìm thấy!`, 'var(--btn-info)');
     } else {
         showToast(`❌ Không tìm thấy kết quả phù hợp!`, 'var(--btn-danger)');
+    }
+}
+
+// HÀM MỚI: XÓA SẠCH SPAN TÔ SÁNG KHỎI DATA
+function clearAllHighlights() {
+    if (typeof saveEditorUndoState === 'function') saveEditorUndoState();
+    let cleared = false;
+
+    data.forEach((row, rowIndex) => {
+        columns.forEach(col => {
+            if (row[col] && row[col].includes('search-highlight')) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = row[col];
+                const spans = tempDiv.querySelectorAll('.search-highlight');
+                spans.forEach(span => {
+                    const parent = span.parentNode;
+                    while (span.firstChild) parent.insertBefore(span.firstChild, span);
+                    parent.removeChild(span);
+                });
+                data[rowIndex][col] = tempDiv.innerHTML;
+                cleared = true;
+            }
+        });
+    });
+
+    if (cleared) {
+        if (typeof renderTable === 'function') renderTable();
+        if (typeof debounceSave === 'function') debounceSave();
+        showToast(`🧹 Đã xóa nhãn tô sáng!`, 'var(--btn-secondary)');
+    } else {
+        showToast(`⚠️ Không có chữ nào đang được tô sáng!`, 'var(--btn-warning)');
     }
 }
 
@@ -46,7 +80,7 @@ function runReplaceNext() {
     const findText = document.getElementById('find-text')?.value;
     const replaceText = document.getElementById('replace-text')?.value;
     const regex = buildFindRegex(
-        findText, 
+        findText,
         document.getElementById('opt-regex')?.checked,
         document.getElementById('opt-match-case')?.checked,
         document.getElementById('opt-whole-word')?.checked,
@@ -54,20 +88,20 @@ function runReplaceNext() {
         document.getElementById('opt-ignore-space')?.checked
     );
     if (!regex) return;
-    
-    const targetIndices = document.getElementById('opt-search-selection')?.checked && selectedRowIndices.length > 0 
-        ? selectedRowIndices 
+
+    const targetIndices = document.getElementById('opt-search-selection')?.checked && selectedRowIndices.length > 0
+        ? selectedRowIndices
         : data.map((_, idx) => idx);
-        
+
     let replaced = false;
     const casePreserve = document.getElementById('opt-case-preserve')?.checked;
     const replaceFn = (match) => {
         replaced = true;
         return casePreserve ? preserveCase(match, replaceText) : replaceText;
     };
-    
+
     const colTarget = document.getElementById('replace-column')?.value;
-    
+
     for (let rowIndex of targetIndices) {
         const cols = colTarget === 'all' ? columns : [colTarget];
         for (let col of cols) {
@@ -82,14 +116,14 @@ function runReplaceNext() {
                 };
                 const newHTML = replaceInHTMLString(originalHTML, regex, limitedReplaceFn);
                 if (replaced) {
-                    saveEditorUndoState();
-                    addEditorHistoryEntry();
+                    if (typeof saveEditorUndoState === 'function') saveEditorUndoState();
+                    if (typeof addEditorHistoryEntry === 'function') addEditorHistoryEntry();
                     data[rowIndex][col] = newHTML;
                     const cellElement = document.getElementById('table-body')?.children[rowIndex]?.children[columns.indexOf(col)];
                     if (cellElement) cellElement.innerHTML = newHTML;
-                    debounceSave();
+                    if (typeof debounceSave === 'function') debounceSave();
                     showToast(`✔️ Đã thay thế thành công 1 vị trí!`, 'var(--btn-success)');
-                    return; 
+                    return;
                 }
             }
         }
@@ -101,7 +135,7 @@ function runReplaceAll() {
     const findText = document.getElementById('find-text')?.value;
     const replaceText = document.getElementById('replace-text')?.value;
     const regex = buildFindRegex(
-        findText, 
+        findText,
         document.getElementById('opt-regex')?.checked,
         document.getElementById('opt-match-case')?.checked,
         document.getElementById('opt-whole-word')?.checked,
@@ -109,22 +143,22 @@ function runReplaceAll() {
         document.getElementById('opt-ignore-space')?.checked
     );
     if (!regex) return;
-    
-    saveEditorUndoState();
-    addEditorHistoryEntry();
-    
+
+    if (typeof saveEditorUndoState === 'function') saveEditorUndoState();
+    if (typeof addEditorHistoryEntry === 'function') addEditorHistoryEntry();
+
     let replacedCount = 0;
     const casePreserve = document.getElementById('opt-case-preserve')?.checked;
     const replaceFn = (match) => {
         replacedCount++;
         return casePreserve ? preserveCase(match, replaceText) : replaceText;
     };
-    
-    const targetIndices = document.getElementById('opt-search-selection')?.checked && selectedRowIndices.length > 0 
-        ? selectedRowIndices 
+
+    const targetIndices = document.getElementById('opt-search-selection')?.checked && selectedRowIndices.length > 0
+        ? selectedRowIndices
         : data.map((_, idx) => idx);
     const colTarget = document.getElementById('replace-column')?.value;
-    
+
     targetIndices.forEach(rowIndex => {
         const cols = colTarget === 'all' ? columns : [colTarget];
         cols.forEach(col => {
@@ -135,14 +169,15 @@ function runReplaceAll() {
             }
         });
     });
-    
+
     if (replacedCount > 0) {
-        renderTable();
-        debounceSave();
+        if (typeof renderTable === 'function') renderTable();
+        if (typeof debounceSave === 'function') debounceSave();
         showToast(`✔️ Đã thay thế toàn bộ ${replacedCount} vị trí!`, 'var(--btn-success)');
     } else {
         showToast(`❌ Không tìm thấy kết quả nào để thay thế!`, 'var(--btn-danger)');
     }
+    const modalReplace = document.getElementById('modal-replace');
     if (modalReplace) modalReplace.classList.remove('show');
 }
 
@@ -157,7 +192,7 @@ function buildFindRegex(findText, useRegex, matchCase, wholeWord, ignorePunc, ig
     if (wholeWord) pattern = `(?<!\\p{L})${pattern}(?!\\p{L})`;
     let flags = 'g';
     if (!matchCase) flags += 'i';
-    flags += 'u'; 
+    flags += 'u';
     try { return new RegExp(pattern, flags); } catch (e) { alert("Lỗi Regex: " + e.message); return null; }
 }
 
@@ -195,7 +230,7 @@ function highlightInHTMLString(htmlString, regex) {
     const textNodes = [];
     const walk = document.createTreeWalker(div, NodeFilter.SHOW_TEXT, null, false);
     while (walk.nextNode()) textNodes.push(walk.currentNode);
-    
+
     for (let i = textNodes.length - 1; i >= 0; i--) {
         const node = textNodes[i];
         const text = node.nodeValue;

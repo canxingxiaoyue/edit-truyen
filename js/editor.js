@@ -1,5 +1,5 @@
 // =========================================================================
-// QUẢN LÝ BẢNG DỊCH CHÍNH (MỤC 1) - AN TOÀN TUYỆT ĐỐI & ĐẦY ĐỦ COPY
+// QUẢN LÝ BẢNG DỊCH CHÍNH (MỤC 1) - CHỐNG MÀU TÀNG HÌNH KHI PASTE
 // =========================================================================
 let saveTimeout;
 
@@ -40,7 +40,8 @@ function renderTable() {
         columns.forEach(col => {
             const td = document.createElement('td');
             td.contentEditable = true;
-            td.innerHTML = row[col] || ''; 
+            const cellVal = normalizeUnicodeText(row[col] || '');
+            td.innerHTML = cellVal; 
             tr.appendChild(td);
         });
         fragment.appendChild(tr);
@@ -49,7 +50,7 @@ function renderTable() {
     
     data.forEach((row, idx) => {
         if (row.raw) {
-            const rawVal = row.raw.replace(/<[^>]+>/g, '');
+            const rawVal = normalizeUnicodeText(row.raw.replace(/<[^>]+>/g, ''));
             if (typeof nameQTEngine !== 'undefined' && nameQTEngine.process) {
                 const res = nameQTEngine.process(rawVal);
                 rowTokensMap[idx] = res.tokens;
@@ -65,7 +66,7 @@ function appendRowToDOM(rowObj, index) {
     columns.forEach(col => {
         const td = document.createElement('td');
         td.contentEditable = true;
-        td.innerHTML = rowObj[col] || ''; 
+        td.innerHTML = normalizeUnicodeText(rowObj[col] || ''); 
         tr.appendChild(td);
     });
     tbody.appendChild(tr);
@@ -134,6 +135,7 @@ function addEditorHistoryEntry() {
         return;
     }
     history.push({ timestamp: Date.now(), rowCount: data.length, data: currentDataCopy });
+    if (history.length > 15) history.shift();
     localStorage.setItem('translationHistory', JSON.stringify(history));
 }
 
@@ -142,28 +144,52 @@ function initEditorEvents() {
     const tbody = document.getElementById('table-body');
     if (!tbody) return;
 
-    // Paste nhiều dòng tự chia cột
+    // PASTE CHỐNG MÀU CHỮ TÀNG HÌNH & CHIA CỘT CHUẨN XÁC
     tbody.addEventListener('paste', (e) => {
         if (typeof clearSyncHighlights === 'function') clearSyncHighlights();
         const targetCell = e.target.closest('td');
         if (!targetCell) return;
         
+        e.preventDefault();
+
         const clipboardText = normalizeUnicodeText((e.originalEvent || e).clipboardData.getData('text/plain'));
         if (!clipboardText) return;
 
-        let lines = clipboardText.split(/\r\n|\r|\n|\u2028|\u2029/);
-        lines = lines.map(line => normalizeUnicodeText(line.replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '').trim())).filter(line => line !== '');
+        const cleanText = clipboardText.replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '').normalize('NFC');
+        let lines = cleanText.split(/\r\n|\r|\n|\u2028|\u2029/).map(line => line.trim()).filter(line => line !== '');
+        if (lines.length === 0) return;
 
-        if (lines.length <= 1 && !clipboardText.includes('\t')) return;
-
-        e.preventDefault(); 
         saveEditorUndoState();
-        addEditorHistoryEntry(); 
+        if (typeof addEditorHistoryEntry === 'function') addEditorHistoryEntry();
 
         const tr = targetCell.closest('tr');
         let startRowIndex = Array.from(tbody.children).indexOf(tr);
         const colIndex = Array.from(tr.children).indexOf(targetCell);
 
+        // CASE 1: Dán 1 đoạn văn bản đơn
+        if (lines.length === 1 && !clipboardText.includes('\t')) {
+            const textToInsert = lines[0];
+            targetCell.innerText = textToInsert;
+            const rowIndex = startRowIndex;
+            data[rowIndex][columns[colIndex]] = textToInsert;
+
+            if (colIndex === 0) {
+                const rawVal = textToInsert.replace(/<[^>]+>/g, '').normalize('NFC');
+                data[rowIndex]['pinyin'] = safePinyin(rawVal);
+                tr.children[1].innerText = data[rowIndex]['pinyin'];
+
+                if (!manualQTState[rowIndex] && typeof nameQTEngine !== 'undefined') {
+                    const result = nameQTEngine.process(rawVal);
+                    data[rowIndex]['qt'] = result.text.normalize('NFC');
+                    tr.children[4].innerText = result.text.normalize('NFC');
+                    rowTokensMap[rowIndex] = result.tokens;
+                }
+            }
+            debounceSave();
+            return;
+        }
+
+        // CASE 2: Dán nhiều dòng hoặc dán dạng bảng Excel
         for (let i = 0; i < lines.length; i++) {
             const textLine = lines[i];
             const rowIndex = startRowIndex + i;
@@ -181,12 +207,15 @@ function initEditorEvents() {
             for (let j = 0; j < cells.length; j++) {
                 const targetColIdx = colIndex + j;
                 if (targetColIdx >= 6) break; 
-                    const cellValue = normalizeUnicodeText(cells[j]);
-                if (targetColIdx === 1 && cellValue.trim() !== '') pinyinUpdated = true;
+                const cellValue = normalizeUnicodeText(cells[j].trim());
+                data[rowIndex][columns[targetColIdx]] = cellValue;
+                tbody.children[rowIndex].children[targetColIdx].innerText = cellValue;
+                if (targetColIdx === 0) rawUpdated = true;
+                if (targetColIdx === 1 && cellValue !== '') pinyinUpdated = true;
             }
 
             if (rawUpdated) {
-                const rawVal = data[rowIndex]['raw'].replace(/<[^>]+>/g, '');
+                const rawVal = data[rowIndex]['raw'].replace(/<[^>]+>/g, '').normalize('NFC');
                 if (!pinyinUpdated) {
                     const pinyinText = safePinyin(rawVal);
                     data[rowIndex]['pinyin'] = pinyinText;
@@ -194,8 +223,8 @@ function initEditorEvents() {
                 }
                 if (!manualQTState[rowIndex] && typeof nameQTEngine !== 'undefined') {
                     const result = nameQTEngine.process(rawVal);
-                    data[rowIndex]['qt'] = result.text;
-                    tbody.children[rowIndex].children[4].innerText = result.text;
+                    data[rowIndex]['qt'] = result.text.normalize('NFC');
+                    tbody.children[rowIndex].children[4].innerText = result.text.normalize('NFC');
                     rowTokensMap[rowIndex] = result.tokens;
                 }
             }
@@ -213,20 +242,17 @@ function initEditorEvents() {
         const colIndex = Array.from(tr.children).indexOf(targetCell);
 
         handleEditorTypingInput();
-        const normalizedValue = normalizeUnicodeText(targetCell.textContent);
-        targetCell.innerText = normalizedValue;
-        data[rowIndex][columns[colIndex]] = normalizedValue;
+        const plainText = normalizeUnicodeText(targetCell.innerText);
+        data[rowIndex][columns[colIndex]] = targetCell.innerHTML;
 
         if (colIndex === 0) {
-            const plainText = normalizedValue;
-            
             data[rowIndex]['pinyin'] = safePinyin(plainText);
             tr.children[1].innerText = data[rowIndex]['pinyin'];
 
             if (!manualQTState[rowIndex] && typeof nameQTEngine !== 'undefined') {
                 const result = nameQTEngine.process(plainText);
-                data[rowIndex]['qt'] = result.text;
-                tr.children[4].innerText = result.text;
+                data[rowIndex]['qt'] = result.text.normalize('NFC');
+                tr.children[4].innerText = result.text.normalize('NFC');
                 rowTokensMap[rowIndex] = result.tokens;
             }
         }
@@ -353,9 +379,7 @@ function initEditorEvents() {
         }
     });
 
-    // =========================================================================
-    // XỬ LÝ COPY TỪNG CỘT (RAW, PINYIN, NGHĨA, Ê ĐÍT, QT, BÊ TA)
-    // =========================================================================
+    // COPY TỪNG CỘT
     document.querySelectorAll('.col-copy-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -369,7 +393,7 @@ function initEditorEvents() {
 
             data.forEach((row, index) => {
                 tempDiv.innerHTML = row[colKey] || '';
-                const plainText = tempDiv.innerText.trim();
+                const plainText = normalizeUnicodeText(tempDiv.innerText.trim());
                 if (plainText !== "") hasContent = true;
 
                 if (format === 'story') {
@@ -396,8 +420,8 @@ function initEditorEvents() {
             }
 
             const sepPlain = format === 'story' ? '\r\n\r\n' : '\n';
-            const plainTextFull = plainArray.join(sepPlain);
-            const htmlTextFull = htmlArray.join('');
+            const plainTextFull = normalizeUnicodeText(plainArray.join(sepPlain));
+            const htmlTextFull = normalizeUnicodeText(htmlArray.join(''));
 
             try {
                 if (navigator.clipboard && window.ClipboardItem) {
@@ -422,7 +446,7 @@ function initEditorEvents() {
         });
     });
 
-    // COPY TRỌN BỘ BẢN BÊ TA (NÚT XANH LÁ TRÊN CÙNG)
+    // COPY TRỌN BỘ BẢN BÊ TA
     document.getElementById('btn-copy')?.addEventListener('click', async () => {
         const tempDiv = document.createElement('div');
         let hasContent = false;
@@ -431,7 +455,7 @@ function initEditorEvents() {
 
         data.forEach((row, index) => {
             tempDiv.innerHTML = row.edit || '';
-            const plainText = tempDiv.innerText.trim();
+            const plainText = normalizeUnicodeText(tempDiv.innerText.trim());
             if (plainText !== "") hasContent = true;
 
             const isPrevEmpty = index === 0 || (function(){
@@ -450,8 +474,8 @@ function initEditorEvents() {
             return;
         }
 
-        const plainTextFull = plainArray.join('\r\n\r\n');
-        const htmlTextFull = htmlArray.join('');
+        const plainTextFull = normalizeUnicodeText(plainArray.join('\r\n\r\n'));
+        const htmlTextFull = normalizeUnicodeText(htmlArray.join(''));
 
         try {
             if (navigator.clipboard && window.ClipboardItem) {
@@ -517,7 +541,7 @@ function initEditorEvents() {
         }
     });
 
-    // LỊCH SỬ DỊCH THUẬT
+    // Lịch sử dịch
     document.getElementById('btn-history-show')?.addEventListener('click', () => {
         if (typeof openHistoryModal === 'function') {
             openHistoryModal('editor');
@@ -606,10 +630,10 @@ function initEditorEvents() {
 function refreshAllQT(forceOverwrite = false) {
     data.forEach((row, idx) => {
         if (row.raw && (forceOverwrite || !manualQTState[idx])) {
-            const rawVal = row.raw.replace(/<[^>]+>/g, '');
+            const rawVal = row.raw.replace(/<[^>]+>/g, '').normalize('NFC');
             if (typeof nameQTEngine !== 'undefined' && nameQTEngine.process) {
                 const res = nameQTEngine.process(rawVal);
-                data[idx]['qt'] = res.text;
+                data[idx]['qt'] = res.text.normalize('NFC');
                 rowTokensMap[idx] = res.tokens;
             }
             if (forceOverwrite) manualQTState[idx] = false;

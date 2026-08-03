@@ -12,17 +12,26 @@ const HAN_VIET_MAP = {
     '剑': 'kiếm', '飞': 'phi', '龙': 'long', '凤': 'phụng', '风': 'phong', '云': 'vân',
     '水': 'thủy', '火': 'hỏa', '山': 'sơn', '林': 'lâm', '青': 'thanh', '阳': 'dương',
     '宗': 'tông', '门': 'môn', '派': 'phái', '师': 'sư', '尊': 'tôn', '徒': 'đồ',
-    '弟': 'đệ', '兄': 'huynh', '姐': 'tỷ', '妹': 'muội', '父': 'phụ', '母': 'mẫu',
+    '弟': 'đệ', '兄': 'huynh', '哥': 'huynh', '姐': 'tỷ', '妹': 'muội', '父': 'phụ', '母': 'mẫu',
     '克': 'khắc', '莱': 'lai', '恩': 'ân', '伦': 'luân', '纳': 'nạp', '德': 'đức',
     '愚': 'ngu', '者': 'giả', '黑': 'hắc', '桃': 'đào', '废': 'phế', '文': 'văn',
-    '完': 'hoàn', '结': 'kết', '作': 'tác', '存': 'tồn', '在': 'tại', '荷': 'hà', '森': 'sâm'
+    '完': 'hoàn', '结': 'kết', '作': 'tác', '存': 'tồn', '在': 'tại', '荷': 'hà', '森': 'sâm',
+    '亲': 'thân'
 };
 
 function getHanVietChar(char) {
     if (HAN_VIET_MAP[char]) {
         return HAN_VIET_MAP[char].split('/')[0].trim();
     }
-    return char; 
+
+    if (typeof pinyinPro !== 'undefined') {
+        const py = pinyinPro.pinyin(char, { toneType: 'none', type: 'array' });
+        if (py && py.length > 0 && typeof py[0] === 'string') {
+            return py[0];
+        }
+    }
+
+    return char;
 }
 
 function getHanVietPhrase(cnText) {
@@ -169,23 +178,22 @@ function initQuickNameEvents() {
     // 3. CÁC NÚT TRỢ GIÚP CHỌN TỪ (VIẾT HOA)
     document.getElementById('btn-helper-cap-1')?.addEventListener('click', () => {
         if (selectedHVWords.length > 0 && inputVI) {
-            inputVI.value = capitalizeWords(selectedHVWords[0]);
+            const result = selectedHVWords.map((word, index) => index === 0 ? capitalizeWords(word) : word).join(' ');
+            inputVI.value = result;
         }
     });
 
     document.getElementById('btn-helper-cap-2')?.addEventListener('click', () => {
-        if (selectedHVWords.length >= 2 && inputVI) {
-            inputVI.value = capitalizeWords(selectedHVWords.slice(-2).join(' '));
-        } else if (selectedHVWords.length === 1 && inputVI) {
-            inputVI.value = capitalizeWords(selectedHVWords[0]);
+        if (selectedHVWords.length > 0 && inputVI) {
+            const result = selectedHVWords.map((word, index) => index < 2 ? capitalizeWords(word) : word).join(' ');
+            inputVI.value = result;
         }
     });
 
     document.getElementById('btn-helper-cap-3')?.addEventListener('click', () => {
-        if (selectedHVWords.length >= 3 && inputVI) {
-            inputVI.value = capitalizeWords(selectedHVWords.slice(-3).join(' '));
-        } else if (selectedHVWords.length > 0 && inputVI) {
-            inputVI.value = capitalizeWords(selectedHVWords.join(' '));
+        if (selectedHVWords.length > 0 && inputVI) {
+            const result = selectedHVWords.map((word, index) => index < 3 ? capitalizeWords(word) : word).join(' ');
+            inputVI.value = result;
         }
     });
 
@@ -196,23 +204,22 @@ function initQuickNameEvents() {
     // CÁC NÚT TRỢ GIÚP CHỌN TỪ (VIẾT THƯỜNG)
     document.getElementById('btn-helper-low-1')?.addEventListener('click', () => {
         if (selectedHVWords.length > 0 && inputVI) {
-            inputVI.value = lowercaseWords(selectedHVWords[0]);
+            const result = selectedHVWords.map((word, index) => index === 0 ? lowercaseWords(word) : word).join(' ');
+            inputVI.value = result;
         }
     });
 
     document.getElementById('btn-helper-low-2')?.addEventListener('click', () => {
-        if (selectedHVWords.length >= 2 && inputVI) {
-            inputVI.value = lowercaseWords(selectedHVWords.slice(-2).join(' '));
-        } else if (selectedHVWords.length === 1 && inputVI) {
-            inputVI.value = lowercaseWords(selectedHVWords[0]);
+        if (selectedHVWords.length > 0 && inputVI) {
+            const result = selectedHVWords.map((word, index) => index < 2 ? lowercaseWords(word) : word).join(' ');
+            inputVI.value = result;
         }
     });
 
     document.getElementById('btn-helper-low-3')?.addEventListener('click', () => {
-        if (selectedHVWords.length >= 3 && inputVI) {
-            inputVI.value = lowercaseWords(selectedHVWords.slice(-3).join(' '));
-        } else if (selectedHVWords.length > 0 && inputVI) {
-            inputVI.value = lowercaseWords(selectedHVWords.join(' '));
+        if (selectedHVWords.length > 0 && inputVI) {
+            const result = selectedHVWords.map((word, index) => index < 3 ? lowercaseWords(word) : word).join(' ');
+            inputVI.value = result;
         }
     });
 

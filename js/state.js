@@ -42,8 +42,8 @@ let editorRedoStack = [];
 let editorTypingUndoTimeout = null;
 let editorIsTyping = false;
 
-// Trạng thái Name QT & Đồng bộ Bôi đen
-let manualQTState = {}; 
+// Trạng thái Name QT & Đồng bộ Bôi đen (Lưu vào máy để chống ghi đè khi F5)
+let manualQTState = JSON.parse(localStorage.getItem('manualQTState')) || {};
 let rowTokensMap = {}; 
 
 // Dữ liệu và trạng thái Mục 2 (Thông tin truyện)

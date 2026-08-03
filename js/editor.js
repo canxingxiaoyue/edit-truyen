@@ -15,7 +15,11 @@ function normalizeUnicodeText(text) {
 function debounceSave() {
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
+        // Lưu dữ liệu bảng
         localStorage.setItem('translationData', JSON.stringify(data));
+        // LƯU TRẠNG THÁI SỬA TAY VÀO MÁY (CHỐNG MẤT QT KHI F5)
+        localStorage.setItem('manualQTState', JSON.stringify(manualQTState));
+        
         const now = Date.now();
         if (now - lastHistoryTime > 15000) { 
             addEditorHistoryEntry();

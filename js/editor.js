@@ -145,6 +145,17 @@ function addEditorHistoryEntry() {
 
 // SỰ KIỆN VÀ TÍNH NĂNG BIÊN DỊCH
 function initEditorEvents() {
+    // ---- ĐOẠN MỚI THÊM: XỬ LÝ Ô NHẬP TÊN CHƯƠNG ----
+    const chapterInput = document.getElementById('chapter-title-input');
+    if (chapterInput) {
+        chapterInput.value = chapterTitle;
+        chapterInput.addEventListener('input', (e) => {
+            chapterTitle = e.target.value;
+            localStorage.setItem('chapterTitle', chapterTitle);
+        });
+    }
+    // ------------------------------------------------
+
     const tbody = document.getElementById('table-body');
     if (!tbody) return;
 
@@ -507,8 +518,13 @@ function initEditorEvents() {
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
         const dlAnchor = document.createElement('a');
         dlAnchor.setAttribute("href", dataStr);
-        dlAnchor.setAttribute("download", "chuong_truyen_" + new Date().getTime() + ".json");
+
+        let safeTitle = chapterTitle ? chapterTitle.trim().replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_') : "chuong_truyen";
+        let fileName = safeTitle + "_" + new Date().getTime() + ".json";
+
+        dlAnchor.setAttribute("download", fileName);
         dlAnchor.click();
+        showToast(`💾 Đã tải file [ ${fileName} ] xuống máy!`, 'var(--btn-success)');
     });
 
     const fileInput = document.getElementById('file-input');

@@ -24,6 +24,7 @@ function createEmptyRow() {
 }
 
 // Dữ liệu và trạng thái Mục 1 (Biên dịch) - BẢO VỆ CHỐNG RỖNG MẢNG
+let chapterTitle = localStorage.getItem('chapterTitle') || '';
 let savedData = null;
 try {
     savedData = JSON.parse(localStorage.getItem('translationData'));

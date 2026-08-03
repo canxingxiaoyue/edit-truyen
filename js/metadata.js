@@ -328,9 +328,13 @@ function exportMetadata() {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(metadata, null, 2));
     const dlAnchor = document.createElement('a');
     dlAnchor.setAttribute("href", dataStr);
-    dlAnchor.setAttribute("download", "thong_tin_truyen_" + (metadata.title ? metadata.title.replace(/\s+/g, '_') : "export") + ".json");
+
+    let safeTitle = metadata.title ? metadata.title.trim().replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_') : "export";
+    let fileName = "thong_tin_truyen_" + safeTitle + ".json";
+
+    dlAnchor.setAttribute("download", fileName);
     dlAnchor.click();
-    showToast('💾 Đã xuất file thông tin truyện!', 'var(--btn-success)');
+    showToast(`💾 Đã xuất file [ ${fileName} ]!`, 'var(--btn-success)');
 }
 
 function handleMetadataImport(event) {

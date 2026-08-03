@@ -24,13 +24,8 @@ function getHanVietChar(char) {
         return HAN_VIET_MAP[char].split('/')[0].trim();
     }
 
-    if (typeof pinyinPro !== 'undefined') {
-        const py = pinyinPro.pinyin(char, { toneType: 'none', type: 'array' });
-        if (py && py.length > 0 && typeof py[0] === 'string') {
-            return py[0];
-        }
-    }
-
+    // Không dùng pinyin làm fallback để tránh chữ Hán lẫn lộn với pinyin.
+    // Nếu ký tự chưa có trong bảng tra Hán-Việt, giữ nguyên ký tự gốc.
     return char;
 }
 
@@ -54,6 +49,11 @@ function capitalizeWords(str) {
 function lowercaseWords(str) {
     if (!str) return '';
     return str.toLowerCase();
+}
+
+function getCurrentVIWords(inputVI) {
+    const text = (inputVI && inputVI.value.trim()) ? inputVI.value.trim() : selectedHVWords.join(' ');
+    return text.split(/\s+/).filter(w => w.length > 0);
 }
 
 let selectedCNText = '';
@@ -177,54 +177,66 @@ function initQuickNameEvents() {
 
     // 3. CÁC NÚT TRỢ GIÚP CHỌN TỪ (VIẾT HOA)
     document.getElementById('btn-helper-cap-1')?.addEventListener('click', () => {
-        if (selectedHVWords.length > 0 && inputVI) {
-            const result = selectedHVWords.map((word, index) => index === 0 ? capitalizeWords(word) : word).join(' ');
+        if (inputVI) {
+            const viWords = getCurrentVIWords(inputVI);
+            const result = viWords.map((word, index) => index === 0 ? capitalizeWords(word) : word).join(' ');
             inputVI.value = result;
         }
     });
 
     document.getElementById('btn-helper-cap-2')?.addEventListener('click', () => {
-        if (selectedHVWords.length > 0 && inputVI) {
-            const result = selectedHVWords.map((word, index) => index < 2 ? capitalizeWords(word) : word).join(' ');
+        if (inputVI) {
+            const viWords = getCurrentVIWords(inputVI);
+            const result = viWords.map((word, index) => index < 2 ? capitalizeWords(word) : word).join(' ');
             inputVI.value = result;
         }
     });
 
     document.getElementById('btn-helper-cap-3')?.addEventListener('click', () => {
-        if (selectedHVWords.length > 0 && inputVI) {
-            const result = selectedHVWords.map((word, index) => index < 3 ? capitalizeWords(word) : word).join(' ');
+        if (inputVI) {
+            const viWords = getCurrentVIWords(inputVI);
+            const result = viWords.map((word, index) => index < 3 ? capitalizeWords(word) : word).join(' ');
             inputVI.value = result;
         }
     });
 
     document.getElementById('btn-helper-cap-all')?.addEventListener('click', () => {
-        if (inputVI) inputVI.value = capitalizeWords(selectedHVWords.join(' '));
+        if (inputVI) {
+            const viWords = getCurrentVIWords(inputVI);
+            inputVI.value = capitalizeWords(viWords.join(' '));
+        }
     });
 
     // CÁC NÚT TRỢ GIÚP CHỌN TỪ (VIẾT THƯỜNG)
     document.getElementById('btn-helper-low-1')?.addEventListener('click', () => {
-        if (selectedHVWords.length > 0 && inputVI) {
-            const result = selectedHVWords.map((word, index) => index === 0 ? lowercaseWords(word) : word).join(' ');
+        if (inputVI) {
+            const viWords = getCurrentVIWords(inputVI);
+            const result = viWords.map((word, index) => index === 0 ? lowercaseWords(word) : word).join(' ');
             inputVI.value = result;
         }
     });
 
     document.getElementById('btn-helper-low-2')?.addEventListener('click', () => {
-        if (selectedHVWords.length > 0 && inputVI) {
-            const result = selectedHVWords.map((word, index) => index < 2 ? lowercaseWords(word) : word).join(' ');
+        if (inputVI) {
+            const viWords = getCurrentVIWords(inputVI);
+            const result = viWords.map((word, index) => index < 2 ? lowercaseWords(word) : word).join(' ');
             inputVI.value = result;
         }
     });
 
     document.getElementById('btn-helper-low-3')?.addEventListener('click', () => {
-        if (selectedHVWords.length > 0 && inputVI) {
-            const result = selectedHVWords.map((word, index) => index < 3 ? lowercaseWords(word) : word).join(' ');
+        if (inputVI) {
+            const viWords = getCurrentVIWords(inputVI);
+            const result = viWords.map((word, index) => index < 3 ? lowercaseWords(word) : word).join(' ');
             inputVI.value = result;
         }
     });
 
     document.getElementById('btn-helper-low-all')?.addEventListener('click', () => {
-        if (inputVI) inputVI.value = lowercaseWords(selectedHVWords.join(' '));
+        if (inputVI) {
+            const viWords = getCurrentVIWords(inputVI);
+            inputVI.value = lowercaseWords(viWords.join(' '));
+        }
     });
 
     // 4. BẤM NÚT LƯU NAME & THAY THẾ TOÀN BỘ

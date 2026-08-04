@@ -1,5 +1,5 @@
 // =========================================================================
-// INDEXEDDB STORAGE & THUẬT TOÁN TRIE DỊCH NAME QT QUẢN LÝ ĐA FILE (NFC)
+// INDEXEDDB & POSTGRESQL ENGINE - DỊCH NAME QT QUẢN LÝ ĐA FILE
 // =========================================================================
 const DB_NAME = 'NameQT_Store_DB_v3';
 const FILES_STORE = 'files_store_v3';
@@ -73,7 +73,7 @@ async function clearFilesFromIndexedDB() {
 class TrieNameQT {
     constructor() {
         this.dict = new Map();
-        this.files = []; // Danh sách các file NameQT
+        this.files = []; 
         this.root = { children: new Map() };
         this.maxDepth = 0;
     }
@@ -134,9 +134,20 @@ class TrieNameQT {
             this.files.push(fileObj);
         }
 
-        try {
-            await saveFileToIndexedDB(fileObj);
-        } catch (e) { console.warn("Lưu bộ nhớ tạm:", e); }
+        // 1. Lưu Cục bộ vào IndexedDB
+        try { await saveFileToIndexedDB(fileObj); } catch (e) {}
+
+        // 2. Lưu lên Server PostgreSQL nếu đã đăng nhập
+        const userId = (typeof window.Clerk !== 'undefined' && window.Clerk.user) ? window.Clerk.user.id : null;
+        if (userId) {
+            try {
+                await fetch('/api/nameqt', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...fileObj, userId })
+                });
+            } catch (e) { console.error("Lỗi đồng bộ Name QT lên Server:", e); }
+        }
 
         this.rebuildCombinedDict();
         return count;
@@ -144,9 +155,16 @@ class TrieNameQT {
 
     async removeFile(fileId) {
         this.files = this.files.filter(f => f.id !== fileId);
-        try {
-            await deleteFileFromIndexedDB(fileId);
-        } catch (e) {}
+        try { await deleteFileFromIndexedDB(fileId); } catch (e) {}
+
+        // Xóa trên Server PostgreSQL
+        const userId = (typeof window.Clerk !== 'undefined' && window.Clerk.user) ? window.Clerk.user.id : null;
+        if (userId) {
+            try {
+                await fetch(`/api/nameqt?id=${fileId}&user_id=${userId}`, { method: 'DELETE' });
+            } catch (e) {}
+        }
+
         this.rebuildCombinedDict();
     }
 
@@ -154,16 +172,47 @@ class TrieNameQT {
         this.dict.clear();
         this.files = [];
         this.buildTrie();
-        try {
-            await clearFilesFromIndexedDB();
-        } catch (e) {}
+        try { await clearFilesFromIndexedDB(); } catch (e) {}
     }
 
     async loadFromStorage() {
-        const files = await loadFilesFromIndexedDB();
-        if (files && files.length > 0) {
-            this.files = files;
+        // 1. Nạp từ IndexedDB dưới máy trước
+        const localFiles = await loadFilesFromIndexedDB();
+        if (localFiles && localFiles.length > 0) {
+            this.files = localFiles;
             this.rebuildCombinedDict();
+        }
+
+        // 2. Nếu đã đăng nhập Clerk -> Đồng bộ toàn bộ Name QT từ Postgres về
+        const userId = (typeof window.Clerk !== 'undefined' && window.Clerk.user) ? window.Clerk.user.id : null;
+        if (userId) {
+            try {
+                const res = await fetch(`/api/nameqt?userId=${userId}`);
+                if (res.ok) {
+                    const result = await res.json();
+                    const cloudFiles = result.data || [];
+                    
+                    if (cloudFiles.length > 0) {
+                        this.files = cloudFiles;
+                        this.rebuildCombinedDict();
+                        // Lưu đệm lại vào IndexedDB dưới máy
+                        for (const f of cloudFiles) {
+                            await saveFileToIndexedDB(f);
+                        }
+                    } else if (localFiles && localFiles.length > 0) {
+                        // Nếu Server chưa có mà dưới máy có sẵn -> Đẩy từ dưới máy lên Server
+                        for (const f of localFiles) {
+                            await fetch('/api/nameqt', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ ...f, userId })
+                            });
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Lỗi nạp Name QT từ Server:", e);
+            }
         }
     }
 

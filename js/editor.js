@@ -19,9 +19,7 @@ function debounceSave() {
             lastHistoryTime = now;
         }
         
-        // --- TÍCH HỢP ĐẾM TỪ ---
         updateWordCounts(); 
-
     }, 500);
 }
 
@@ -29,7 +27,6 @@ function renderTable() {
     const tbody = document.getElementById('table-body');
     if (!tbody) return;
     
-    // Tự động tạo 1 hàng trống nếu data bị rỗng
     if (!data || !Array.isArray(data) || data.length === 0) {
         data = [createEmptyRow()];
     }
@@ -58,7 +55,6 @@ function renderTable() {
         }
     });
 
-    // --- TÍCH HỢP ĐẾM TỪ ---
     updateWordCounts();
 }
 
@@ -155,21 +151,38 @@ function initEditorEvents() {
     const tbody = document.getElementById('table-body');
     if (!tbody) return;
 
-    // SỬA LỖI DÁN (PASTE) PHẢI ẤN 2 LẦN: ÉP CẬP NHẬT THẲNG VÀO BỘ NHỚ LÕI
+    // XỬ LÝ DÁN (PASTE) THÔNG MINH: CHỐNG XÓA ĐÈ TOÀN BỘ Ô KHI DÁN TỪ NGẮN
     tbody.addEventListener('paste', (e) => {
-        e.preventDefault(); // Ngăn trình duyệt tự ý dán làm kẹt con trỏ
-        if (typeof clearSyncHighlights === 'function') clearSyncHighlights();
-        
         const targetCell = e.target.closest('td');
         if (!targetCell) return;
-        
-        const clipboardText = normalizeUnicodeText((e.originalEvent || e).clipboardData.getData('text/plain'));
+
+        const clipboardText = (e.originalEvent || e).clipboardData.getData('text/plain');
         if (!clipboardText) return;
 
         const cleanText = clipboardText.replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '').normalize('NFC');
         let lines = cleanText.split(/\r\n|\r|\n|\u2028|\u2029/).map(line => line.trim()).filter(line => line !== '');
-        if (lines.length === 0) return;
 
+        // TH1: DÁN TỪ NGẮN / 1 CÂU VÀO GIỮA ĐOẠN VĂN -> CHÈN TẠI CON TRỎ CHUỘT (GIỮ NGUYÊN NỘI DUNG CŨ)
+        if (lines.length <= 1 && !cleanText.includes('\t')) {
+            e.preventDefault();
+            
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+            selection.deleteFromDocument();
+            const textNode = document.createTextNode(cleanText);
+            selection.getRangeAt(0).insertNode(textNode);
+            
+            selection.getRangeAt(0).setStartAfter(textNode);
+            selection.getRangeAt(0).setEndAfter(textNode);
+
+            targetCell.dispatchEvent(new Event('input', { bubbles: true }));
+            return;
+        }
+
+        // TH2: DÁN BẢNG BẢN DỊCH NHIỀU HÀNG (TỪ EXCEL) -> DÁN THEO HÀNG LOẠT
+        e.preventDefault();
+        if (typeof clearSyncHighlights === 'function') clearSyncHighlights();
+        
         saveEditorUndoState();
         if (typeof addEditorHistoryEntry === 'function') addEditorHistoryEntry();
 
@@ -177,7 +190,6 @@ function initEditorEvents() {
         let startRowIndex = Array.from(tbody.children).indexOf(tr);
         const colIndex = Array.from(tr.children).indexOf(targetCell);
 
-        // Ghi thẳng dữ liệu vào mảng Data (Không thao tác DOM thủ công nữa)
         for (let i = 0; i < lines.length; i++) {
             const textLine = lines[i];
             const rowIndex = startRowIndex + i;
@@ -213,7 +225,6 @@ function initEditorEvents() {
             }
         }
         
-        // Ép vẽ lại toàn bộ bảng cực mượt (giải quyết bệnh phải ấn 2 lần)
         renderTable();
         debounceSave();
     });
@@ -354,23 +365,20 @@ function initEditorEvents() {
         }
     });
 
-    // SỬA LỖI NÚT LÀM MỚI (RESET) PHẢI ẤN 2 LẦN
     document.getElementById('btn-reset')?.addEventListener('click', (e) => {
-        e.preventDefault(); // Chặn sự kiện mặc định để tránh mất tiêu điểm
+        e.preventDefault();
         if (typeof clearSyncHighlights === 'function') clearSyncHighlights();
         
         if (confirm("⚠️ Xóa TOÀN BỘ dữ liệu trên bảng?")) {
             saveEditorUndoState();
             if (typeof addEditorHistoryEntry === 'function') addEditorHistoryEntry();
             
-            // Xóa sạch sẽ toàn bộ biến hệ thống
             data = [createEmptyRow()];
             currentRowIndex = -1;
             selectedRowIndices = [];
             manualQTState = {};
             rowTokensMap = {};
             
-            // Ép giao diện vẽ lại ngay lập tức
             renderTable();
             localStorage.setItem('translationData', JSON.stringify(data));
             localStorage.setItem('manualQTState', JSON.stringify(manualQTState));
@@ -550,7 +558,6 @@ function initEditorEvents() {
         }
     });
 
-    // Lịch sử dịch
     document.getElementById('btn-history-show')?.addEventListener('click', (e) => {
         e.preventDefault();
         if (typeof openHistoryModal === 'function') {
@@ -558,13 +565,12 @@ function initEditorEvents() {
         }
     });
 
-    // Đồng bộ bôi đen Real-time
     if (typeof handleSelectionSync === 'function') {
         document.addEventListener('mouseup', handleSelectionSync);
         document.addEventListener('keyup', handleSelectionSync);
     }
 
-    // Các nút định dạng Ribbon Word
+    // Ribbon Word
     document.getElementById('btn-undo')?.addEventListener('click', editorUndo);
     document.getElementById('btn-redo')?.addEventListener('click', editorRedo);
     document.getElementById('btn-bold')?.addEventListener('click', () => execFormat('bold'));
@@ -691,11 +697,8 @@ function toFullWidth(str) {
     return str.replace(/[\u0021-\u007E]/g, c => String.fromCharCode(c.charCodeAt(0) + 0xfee0)).replace(/ /g, '\u3000');
 }
 
-// =========================================================================
-// HÀM ĐẾM SỐ TỪ VÀ KÝ TỰ REAL-TIME (CODE MỚI THÊM)
-// =========================================================================
+// HÀM ĐẾM SỐ TỪ VÀ KÝ TỰ REAL-TIME
 function updateWordCounts() {
-    // Khởi tạo bộ đếm cho 6 cột
     let counts = {
         raw: { w: 0, c: 0 },
         pinyin: { w: 0, c: 0 },
@@ -705,23 +708,18 @@ function updateWordCounts() {
         edit: { w: 0, c: 0 }
     };
 
-    // Duyệt qua toàn bộ dữ liệu trong mảng data
     data.forEach(row => {
         columns.forEach(col => {
             if (row[col]) {
-                // Lọc bỏ thẻ HTML (như <b>, <span>, <div>) để đếm text thật
                 const plainText = row[col].replace(/<[^>]+>/g, '').trim();
                 if (plainText) {
-                    counts[col].c += plainText.length; // Đếm số ký tự
+                    counts[col].c += plainText.length;
 
-                    // Thuật toán đếm từ
                     if (col === 'raw' || col === 'qt') {
-                        // Tiếng Trung: Đếm từng chữ Hán + các từ Latin (nếu có)
                         const cjk = plainText.match(/[\u4e00-\u9fa5]/g);
                         const latin = plainText.match(/[a-zA-Z0-9À-ỹ]+/g);
                         counts[col].w += (cjk ? cjk.length : 0) + (latin ? latin.length : 0);
                     } else {
-                        // Tiếng Việt / Pinyin: Đếm theo cụm từ cách nhau bởi khoảng trắng
                         counts[col].w += plainText.split(/\s+/).filter(word => word.length > 0).length;
                     }
                 }
@@ -729,7 +727,6 @@ function updateWordCounts() {
         });
     });
 
-    // Cập nhật số liệu lên giao diện HTML
     columns.forEach(col => {
         const el = document.getElementById(`count-${col}`);
         if (el) {

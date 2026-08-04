@@ -2,6 +2,21 @@
 // QUẢN LÝ THÔNG TIN TRUYỆN (MỤC 2) - TƯƠNG THÍCH CHUẨN ĐỊNH DẠNG JSON
 // =========================================================================
 
+// HÀM BỔ SUNG: Cập nhật trạng thái sáng/mờ của các nút Undo/Redo (Chống lỗi ReferenceError)
+function updateUndoRedoButtonsState() {
+    try {
+        const btnMetaUndo = document.getElementById('btn-meta-undo');
+        const btnMetaRedo = document.getElementById('btn-meta-redo');
+        if (btnMetaUndo) btnMetaUndo.disabled = (typeof metaUndoStack !== 'undefined') ? metaUndoStack.length === 0 : true;
+        if (btnMetaRedo) btnMetaRedo.disabled = (typeof metaRedoStack !== 'undefined') ? metaRedoStack.length === 0 : true;
+
+        const btnUndo = document.getElementById('btn-undo');
+        const btnRedo = document.getElementById('btn-redo');
+        if (btnUndo) btnUndo.disabled = (typeof editorUndoStack !== 'undefined') ? editorUndoStack.length === 0 : true;
+        if (btnRedo) btnRedo.disabled = (typeof editorRedoStack !== 'undefined') ? editorRedoStack.length === 0 : true;
+    } catch (e) {}
+}
+
 // Hàm chuẩn hóa dữ liệu thông minh (Đọc tốt cả khóa c1..c5 lẫn cn/vi)
 function normalizeMetadata(imported) {
     if (!imported) return { title: '', characters: [], pronouns: [], terms: [] };
@@ -37,7 +52,6 @@ function saveMetadata() {
 }
 
 function renderMetadata() {
-    // Tự động chuẩn hóa dữ liệu nếu cần
     if (metadata) {
         metadata = normalizeMetadata(metadata);
     }
@@ -48,6 +62,7 @@ function renderMetadata() {
     renderCharacters();
     renderPronouns();
     renderTerms();
+    updateUndoRedoButtonsState();
 }
 
 function saveMetaUndoState() {
@@ -348,7 +363,6 @@ function handleMetadataImport(event) {
                 saveMetaUndoState();
                 addMetaHistoryEntry();
                 
-                // Chuẩn hóa dữ liệu tương thích c1, c2, c3...
                 metadata = normalizeMetadata(imported);
                 
                 debounceMetaSave();

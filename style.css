@@ -75,6 +75,87 @@ header {
     z-index: 100;
 }
 
+.top-nav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 20px;
+    min-height: 68px;
+    background-color: var(--header-bg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--text-color);
+}
+
+.app-logo {
+    font-size: 1.5rem;
+}
+
+.main-nav-links {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.nav-link {
+    border: none;
+    background: transparent;
+    color: var(--text-color);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.nav-link:hover,
+.nav-link.active {
+    background-color: var(--row-hover);
+    color: var(--btn-primary);
+}
+
+.nav-right-controls, .font-controls {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-wrap: nowrap !important;
+}
+
+.btn-icon-nav {
+    position: relative;
+    min-width: 42px;
+    min-height: 42px;
+    padding: 10px 12px;
+    background: var(--border-color);
+    color: var(--text-color);
+    border-radius: 12px;
+    font-size: 1rem;
+}
+
+.badge-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    background-color: var(--btn-danger);
+    color: white;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    position: absolute;
+    top: 6px;
+    right: 6px;
+}
+
 .top-bar {
     padding: 10px 20px;
     display: flex;
@@ -89,6 +170,14 @@ header {
 
 .font-controls {
     display: flex; gap: 5px; align-items: center; flex-wrap: wrap; font-weight: bold;
+}
+.clerk-auth-container {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 4px;
+}
+#btn-clerk-login {
+    padding: 4px 10px;
 }
 .font-controls button {
     padding: 4px 10px;
@@ -175,6 +264,9 @@ button {
     align-items: center;
     gap: 5px;
 }
+
+.btn-primary { background-color: var(--btn-primary); color: white; }
+.btn-primary:hover { background-color: var(--btn-primary-hover); }
 
 .btn-file { background-color: var(--btn-secondary); color: white; }
 .btn-file:hover { background-color: var(--btn-secondary-hover); }
@@ -306,6 +398,16 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
     color: #000000 !important;
 }
 
+/* ĐỊNH DẠNG KHUNG CHỨA AVATAR USER CLERK */
+#clerk-auth-container {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 35px;
+    min-height: 35px;
+    margin-left: 10px;
+}
+
 /* ================= BẢNG EXCEL ĐỘC LẬP (TAB 2) ================= */
 .story-title-bar {
     background-color: var(--info-blue-bg);
@@ -408,6 +510,38 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
 .modal-body-scroll { flex-grow: 1; overflow-y: auto; padding-right: 5px; }
 
 .modal-group { margin-bottom: 12px; }
+
+.project-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    background: var(--bg-color);
+}
+
+.project-item strong {
+    display: block;
+    margin-bottom: 4px;
+}
+
+.project-item .project-meta {
+    font-size: 0.85rem;
+    color: #475569;
+}
+
+.project-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.project-actions button {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+}
 .modal-group label { display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: bold; }
 .modal-group input, .modal-group select {
     width: 100%; padding: 8px; border: 1px solid var(--border-color);
@@ -424,6 +558,29 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
     color: var(--text-color);
     font-family: monospace;
     resize: vertical;
+}
+
+/* TRANG TRÍ AVATAR USER TRÒN NỔI BẬT */
+.user-avatar-wrapper {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    margin-left: 8px;
+    transition: transform 0.2s ease;
+}
+
+.user-avatar-wrapper:hover {
+    transform: scale(1.1);
+}
+
+.user-avatar-img {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 50% !important;
+    object-fit: cover !important;
+    border: 2px solid var(--btn-primary) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
 }
 
 .modal-sub-title { margin: 15px 0 8px 0; font-size: 0.95rem; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; font-weight: bold; }

@@ -18,6 +18,10 @@ function debounceSave() {
             if (typeof addEditorHistoryEntry === 'function') addEditorHistoryEntry();
             lastHistoryTime = now;
         }
+        
+        // --- TÍCH HỢP ĐẾM TỪ ---
+        updateWordCounts(); 
+
     }, 500);
 }
 
@@ -53,6 +57,9 @@ function renderTable() {
             }
         }
     });
+
+    // --- TÍCH HỢP ĐẾM TỪ ---
+    updateWordCounts();
 }
 
 function appendRowToDOM(rowObj, index) {
@@ -682,4 +689,52 @@ function toHalfWidth(str) {
 
 function toFullWidth(str) {
     return str.replace(/[\u0021-\u007E]/g, c => String.fromCharCode(c.charCodeAt(0) + 0xfee0)).replace(/ /g, '\u3000');
+}
+
+// =========================================================================
+// HÀM ĐẾM SỐ TỪ VÀ KÝ TỰ REAL-TIME (CODE MỚI THÊM)
+// =========================================================================
+function updateWordCounts() {
+    // Khởi tạo bộ đếm cho 6 cột
+    let counts = {
+        raw: { w: 0, c: 0 },
+        pinyin: { w: 0, c: 0 },
+        meaning: { w: 0, c: 0 },
+        translation: { w: 0, c: 0 },
+        qt: { w: 0, c: 0 },
+        edit: { w: 0, c: 0 }
+    };
+
+    // Duyệt qua toàn bộ dữ liệu trong mảng data
+    data.forEach(row => {
+        columns.forEach(col => {
+            if (row[col]) {
+                // Lọc bỏ thẻ HTML (như <b>, <span>, <div>) để đếm text thật
+                const plainText = row[col].replace(/<[^>]+>/g, '').trim();
+                if (plainText) {
+                    counts[col].c += plainText.length; // Đếm số ký tự
+
+                    // Thuật toán đếm từ
+                    if (col === 'raw' || col === 'qt') {
+                        // Tiếng Trung: Đếm từng chữ Hán + các từ Latin (nếu có)
+                        const cjk = plainText.match(/[\u4e00-\u9fa5]/g);
+                        const latin = plainText.match(/[a-zA-Z0-9À-ỹ]+/g);
+                        counts[col].w += (cjk ? cjk.length : 0) + (latin ? latin.length : 0);
+                    } else {
+                        // Tiếng Việt / Pinyin: Đếm theo cụm từ cách nhau bởi khoảng trắng
+                        counts[col].w += plainText.split(/\s+/).filter(word => word.length > 0).length;
+                    }
+                }
+            }
+        });
+    });
+
+    // Cập nhật số liệu lên giao diện HTML
+    columns.forEach(col => {
+        const el = document.getElementById(`count-${col}`);
+        if (el) {
+            el.innerText = `${counts[col].w.toLocaleString('vi-VN')} từ`;
+            el.title = `${counts[col].w.toLocaleString('vi-VN')} từ • ${counts[col].c.toLocaleString('vi-VN')} ký tự`;
+        }
+    });
 }

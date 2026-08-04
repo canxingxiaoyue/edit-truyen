@@ -15,11 +15,12 @@ document.addEventListener('DOMContentLoaded', () => {
     try { initEditorEvents(); } catch (e) { console.error("Lỗi initEditorEvents:", e); }
     try { initMetadataEvents(); } catch (e) { console.error("Lỗi initMetadataEvents:", e); }
     try { initNameQTModalEvents(); } catch (e) { console.error("Lỗi initNameQTModalEvents:", e); }
+    try { initProjectManagerEvents(); } catch (e) { console.error("Lỗi initProjectManagerEvents:", e); }
     
     // 3. Luôn luôn vẽ Bảng dịch và Bảng thông tin ra màn hình
     try { renderTable(); } catch (e) { console.error("Lỗi renderTable:", e); }
     try { renderMetadata(); } catch (e) { console.error("Lỗi renderMetadata:", e); }
-    try { updateUndoRedoButtonsState(); } catch (e) { console.error("Lỗi UndoRedoState:", e); }
+    if (typeof updateUndoRedoButtonsState === 'function') updateUndoRedoButtonsState();
 
     // 4. Nạp từ điển Name QT từ IndexedDB
     if (typeof nameQTEngine !== 'undefined' && nameQTEngine.loadFromStorage) {
@@ -110,5 +111,5 @@ function switchTab(tabId) {
         document.getElementById('edit-tool-toolbars').style.display = 'none';
         renderMetadata();
     }
-    updateUndoRedoButtonsState();
+    if (typeof updateUndoRedoButtonsState === 'function') updateUndoRedoButtonsState();
 }

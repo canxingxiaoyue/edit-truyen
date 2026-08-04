@@ -12,6 +12,27 @@
     <!-- Thư viện Pinyin hỗ trợ phiên âm tự động -->
     <script src="https://unpkg.com/pinyin-pro"></script>
 
+    <!-- Thư viện Giao diện UI của Clerk -->
+    <script
+      defer
+      crossorigin="anonymous"
+      src="https://square-oyster-64.clerk.accounts.dev/npm/@clerk/ui@1/dist/clerk.browser.js"
+      type="text/javascript">
+    </script>
+
+    <!-- Thư viện Lõi SDK của Clerk -->
+    <script
+      defer
+      crossorigin="anonymous"
+      data-clerk-publishable-key="pk_test_c3F1YXJlLW95c3Rlci02NC5jbGVyay5hY2NvdW50cy5kZXYk"
+      src="https://square-oyster-64.clerk.accounts.dev/npm/@clerk/clerk-js@1/dist/clerk.browser.js"
+      type="text/javascript">
+    </script>
+
+    <!-- Thư viện Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
     <!-- Liên kết File CSS bên ngoài -->
     <link rel="stylesheet" href="style.css">
 
@@ -24,62 +45,73 @@
     <script src="js/search-replace.js" defer></script>
     <script src="js/modals-history.js" defer></script>
     <script src="js/quick-name.js" defer></script>
+    <script src="js/project-manager.js" defer></script>
     <script src="js/app.js" defer></script>
 </head>
 <body>
 
     <header>
-        <div class="top-bar">
-            <h1>📝 công cụ edit</h1>
-            <div class="font-controls">
-                <span title="Chỉnh cỡ chữ">Cỡ chữ:</span>
-                <button id="btn-font-down">A-</button>
-                <button id="btn-font-up">A+</button>
+        <!-- THANH ĐIỀU HƯỚNG TRÊN CÙNG (TOP NAV BAR - REQ 18) -->
+        <div class="top-nav-bar">
+            <div class="nav-brand">
+                <span class="app-logo">📝</span>
+                <span class="app-name">công cụ edit</span>
+            </div>
 
-                <!-- BỘ SƯU TẬP FONT VIẾT TRUYỆN -->
-                <select id="font-family" class="font-select" title="Chọn Font chữ chuyên dụng">
-                    <optgroup label="Cổ điển / Tiểu thuyết (Có chân)">
-                        <option value="'Times New Roman', Times, serif">Times New Roman (Cổ điển)</option>
-                        <option value="'Palatino Linotype', 'Book Antiqua', Palatino, serif">Palatino (Chuẩn sách in)</option>
-                        <option value="Georgia, serif">Georgia</option>
-                        <option value="'Literata', serif">Literata (Chuẩn Google Books)</option>
-                        <option value="'Lora', serif">Lora (Mềm mại, tinh tế)</option>
-                        <option value="'Merriweather', serif">Merriweather (Rất dễ đọc)</option>
-                        <option value="'Crimson Pro', serif">Crimson Pro (Hoài cổ)</option>
-                        <option value="'Playfair Display', serif">Playfair Display (Sang trọng)</option>
-                        <option value="'EB Garamond', serif">EB Garamond (Thanh lịch)</option>
-                        <option value="'Noto Serif', serif">Noto Serif (Đa ngôn ngữ)</option>
-                    </optgroup>
-                    <optgroup label="Hiện đại / Dễ nhìn (Không chân)">
-                        <option value="'Segoe UI', Roboto, Helvetica, Arial, sans-serif">Segoe UI (Mặc định)</option>
-                        <option value="Arial, Helvetica, sans-serif">Arial</option>
-                        <option value="'Lexend', sans-serif">Lexend (Gõ cực lướt)</option>
-                        <option value="'Inter', sans-serif">Inter (Sạch sẽ, Hiện đại)</option>
-                        <option value="'Roboto', sans-serif">Roboto (Quốc dân)</option>
-                        <option value="'Quicksand', sans-serif">Quicksand (Tròn dịu, Cute)</option>
-                        <option value="'Noto Sans', sans-serif">Noto Sans</option>
-                    </optgroup>
-                </select>
+            <nav class="main-nav-links">
+                <button class="nav-link active" id="nav-home">Trang chủ</button>
+                <button class="nav-link" id="nav-my-projects">📂 Dữ liệu của tôi</button>
+                <button class="nav-link" id="nav-docs" onclick="alert('Công cụ Biên Dịch & Edit Truyện Chuyên Nghiệp v3.0\nHỗ trợ dịch Name QT, Pinyin, Quản lý tiến độ.')">Tài liệu</button>
+            </nav>
 
-                <select id="theme-select" class="font-select" title="Chọn giao diện màu">
-                    <option value="light">☀️ Sáng sữa</option>
-                    <option value="sepia">🍂 Giấy ấm (Sepia)</option>
-                    <option value="sage">🍃 Xanh lục dịu (Bảo vệ mắt)</option>
-                    <option value="dreamy">🌸 Hồng tím pastel (Mộng mơ)</option>
-                    <option value="dark">🌙 Tối xám dịu</option>
-                    <option value="night">🌌 Đêm biển thẳm</option>
-                    <option value="oled">🖤 OLED Đen tuyền</option>
-                </select>
+            <div class="nav-right-controls">
+                <div class="font-controls">
+                    <span title="Chỉnh cỡ chữ">Cỡ chữ:</span>
+                    <button id="btn-font-down">A-</button>
+                    <button id="btn-font-up">A+</button>
+
+                    <select id="font-family" class="font-select" title="Chọn Font chữ chuyên dụng">
+                        <optgroup label="Cổ điển / Tiểu thuyết (Có chân)">
+                            <option value="'Times New Roman', Times, serif">Times New Roman (Cổ điển)</option>
+                            <option value="'Palatino Linotype', 'Book Antiqua', Palatino, serif">Palatino</option>
+                            <option value="Georgia, serif">Georgia</option>
+                            <option value="'Literata', serif">Literata</option>
+                            <option value="'Lora', serif">Lora</option>
+                            <option value="'Merriweather', serif">Merriweather</option>
+                            <option value="'EB Garamond', serif">EB Garamond</option>
+                        </optgroup>
+                        <optgroup label="Hiện đại / Dễ nhìn (Không chân)">
+                            <option value="'Segoe UI', Roboto, Helvetica, Arial, sans-serif">Segoe UI (Mặc định)</option>
+                            <option value="Arial, Helvetica, sans-serif">Arial</option>
+                            <option value="'Lexend', sans-serif">Lexend</option>
+                            <option value="'Inter', sans-serif">Inter</option>
+                            <option value="'Roboto', sans-serif">Roboto</option>
+                            <option value="'Quicksand', sans-serif">Quicksand</option>
+                        </optgroup>
+                    </select>
+
+                    <select id="theme-select" class="font-select" title="Chọn giao diện màu">
+                        <option value="light">☀️ Sáng sữa</option>
+                        <option value="sepia">🍂 Giấy ấm (Sepia)</option>
+                        <option value="sage">🍃 Xanh lục dịu</option>
+                        <option value="dreamy">🌸 Hồng tím pastel</option>
+                        <option value="dark">🌙 Tối xám dịu</option>
+                        <option value="night">🌌 Đêm biển thẳm</option>
+                        <option value="oled">🖤 OLED Đen tuyền</option>
+                    </select>
+                </div>
+                <!-- KHU VỰC CLERK AVATAR / ĐĂNG NHẬP (REQ 13, 18) -->
+                <div id="clerk-auth-container"></div>
             </div>
         </div>
 
-        <!-- Thanh chuyển mục TAB -->
+        <!-- THANH CHUYỂN MỤC TAB HIỆN CÓ -->
         <div class="nav-tabs">
             <button class="tab-btn active" id="tab-edit">📝 1. Ê đít time</button>
             <button class="tab-btn" id="tab-story">📚 2. Thông tin truyện</button>
         </div>
         
-        <!-- Nhóm thanh công cụ -->
+        <!-- NHÓM THANH CÔNG CỤ DỊCH THUẬT HIỆN CÓ -->
         <div id="edit-tool-toolbars">
             <!-- Ô NHẬP TÊN CHƯƠNG MỚI ĐƯỢC THÊM VÀO ĐÂY -->
             <div class="story-title-bar" style="background: var(--header-bg); border-bottom: 1px solid var(--border-color); padding: 8px 20px;">
@@ -129,7 +161,7 @@
                 </div>
                 <div class="color-input-wrapper" title="Tô sáng nền chữ">
                     🖌️ Tô: <input type="color" id="ribbon-hilitecolor" value="#fde047" class="color-picker-box">
-                    <button id="btn-clear-hilite" title="Xóa màu nền tô (Không màu)" style="background:transparent; border:none; margin-left:4px; cursor:pointer; font-size:0.8rem; display:inline-flex; align-items:center;">❌</button>
+                    <button id="btn-clear-hilite" title="Xóa màu nền tô" style="background:transparent; border:none; margin-left:4px; cursor:pointer; font-size:0.8rem; display:inline-flex; align-items:center;">❌</button>
                 </div>
                 <div class="divider"></div>
 
@@ -165,36 +197,42 @@
                             <th>
                                 <div class="th-wrapper">
                                     <span class="th-title">Raw</span>
+                                    <span class="col-count" id="count-raw" title="0 từ • 0 ký tự">0 từ</span>
                                     <button class="col-copy-btn" data-col="raw" data-format="single">📋 Copy</button>
                                 </div>
                             </th>
                             <th>
                                 <div class="th-wrapper">
                                     <span class="th-title">Pinyin</span>
+                                    <span class="col-count" id="count-pinyin" title="0 từ • 0 ký tự">0 từ</span>
                                     <button class="col-copy-btn" data-col="pinyin" data-format="single">📋 Copy</button>
                                 </div>
                             </th>
                             <th>
                                 <div class="th-wrapper">
                                     <span class="th-title">Nghĩa của từ</span>
+                                    <span class="col-count" id="count-meaning" title="0 từ • 0 ký tự">0 từ</span>
                                     <button class="col-copy-btn" data-col="meaning" data-format="single">📋 Copy</button>
                                 </div>
                             </th>
                             <th>
                                 <div class="th-wrapper">
                                     <span class="th-title">Bản ê đít</span>
+                                    <span class="col-count" id="count-translation" title="0 từ • 0 ký tự">0 từ</span>
                                     <button class="col-copy-btn" data-col="translation" data-format="story">📋 Copy</button>
                                 </div>
                             </th>
                             <th>
                                 <div class="th-wrapper">
                                     <span class="th-title">Bản QT</span>
+                                    <span class="col-count" id="count-qt" title="0 từ • 0 ký tự">0 từ</span>
                                     <button class="col-copy-btn" data-col="qt" data-format="story">📋 Copy</button>
                                 </div>
                             </th>
                             <th>
                                 <div class="th-wrapper">
                                     <span class="th-title">Bản bê ta</span>
+                                    <span class="col-count" id="count-edit" title="0 từ • 0 ký tự">0 từ</span>
                                     <button class="col-copy-btn" data-col="edit" data-format="story">📋 Copy</button>
                                 </div>
                             </th>
@@ -383,7 +421,7 @@
     <!-- Hộp thoại Lịch sử sửa đổi -->
     <div class="modal-overlay" id="modal-history">
         <div class="modal-content">
-            <h3 id="history-modal-title">🕒 Lịch sử sửa đổi</h3>
+            <h3>🕒 Lịch sử sửa đổi</h3>
             <p class="modal-desc">Bản sao lưu tự động được lưu trước khi thực hiện thay đổi lớn hoặc sau mỗi 15 giây gõ phím.</p>
             <div id="history-list" class="history-container"></div>
             <div class="modal-actions">
@@ -391,6 +429,7 @@
             </div>
         </div>
     </div>
+    
     <button id="quick-name-btn" class="quick-name-btn" style="display:none;">➕ Thêm Name mới</button>
 
     <!-- HỘP THOẠI MODAL THÊM NAME KIỂU QUICK TRANSLATOR chuẩn -->
@@ -442,8 +481,174 @@
             </div>
         </div>
     </div>
+
+    <!-- HỘP THOẠI MODAL: QUẢN LÝ DỰ ÁN DỮ LIỆU CỦA TÔI (REQ 16) -->
+    <div class="modal-overlay" id="modal-my-data">
+        <div class="modal-content" style="width: 850px; max-width: 95vw;">
+            <h3>📂 Dữ liệu & Dự án của tôi</h3>
+            <p class="modal-desc" id="storage-summary-info">Đang tính toán dung lượng...</p>
+
+            <div class="project-toolbar-bar" style="display:flex; gap:10px; align-items:center; margin-top:12px;">
+                <input type="text" id="project-search-input" placeholder="🔍 Tìm kiếm dự án / chương truyện..." style="flex:1; padding:7px 10px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-color); color:var(--text-color);">
+                <select id="project-sort-select" class="font-select" style="margin:0;">
+                    <option value="updated-desc">Mới nhất trước</option>
+                    <option value="updated-asc">Cũ nhất trước</option>
+                    <option value="name-asc">Tên A-Z</option>
+                    <option value="size-desc">Dung lượng lớn nhất</option>
+                </select>
+            </div>
+
+            <div class="modal-body-scroll" style="max-height: 50vh; margin-top: 10px;">
+                <table class="info-table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th style="width: 30%;">Tên Chương / Dự án</th>
+                            <th style="width: 15%;">Số hàng</th>
+                            <th style="width: 20%;">Lần sửa cuối</th>
+                            <th style="width: 15%;">Dung lượng</th>
+                            <th style="width: 20%;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="my-projects-list-body"></tbody>
+                </table>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-file" id="btn-close-my-data" style="margin-right: auto;">Đóng</button>
+                <button class="btn-add" id="btn-save-current-as-project">💾 Lưu chương hiện tại thành dự án</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- THÔNG BÁO HỆ THỐNG -->
+    <div class="modal-overlay" id="modal-notifications">
+        <div class="modal-content">
+            <h3>🔔 Thông báo hệ thống</h3>
+            <p class="modal-desc">Những cập nhật và thông báo mới nhất cho công cụ của bạn.</p>
+            <div id="notification-list" class="history-container"></div>
+            <div class="modal-actions">
+                <button class="btn-file" id="btn-clear-notifications">Xóa tất cả</button>
+                <button class="btn-file" id="btn-close-notifications">Đóng</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Hộp thông báo Toast -->
     <div id="toast"></div>
 
+    <!-- ĐOẠN MÃ KHỞI CHẠY CLERK VÀ AUTHENTICATION (BẢO VỆ CHỐNG CHẶN POPUP CỐC CỐC) -->
+    <script>
+        async function handleLoginClick(e) {
+            if (e) e.preventDefault();
+            if (!window.Clerk) {
+                alert("⚠️ Hệ thống Đăng nhập chưa tải xong. Vui lòng thử lại sau vài giây!");
+                return;
+            }
+            try {
+                if (typeof window.Clerk.redirectToSignIn === 'function') {
+                    await window.Clerk.redirectToSignIn({
+                        redirectUrl: window.location.href
+                    });
+                } else {
+                    window.location.href = "https://square-oyster-64.clerk.accounts.dev/sign-in";
+                }
+            } catch (err) {
+                console.error("Lỗi redirect:", err);
+                window.location.href = "https://square-oyster-64.clerk.accounts.dev/sign-in";
+            }
+        }
+
+        function openAccountSettings() {
+            if (!window.Clerk || !window.Clerk.user) return;
+            try {
+                if (typeof window.Clerk.openUserProfile === 'function') {
+                    window.Clerk.openUserProfile();
+                } else if (typeof window.Clerk.redirectToUserProfile === 'function') {
+                    window.Clerk.redirectToUserProfile();
+                } else {
+                    window.location.href = "https://square-oyster-64.clerk.accounts.dev/user";
+                }
+            } catch (err) {
+                if (typeof window.Clerk.redirectToUserProfile === 'function') {
+                    window.Clerk.redirectToUserProfile();
+                } else {
+                    window.location.href = "https://square-oyster-64.clerk.accounts.dev/user";
+                }
+            }
+        }
+
+        function renderUserAvatarUI() {
+            const authContainer = document.getElementById('clerk-auth-container');
+            if (!authContainer || !window.Clerk) return;
+
+            const user = window.Clerk.user;
+
+            if (user) {
+                const avatarUrl = user.imageUrl || 'https://img.clerk.com/preview.png';
+                const displayName = user.fullName || user.username || user.primaryEmailAddress?.emailAddress || 'Tài khoản';
+
+                authContainer.innerHTML = `
+                    <div class="user-avatar-wrapper" id="btn-user-avatar" title="${escapeHTML(displayName)} - Click để Quản lý tài khoản">
+                        <img src="${avatarUrl}" alt="Avatar" class="user-avatar-img" />
+                    </div>
+                `;
+
+                document.getElementById('btn-user-avatar')?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openAccountSettings();
+                });
+            } else {
+                authContainer.innerHTML = `<button class="btn-primary" id="btn-clerk-login" style="padding: 5px 12px; cursor: pointer;">👤 Đăng nhập</button>`;
+            }
+        }
+
+        window.addEventListener('load', async () => {
+            if (window.Clerk) {
+                try {
+                    await window.Clerk.load();
+                    renderUserAvatarUI();
+                    
+                    window.Clerk.addListener(({ user }) => {
+                        const authContainer = document.getElementById('clerk-auth-container');
+                        if (!authContainer) return;
+
+                        if (user) {
+                            authContainer.innerHTML = '';
+                            window.Clerk.mountUserButton(authContainer, {
+                                customMenuItems: [
+                                    {
+                                        label: '📂 Dữ liệu của tôi',
+                                        onClick: () => {
+                                            if (typeof calculateStorageMetrics === 'function') calculateStorageMetrics();
+                                            if (typeof subscribeToSavedProjects === 'function') subscribeToSavedProjects(); // <-- dòng mới thêm
+                                            document.getElementById('modal-my-data')?.classList.add('show');
+                                        }
+                                    }
+                                ]
+                            });
+
+                            if (typeof subscribeToSavedProjects === 'function') {
+                                subscribeToSavedProjects();
+                            }
+
+                        } else {
+                            authContainer.innerHTML = `<button class="btn-primary" id="btn-clerk-login" style="padding: 5px 12px; cursor: pointer;">👤 Đăng nhập</button>`;
+                            
+                            if (typeof subscribeToSavedProjects === 'function') {
+                                subscribeToSavedProjects();
+                            }
+                        }
+                    });
+
+                } catch (err) { console.error('Lỗi nạp Clerk:', err); }
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (e.target && (e.target.id === 'btn-clerk-login' || e.target.closest('#btn-clerk-login'))) {
+                handleLoginClick(e);
+            }
+        });
+    </script>
 </body>
 </html>

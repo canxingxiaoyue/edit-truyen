@@ -1,10 +1,10 @@
 // =========================================================================
-// QUẢN LÝ DỰ ÁN DỮ LIỆU - ĐỒNG BỘ REAL-TIME POSTGRESQL (AUTO-POLLING)
+// QUẢN LÝ DỰ ÁN DỮ LIỆU - ĐỒNG BỘ REAL-TIME POSTGRESQL (CẢ MỤC 1 & MỤC 2)
 // =========================================================================
 
 const API_URL = '/api/projects'; 
-let localSavedProjectsCache = []; // Bộ nhớ đệm
-let projectSyncInterval = null;   // Quản lý Polling tự động
+let localSavedProjectsCache = []; 
+let projectSyncInterval = null;   
 
 function escapeHTML(str) {
     if (!str) return '';
@@ -16,10 +16,8 @@ function escapeHTML(str) {
         .replace(/'/g, '&#039;');
 }
 
-// HÀM ĐỊNH DẠNG NGÀY THÁNG CHUẨN XÁC CHỐNG LỖI INVALID DATE
 function formatDate(val) {
     if (!val) return 'Mới tạo';
-    // Nếu là chuỗi toàn chữ số ("1785836900000"), ép sang dạng Số (Number)
     let parsed = (typeof val === 'string' && /^\d+$/.test(val)) ? Number(val) : val;
     let d = new Date(parsed);
     return isNaN(d.getTime()) ? 'Mới tạo' : d.toLocaleString('vi-VN');
@@ -76,7 +74,6 @@ async function loadSavedProjects(isSilent = false) {
     }
 }
 
-// KHỞI CHẠY LẮNG NGHE TỰ ĐỘNG (POLLING MỖI 3 GIÂY KHI MỞ MODAL)
 function startProjectAutoSync() {
     stopProjectAutoSync();
     loadSavedProjects(false);
@@ -182,7 +179,6 @@ function renderMyProjectsListUI() {
 
     projects.forEach((proj) => {
         const tr = document.createElement('tr');
-        // Định dạng ngày chuẩn xác bằng hàm formatDate
         const dateStr = formatDate(proj.updatedAt);
         const sizeKB = ((proj.size || 0) / 1024).toFixed(1);
 
@@ -200,12 +196,14 @@ function renderMyProjectsListUI() {
         listBody.appendChild(tr);
     });
 
-    // Sự kiện Nút Mở
+    // Sự kiện Nút Mở (TỰ ĐỘNG KHÔI PHỤC CẢ MỤC 1 VÀ MỤC 2)
     listBody.querySelectorAll('.btn-open-proj').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const id = e.currentTarget.getAttribute('data-id');
             const proj = localSavedProjectsCache.find(p => p.id === id);
             if (proj && confirm(`Mở dự án "${proj.name}"? Dữ liệu hiện tại trên màn hình sẽ được thay thế.`)) {
+                
+                // 1. KHÔI PHỤC BẢNG DỊCH (MỤC 1)
                 let parsedData = proj.data;
                 if (typeof parsedData === 'string') {
                     try { parsedData = JSON.parse(parsedData); } catch(e) {}
@@ -218,7 +216,23 @@ function renderMyProjectsListUI() {
                 }
                 renderTable();
                 debounceSave();
-                showToast(`📂 Đã mở dự án "${proj.name}"!`, 'var(--btn-success)');
+
+                // 2. KHÔI PHỤC THÔNG TIN TRUYỆN (MỤC 2: NHÂN VẬT, XƯNG HÔ, TỪ NGỮ)
+                if (proj.metadata) {
+                    let parsedMeta = proj.metadata;
+                    if (typeof parsedMeta === 'string') {
+                        try { parsedMeta = JSON.parse(parsedMeta); } catch(e) {}
+                    }
+                    if (typeof normalizeMetadata === 'function') {
+                        metadata = normalizeMetadata(parsedMeta);
+                    } else {
+                        metadata = parsedMeta;
+                    }
+                    localStorage.setItem('storyMetadata', JSON.stringify(metadata));
+                    if (typeof renderMetadata === 'function') renderMetadata();
+                }
+
+                showToast(`📂 Đã mở dự án "${proj.name}" (Bao gồm Thông tin truyện)!`, 'var(--btn-success)');
                 stopProjectAutoSync();
                 document.getElementById('modal-my-data')?.classList.remove('show');
             }
@@ -253,7 +267,7 @@ function renderMyProjectsListUI() {
     });
 }
 
-// 4. LƯU THÀNH BẢN MỚI
+// 4. LƯU THÀNH BẢN MỚI (ĐÓNG GÓI CẢ MỤC 1 LẪN MỤC 2)
 async function saveCurrentAsProject() {
     const titleVal = (typeof chapterTitle !== 'undefined' && chapterTitle) ? chapterTitle.trim() : 'Chương_Mới';
     const storyTitleVal = (typeof metadata !== 'undefined' && metadata.title) ? metadata.title.trim() : '';
@@ -264,6 +278,7 @@ async function saveCurrentAsProject() {
     const dataStr = JSON.stringify(data);
     const newProjectId = 'proj_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
 
+    // ĐÓNG GÓI ĐẦY ĐỦ CẢ BẢNG DỊCH (data) LẪN THÔNG TIN TRUYỆN (metadata)
     const projObj = {
         id: newProjectId,
         name: namePrompt.trim(),
@@ -272,6 +287,7 @@ async function saveCurrentAsProject() {
         rowCount: data.length,
         size: dataStr.length * 2,
         data: JSON.parse(dataStr),
+        metadata: (typeof metadata !== 'undefined') ? JSON.parse(JSON.stringify(metadata)) : {}, // ĐÓNG GÓI MỤC 2
         updatedAt: Date.now()
     };
 

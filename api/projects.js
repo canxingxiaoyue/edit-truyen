@@ -11,13 +11,13 @@ export default async function handler(req, res) {
     }
 
     try {
-        // 1. GET: LẤY DANH SÁCH DỰ ÁN
+        // 1. GET: LẤY DANH SÁCH DỰ ÁN (BAO GỒM CẢ METADATA THÔNG TIN TRUYỆN)
         if (req.method === 'GET') {
             const { userId } = req.query;
             if (!userId) return res.status(400).json({ error: 'Thiếu userId' });
 
             const { rows } = await sql`
-                SELECT id, name, chapter_title as "chapterTitle", story_title as "storyTitle", row_count as "rowCount", size, data, updated_at as "updatedAt"
+                SELECT id, name, chapter_title as "chapterTitle", story_title as "storyTitle", row_count as "rowCount", size, data, metadata, updated_at as "updatedAt"
                 FROM projects 
                 WHERE user_id = ${String(userId)} 
                 ORDER BY updated_at DESC
@@ -27,16 +27,16 @@ export default async function handler(req, res) {
 
         // 2. POST: TẠO MỚI HOẶC CẬP NHẬT DỰ ÁN
         if (req.method === 'POST') {
-            const { id, userId, name, chapterTitle, storyTitle, rowCount, size, data, updatedAt } = req.body;
+            const { id, userId, name, chapterTitle, storyTitle, rowCount, size, data, metadata, updatedAt } = req.body;
 
             if (!id || !userId) return res.status(400).json({ error: 'Thiếu id hoặc userId' });
 
             const jsonData = typeof data === 'string' ? data : JSON.stringify(data || []);
-            // TRUYỀN SỐ MILIGIÂY (BIGINT) PHÙ HỢP VỚI KIỂU DỮ LIỆU CỦA BẢNG
+            const jsonMeta = typeof metadata === 'string' ? metadata : JSON.stringify(metadata || {});
             const ts = Number(updatedAt || Date.now());
 
             await sql`
-                INSERT INTO projects (id, user_id, name, chapter_title, story_title, row_count, size, data, updated_at)
+                INSERT INTO projects (id, user_id, name, chapter_title, story_title, row_count, size, data, metadata, updated_at)
                 VALUES (
                     ${String(id)}, 
                     ${String(userId)}, 
@@ -46,6 +46,7 @@ export default async function handler(req, res) {
                     ${Number(rowCount) || 0}, 
                     ${Number(size) || 0}, 
                     ${jsonData}::jsonb, 
+                    ${jsonMeta}::jsonb, 
                     ${ts}
                 )
                 ON CONFLICT (id) 
@@ -56,6 +57,7 @@ export default async function handler(req, res) {
                     row_count = EXCLUDED.row_count,
                     size = EXCLUDED.size,
                     data = EXCLUDED.data,
+                    metadata = EXCLUDED.metadata,
                     updated_at = EXCLUDED.updated_at;
             `;
             

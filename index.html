@@ -51,7 +51,7 @@
 <body>
 
     <header>
-        <!-- THANH ĐIỀU HƯỚNG TRÊN CÙNG (TOP NAV BAR - REQ 18) -->
+        <!-- THANH ĐIỀU HƯỚNG TRÊN CÙNG (TOP NAV BAR) -->
         <div class="top-nav-bar">
             <div class="nav-brand">
                 <span class="app-logo">📝</span>
@@ -66,7 +66,7 @@
 
             <div class="nav-right-controls">
                 <div class="font-controls">
-                    <span title="Chỉnh cỡ chữ">Cỡ chữ:</span>
+                    <span title="Chỉnh cỡ chữ">C cỡ chữ:</span>
                     <button id="btn-font-down">A-</button>
                     <button id="btn-font-up">A+</button>
 
@@ -100,7 +100,7 @@
                         <option value="oled">🖤 OLED Đen tuyền</option>
                     </select>
                 </div>
-                <!-- KHU VỰC CLERK AVATAR / ĐĂNG NHẬP (REQ 13, 18) -->
+                <!-- KHU VỰC CLERK AVATAR / ĐĂNG NHẬP -->
                 <div id="clerk-auth-container"></div>
             </div>
         </div>
@@ -111,9 +111,8 @@
             <button class="tab-btn" id="tab-story">📚 2. Thông tin truyện</button>
         </div>
         
-        <!-- NHÓM THANH CÔNG CỤ DỊCH THUẬT HIỆN CÓ -->
+        <!-- NHÓM THANH CÔNG CỤ DỊCH THUẬT MỤC 1 -->
         <div id="edit-tool-toolbars">
-            <!-- Ô NHẬP TÊN CHƯƠNG MỚI ĐƯỢC THÊM VÀO ĐÂY -->
             <div class="story-title-bar" style="background: var(--header-bg); border-bottom: 1px solid var(--border-color); padding: 8px 20px;">
                 <span class="title-label">Tên chương / Tên file:</span>
                 <input type="text" id="chapter-title-input" placeholder="Nhập tên chương để lưu file (VD: Chuong 1)..." style="max-width: 400px; padding: 6px 12px;">
@@ -137,7 +136,6 @@
 
                 <div class="divider"></div>
 
-                <!-- NÚT BẤM MỞ BẢNG MỞ NĂNG QUẢN LÝ NAME QT -->
                 <button class="btn-file" id="btn-open-nameqt-modal" title="Quản lý & Cập nhật từ điển Name QT">📥 Tải Name QT</button>
                 <button class="btn-tool" id="btn-refresh-qt" title="Làm mới lại toàn bộ bản QT theo Name mới">🔄 Cập nhật QT</button>
                 
@@ -252,6 +250,10 @@
                 <div class="story-header-actions">
                     <button class="btn-file btn-sm" id="btn-meta-undo" title="Hoàn tác thông tin (Ctrl+Z)" disabled>↩️ Undo</button>
                     <button class="btn-file btn-sm" id="btn-meta-redo" title="Làm lại thông tin (Ctrl+Y)" disabled>🔁 Redo</button>
+                    
+                    <!-- BỔ SUNG NÚT LÀM MỚI Ở ĐÂY -->
+                    <button class="btn-reset btn-sm" id="btn-reset-meta" title="Làm mới toàn bộ thông tin truyện">🔄 Làm mới</button>
+                    
                     <div class="divider" style="height: 18px; margin: 0 4px;"></div>
                     
                     <button class="btn-tool btn-sm" id="btn-history-meta-show" title="Xem lịch sử sửa đổi thông tin truyện">📜 Lịch sử thông tin</button>
@@ -345,7 +347,6 @@
             <p class="modal-desc" id="nameqt-status">Hiện có 0 từ trong từ điển Name QT.</p>
 
             <div class="modal-body-scroll">
-                <!-- Danh sách các file đã nạp -->
                 <div class="modal-group">
                     <label>Các file Name QT đã nạp:</label>
                     <div id="nameqt-file-list" class="nameqt-file-list"></div>
@@ -438,7 +439,6 @@
             <h3>🔤 Thêm & Thay Thế Name Mới</h3>
             
             <div class="name-editor-body">
-                <!-- CỘT CÔNG CỤ BÊN TRÁI: VIẾT HOA & VIẾT THƯỜNG -->
                 <div class="name-helpers">
                     <div class="helper-column">
                         <span class="helper-group-label">Viết hoa</span>
@@ -456,7 +456,6 @@
                     </div>
                 </div>
 
-                <!-- CỘT NHẬP DỮ LIỆU BÊN PHẢI -->
                 <div class="name-inputs">
                     <div class="modal-group">
                         <label>Chinese:</label>
@@ -482,7 +481,7 @@
         </div>
     </div>
 
-    <!-- HỘP THOẠI MODAL: QUẢN LÝ DỰ ÁN DỮ LIỆU CỦA TÔI (REQ 16) -->
+    <!-- HỘP THOẠI MODAL: QUẢN LÝ DỰ ÁN DỮ LIỆU CỦA TÔI -->
     <div class="modal-overlay" id="modal-my-data">
         <div class="modal-content" style="width: 850px; max-width: 95vw;">
             <h3>📂 Dữ liệu & Dự án của tôi</h3>
@@ -520,24 +519,17 @@
         </div>
     </div>
 
-    <!-- THÔNG BÁO HỆ THỐNG -->
-    <div class="modal-overlay" id="modal-notifications">
-        <div class="modal-content">
-            <h3>🔔 Thông báo hệ thống</h3>
-            <p class="modal-desc">Những cập nhật và thông báo mới nhất cho công cụ của bạn.</p>
-            <div id="notification-list" class="history-container"></div>
-            <div class="modal-actions">
-                <button class="btn-file" id="btn-clear-notifications">Xóa tất cả</button>
-                <button class="btn-file" id="btn-close-notifications">Đóng</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Hộp thông báo Toast -->
     <div id="toast"></div>
 
     <!-- ĐOẠN MÃ KHỞI CHẠY CLERK VÀ AUTHENTICATION (BẢO VỆ CHỐNG CHẶN POPUP CỐC CỐC) -->
     <script>
+        function triggerLoadProjects() {
+            if (typeof startProjectAutoSync === 'function') startProjectAutoSync();
+            else if (typeof loadSavedProjects === 'function') loadSavedProjects();
+            else if (typeof subscribeToSavedProjects === 'function') subscribeToSavedProjects();
+        }
+
         async function handleLoginClick(e) {
             if (e) e.preventDefault();
             if (!window.Clerk) {
@@ -620,23 +612,18 @@
                                         label: '📂 Dữ liệu của tôi',
                                         onClick: () => {
                                             if (typeof calculateStorageMetrics === 'function') calculateStorageMetrics();
-                                            if (typeof subscribeToSavedProjects === 'function') subscribeToSavedProjects(); // <-- dòng mới thêm
+                                            triggerLoadProjects();
                                             document.getElementById('modal-my-data')?.classList.add('show');
                                         }
                                     }
                                 ]
                             });
 
-                            if (typeof subscribeToSavedProjects === 'function') {
-                                subscribeToSavedProjects();
-                            }
+                            triggerLoadProjects();
 
                         } else {
                             authContainer.innerHTML = `<button class="btn-primary" id="btn-clerk-login" style="padding: 5px 12px; cursor: pointer;">👤 Đăng nhập</button>`;
-                            
-                            if (typeof subscribeToSavedProjects === 'function') {
-                                subscribeToSavedProjects();
-                            }
+                            triggerLoadProjects();
                         }
                     });
 

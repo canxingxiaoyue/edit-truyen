@@ -2,7 +2,6 @@
 // QUẢN LÝ THÔNG TIN TRUYỆN (MỤC 2) - TƯƠNG THÍCH CHUẨN ĐỊNH DẠNG JSON
 // =========================================================================
 
-// HÀM BỔ SUNG: Cập nhật trạng thái sáng/mờ của các nút Undo/Redo (Chống lỗi ReferenceError)
 function updateUndoRedoButtonsState() {
     try {
         const btnMetaUndo = document.getElementById('btn-meta-undo');
@@ -17,7 +16,6 @@ function updateUndoRedoButtonsState() {
     } catch (e) {}
 }
 
-// Hàm chuẩn hóa dữ liệu thông minh (Đọc tốt cả khóa c1..c5 lẫn cn/vi)
 function normalizeMetadata(imported) {
     if (!imported) return { title: '', characters: [], pronouns: [], terms: [] };
     
@@ -154,6 +152,27 @@ function selectInfoRow(tr, section) {
     activeInfoRows[section] = parseInt(tr.dataset.index);
 }
 
+// HÀM LÀM MỚI TOÀN BỘ MỤC 2
+function resetMetadata() {
+    if (confirm("⚠️ Bạn có chắc chắn muốn XÓA TOÀN BỘ thông tin truyện (Tên truyện, Nhân vật, Xưng hô, Từ ngữ)?")) {
+        saveMetaUndoState();
+        if (typeof addMetaHistoryEntry === 'function') addMetaHistoryEntry();
+
+        metadata = {
+            title: '',
+            characters: [{ c1: '', c2: '', c3: '', c4: '', c5: '' }],
+            pronouns: [{ c1: '', c2: '', c3: '', c4: '', c5: '' }],
+            terms: [{ c1: '', c2: '' }]
+        };
+
+        activeInfoRows = { characters: -1, pronouns: -1, terms: -1 };
+
+        saveMetadata();
+        renderMetadata();
+        if (typeof showToast === 'function') showToast('🔄 Đã làm mới toàn bộ thông tin truyện!', 'var(--btn-warning)');
+    }
+}
+
 function initMetadataEvents() {
     document.getElementById('story-title-input')?.addEventListener('input', (e) => {
         handleMetaTypingInput();
@@ -179,6 +198,12 @@ function initMetadataEvents() {
     document.getElementById('btn-meta-undo')?.addEventListener('click', metaUndo);
     document.getElementById('btn-meta-redo')?.addEventListener('click', metaRedo);
     
+    // ĐĂNG KÝ SỰ KIỆN NÚT LÀM MỚI
+    document.getElementById('btn-reset-meta')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        resetMetadata();
+    });
+
     document.getElementById('btn-history-meta-show')?.addEventListener('click', () => {
         if (typeof openHistoryModal === 'function') {
             openHistoryModal('meta');

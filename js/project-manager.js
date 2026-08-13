@@ -1,5 +1,5 @@
 // =========================================================================
-// QUẢN LÝ DỰ ÁN DỮ LIỆU - ĐỒNG BỘ REAL-TIME POSTGRESQL (CẢ MỤC 1 & MỤC 2)
+// QUẢN LÝ DỰ ÁN DỮ LIỆU - ĐỒNG BỘ REAL-TIME POSTGRESQL (CẢ MỤC 1, MỤC 2 & LỊCH SỬ)
 // =========================================================================
 
 const API_URL = '/api/projects'; 
@@ -196,7 +196,7 @@ function renderMyProjectsListUI() {
         listBody.appendChild(tr);
     });
 
-    // Sự kiện Nút Mở (TỰ ĐỘNG KHÔI PHỤC CẢ MỤC 1 VÀ MỤC 2)
+    // Sự kiện Nút Mở (TỰ ĐỘNG KHÔI PHỤC CẢ MỤC 1, MỤC 2 VÀ LỊCH SỬ)
     listBody.querySelectorAll('.btn-open-proj').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const id = e.currentTarget.getAttribute('data-id');
@@ -232,7 +232,21 @@ function renderMyProjectsListUI() {
                     if (typeof renderMetadata === 'function') renderMetadata();
                 }
 
-                showToast(`📂 Đã mở dự án "${proj.name}" (Bao gồm Thông tin truyện)!`, 'var(--btn-success)');
+                // 3. KHÔI PHỤC LỊCH SỬ DỊCH
+                if (proj.history) {
+                    let parsedHist = proj.history;
+                    if (typeof parsedHist === 'string') {
+                        try { parsedHist = JSON.parse(parsedHist); } catch(e) {}
+                    }
+                    if (parsedHist.translation) localStorage.setItem('translationHistory', JSON.stringify(parsedHist.translation));
+                    if (parsedHist.metadata) localStorage.setItem('metadataHistory', JSON.stringify(parsedHist.metadata));
+                } else {
+                    // Dự án cũ chưa có lịch sử thì xóa lịch sử hiện tại đi
+                    localStorage.setItem('translationHistory', "[]");
+                    localStorage.setItem('metadataHistory', "[]");
+                }
+
+                showToast(`📂 Đã mở dự án "${proj.name}" (Kèm Lịch sử sửa đổi)!`, 'var(--btn-success)');
                 stopProjectAutoSync();
                 document.getElementById('modal-my-data')?.classList.remove('show');
             }
@@ -267,18 +281,32 @@ function renderMyProjectsListUI() {
     });
 }
 
-// 4. LƯU THÀNH BẢN MỚI (ĐÓNG GÓI CẢ MỤC 1 LẪN MỤC 2)
-async function saveCurrentAsProject() {
+// 4. LƯU THÀNH BẢN MỚI (ĐÓNG GÓI CẢ MỤC 1, MỤC 2 VÀ HISTORY)
+// Bổ sung cờ isSilent: Dùng để tự động lưu ngầm vào DB khi ta vừa Xóa 1 dòng ở bảng Lịch sử
+async function saveCurrentAsProject(isSilent = false) {
     const titleVal = (typeof chapterTitle !== 'undefined' && chapterTitle) ? chapterTitle.trim() : 'Chương_Mới';
     const storyTitleVal = (typeof metadata !== 'undefined' && metadata.title) ? metadata.title.trim() : '';
 
-    const namePrompt = prompt("Nhập tên lưu cho Dự án / Chương này lên Server (Sẽ tạo bản mới):", titleVal);
-    if (!namePrompt) return;
+    let namePrompt = titleVal;
+    if (!isSilent) {
+        namePrompt = prompt("Nhập tên lưu cho Dự án / Chương này lên Server (Sẽ tạo bản mới):", titleVal);
+        if (!namePrompt) return;
+    }
 
     const dataStr = JSON.stringify(data);
-    const newProjectId = 'proj_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    
+    // Nếu lưu ngầm (isSilent), ưu tiên lấy ID của dự án cũ nhất đang mở để ghi đè (tránh tạo file rác). 
+    // Nếu chưa có thì tạo mới.
+    const newProjectId = (isSilent && localSavedProjectsCache.length > 0) 
+                         ? localSavedProjectsCache[0].id 
+                         : 'proj_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
 
-    // ĐÓNG GÓI ĐẦY ĐỦ CẢ BẢNG DỊCH (data) LẪN THÔNG TIN TRUYỆN (metadata)
+    // GOM NHÓM HISTORY TỪ LOCALSTORAGE ĐỂ ĐÓNG GÓI
+    const transHist = JSON.parse(localStorage.getItem('translationHistory') || "[]");
+    const metaHist = JSON.parse(localStorage.getItem('metadataHistory') || "[]");
+    const combinedHistory = { translation: transHist, metadata: metaHist };
+
+    // ĐÓNG GÓI ĐẦY ĐỦ
     const projObj = {
         id: newProjectId,
         name: namePrompt.trim(),
@@ -288,6 +316,7 @@ async function saveCurrentAsProject() {
         size: dataStr.length * 2,
         data: JSON.parse(dataStr),
         metadata: (typeof metadata !== 'undefined') ? JSON.parse(JSON.stringify(metadata)) : {}, // ĐÓNG GÓI MỤC 2
+        history: combinedHistory, // ĐÓNG GÓI LỊCH SỬ
         updatedAt: Date.now()
     };
 
@@ -305,7 +334,7 @@ function initProjectManagerEvents() {
         document.getElementById('modal-my-data')?.classList.remove('show');
     });
 
-    document.getElementById('btn-save-current-as-project')?.addEventListener('click', saveCurrentAsProject);
+    document.getElementById('btn-save-current-as-project')?.addEventListener('click', () => saveCurrentAsProject(false));
     document.getElementById('project-search-input')?.addEventListener('input', renderMyProjectsListUI);
     document.getElementById('project-sort-select')?.addEventListener('change', renderMyProjectsListUI);
 

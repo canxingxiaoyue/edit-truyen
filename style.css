@@ -767,3 +767,38 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
     font-size: 0.75rem !important;
     border-radius: 4px !important;
 }
+/* Giao diện Lịch sử dịch gập/mở theo ngày */
+.history-date-group { margin-bottom: 10px; }
+.history-date-header {
+    font-weight: 700;
+    padding: 8px 12px;
+    background-color: var(--th-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    list-style: none; /* Ẩn mũi tên mặc định */
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.2s;
+}
+.history-date-header:hover { background-color: var(--row-active); }
+.history-date-header::-webkit-details-marker { display: none; }
+.history-date-header::before {
+    content: '▶';
+    font-size: 0.8rem;
+    color: var(--btn-primary);
+    transition: transform 0.2s ease;
+}
+details[open] > .history-date-header::before { transform: rotate(90deg); }
+
+.history-items-wrapper {
+    padding: 8px 0 8px 15px;
+    border-left: 2px solid var(--border-color);
+    margin-left: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.history-actions { display: flex; gap: 6px; }

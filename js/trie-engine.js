@@ -8,9 +8,8 @@ function openNameQTDB() {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, 1);
         request.onupgradeneeded = (e) => {
-            const db = e.target.result;
-            if (!db.objectStoreNames.contains(FILES_STORE)) {
-                db.createObjectStore(FILES_STORE, { keyPath: 'id' });
+            if (!e.target.result.objectStoreNames.contains(FILES_STORE)) {
+                e.target.result.createObjectStore(FILES_STORE, { keyPath: 'id' });
             }
         };
         request.onsuccess = (e) => resolve(e.target.result);
@@ -23,12 +22,11 @@ async function saveFileToIndexedDB(fileObj) {
         const db = await openNameQTDB();
         return new Promise((resolve, reject) => {
             const tx = db.transaction(FILES_STORE, 'readwrite');
-            const store = tx.objectStore(FILES_STORE);
-            store.put(fileObj);
+            tx.objectStore(FILES_STORE).put(fileObj);
             tx.oncomplete = () => resolve();
             tx.onerror = (e) => reject(e.target.error);
         });
-    } catch (e) { console.error("Lỗi lưu file vào IndexedDB:", e); }
+    } catch (e) {}
 }
 
 async function loadFilesFromIndexedDB() {
@@ -36,8 +34,7 @@ async function loadFilesFromIndexedDB() {
         const db = await openNameQTDB();
         return new Promise((resolve, reject) => {
             const tx = db.transaction(FILES_STORE, 'readonly');
-            const store = tx.objectStore(FILES_STORE);
-            const request = store.getAll();
+            const request = tx.objectStore(FILES_STORE).getAll();
             request.onsuccess = () => resolve(request.result || []);
             request.onerror = (e) => reject(e.target.error);
         });
@@ -49,12 +46,11 @@ async function deleteFileFromIndexedDB(fileId) {
         const db = await openNameQTDB();
         return new Promise((resolve, reject) => {
             const tx = db.transaction(FILES_STORE, 'readwrite');
-            const store = tx.objectStore(FILES_STORE);
-            store.delete(fileId);
+            tx.objectStore(FILES_STORE).delete(fileId);
             tx.oncomplete = () => resolve();
             tx.onerror = (e) => reject(e.target.error);
         });
-    } catch (e) { console.error("Lỗi xóa file IndexedDB:", e); }
+    } catch (e) {}
 }
 
 async function clearFilesFromIndexedDB() {
@@ -62,12 +58,11 @@ async function clearFilesFromIndexedDB() {
         const db = await openNameQTDB();
         return new Promise((resolve, reject) => {
             const tx = db.transaction(FILES_STORE, 'readwrite');
-            const store = tx.objectStore(FILES_STORE);
-            store.clear();
+            tx.objectStore(FILES_STORE).clear();
             tx.oncomplete = () => resolve();
             tx.onerror = (e) => reject(e.target.error);
         });
-    } catch (e) { console.error("Lỗi xóa IndexedDB:", e); }
+    } catch (e) {}
 }
 
 class TrieNameQT {
@@ -98,7 +93,6 @@ class TrieNameQT {
             for (let line of lines) {
                 line = line.trim();
                 if (!line || line.startsWith('#')) continue;
-
                 const eqIndex = line.indexOf('=');
                 if (eqIndex > 0) {
                     const cn = line.slice(0, eqIndex).trim().normalize('NFC');
@@ -114,57 +108,32 @@ class TrieNameQT {
         this.buildTrie();
     }
 
+    // CHỈ LƯU VÀO MÁY (TỐC ĐỘ BÀN THỜ)
     async addOrUpdateFile(fileName, content, fileId = null) {
         const normContent = (content || '').normalize('NFC');
         const count = this.countEntries(normContent);
         const id = fileId || 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
         
-        const fileObj = {
-            id,
-            fileName: fileName || 'Name_QT.txt',
-            content: normContent,
-            count,
-            updatedAt: Date.now()
-        };
+        const fileObj = { id, fileName: fileName || 'Name_QT.txt', content: normContent, count, updatedAt: Date.now() };
 
         const idx = this.files.findIndex(f => f.id === id);
-        if (idx >= 0) {
-            this.files[idx] = fileObj;
-        } else {
-            this.files.push(fileObj);
-        }
+        if (idx >= 0) this.files[idx] = fileObj;
+        else this.files.push(fileObj);
 
-        // 1. Lưu Cục bộ vào IndexedDB
-        try { await saveFileToIndexedDB(fileObj); } catch (e) {}
-
-        // 2. Lưu lên Server PostgreSQL nếu đã đăng nhập
-        const userId = (typeof window.Clerk !== 'undefined' && window.Clerk.user) ? window.Clerk.user.id : null;
-        if (userId) {
-            try {
-                await fetch('/api/nameqt', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...fileObj, userId })
-                });
-            } catch (e) { console.error("Lỗi đồng bộ Name QT lên Server:", e); }
-        }
-
+        await saveFileToIndexedDB(fileObj);
         this.rebuildCombinedDict();
         return count;
     }
 
     async removeFile(fileId) {
         this.files = this.files.filter(f => f.id !== fileId);
-        try { await deleteFileFromIndexedDB(fileId); } catch (e) {}
-
-        // Xóa trên Server PostgreSQL
+        await deleteFileFromIndexedDB(fileId);
+        
+        // Xóa cả trên Cloud nếu có
         const userId = (typeof window.Clerk !== 'undefined' && window.Clerk.user) ? window.Clerk.user.id : null;
         if (userId) {
-            try {
-                await fetch(`/api/nameqt?id=${fileId}&user_id=${userId}`, { method: 'DELETE' });
-            } catch (e) {}
+            try { await fetch(`/api/nameqt?id=${fileId}&user_id=${userId}`, { method: 'DELETE' }); } catch (e) {}
         }
-
         this.rebuildCombinedDict();
     }
 
@@ -172,60 +141,87 @@ class TrieNameQT {
         this.dict.clear();
         this.files = [];
         this.buildTrie();
-        try { await clearFilesFromIndexedDB(); } catch (e) {}
+        await clearFilesFromIndexedDB();
     }
 
+    // CHỈ LOAD TỪ MÁY LÊN KHI MỞ TRÌNH DUYỆT
     async loadFromStorage() {
-        // 1. Nạp từ IndexedDB dưới máy trước
         const localFiles = await loadFilesFromIndexedDB();
         if (localFiles && localFiles.length > 0) {
             this.files = localFiles;
             this.rebuildCombinedDict();
+            if (typeof updateNameQTModalUI === 'function') updateNameQTModalUI();
         }
+    }
 
-        // 2. Nếu đã đăng nhập Clerk -> Đồng bộ toàn bộ Name QT từ Postgres về
+    // TÍNH NĂNG MỚI: ĐẨY 1 FILE LÊN CLOUD POSTGRES
+    async pushToCloud(fileId) {
         const userId = (typeof window.Clerk !== 'undefined' && window.Clerk.user) ? window.Clerk.user.id : null;
-        if (userId) {
-            try {
-                const res = await fetch(`/api/nameqt?userId=${userId}`);
-                if (res.ok) {
-                    const result = await res.json();
-                    const cloudFiles = result.data || [];
-                    
-                    if (cloudFiles.length > 0) {
-                        this.files = cloudFiles;
-                        this.rebuildCombinedDict();
-                        // Lưu đệm lại vào IndexedDB dưới máy
-                        for (const f of cloudFiles) {
-                            await saveFileToIndexedDB(f);
-                        }
-                    } else if (localFiles && localFiles.length > 0) {
-                        // Nếu Server chưa có mà dưới máy có sẵn -> Đẩy từ dưới máy lên Server
-                        for (const f of localFiles) {
-                            await fetch('/api/nameqt', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ ...f, userId })
-                            });
-                        }
-                    }
-                }
-            } catch (e) {
-                console.error("Lỗi nạp Name QT từ Server:", e);
+        if (!userId) { showToast("⚠️ Bạn cần đăng nhập để lưu lên Cloud!", "var(--btn-warning)"); return false; }
+        
+        const fileObj = this.files.find(f => f.id === fileId);
+        if (!fileObj) return false;
+
+        showToast(`⏳ Đang đẩy file "${fileObj.fileName}" lên Cloud... Vui lòng đợi!`, "var(--btn-info)");
+        
+        try {
+            const res = await fetch('/api/nameqt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...fileObj, userId })
+            });
+            if (res.ok) {
+                showToast(`☁️ Đã lưu file "${fileObj.fileName}" lên Cloud thành công!`, "var(--btn-success)");
+                return true;
+            } else {
+                showToast("⚠️ Máy chủ báo lỗi khi lưu!", "var(--btn-danger)");
+                return false;
             }
+        } catch (e) {
+            showToast("⚠️ Mất mạng, không thể kết nối Cloud!", "var(--btn-danger)");
+            return false;
+        }
+    }
+
+    // TÍNH NĂNG MỚI: KÉO TẤT CẢ TỪ CLOUD VỀ MÁY
+    async pullFromCloud() {
+        const userId = (typeof window.Clerk !== 'undefined' && window.Clerk.user) ? window.Clerk.user.id : null;
+        if (!userId) { showToast("⚠️ Bạn cần đăng nhập để tải từ Cloud!", "var(--btn-warning)"); return; }
+
+        showToast("⏳ Đang tải toàn bộ Name QT từ Cloud về máy...", "var(--btn-info)");
+        
+        try {
+            const res = await fetch(`/api/nameqt?userId=${userId}`);
+            if (res.ok) {
+                const result = await res.json();
+                const cloudFiles = result.data || [];
+                
+                if (cloudFiles.length > 0) {
+                    for (const cf of cloudFiles) {
+                        const idx = this.files.findIndex(f => f.id === cf.id || f.fileName === cf.fileName);
+                        if (idx >= 0) this.files[idx] = cf;
+                        else this.files.push(cf);
+                        await saveFileToIndexedDB(cf);
+                    }
+                    this.rebuildCombinedDict();
+                    if (typeof updateNameQTModalUI === 'function') updateNameQTModalUI();
+                    showToast(`✅ Đã nạp thành công ${cloudFiles.length} file từ Cloud về máy!`, "var(--btn-success)");
+                } else {
+                    showToast("⚠️ Cloud của bạn hiện đang trống!", "var(--btn-warning)");
+                }
+            }
+        } catch (e) {
+            showToast("⚠️ Không thể kết nối Cloud để tải về!", "var(--btn-danger)");
         }
     }
 
     buildTrie() {
         this.root = { children: new Map() };
         this.maxDepth = 0;
-
         for (let [cn, vi] of this.dict.entries()) {
             let curr = this.root;
             for (let char of cn) {
-                if (!curr.children.has(char)) {
-                    curr.children.set(char, { children: new Map() });
-                }
+                if (!curr.children.has(char)) curr.children.set(char, { children: new Map() });
                 curr = curr.children.get(char);
             }
             curr.val = vi;
@@ -238,57 +234,36 @@ class TrieNameQT {
         const normRaw = rawText.normalize('NFC');
         let i = 0, n = normRaw.length;
         const rawTokens = [];
-
         while (i < n) {
             let longestMatchVal = null, longestMatchLen = 0;
             let curr = this.root;
-
             for (let j = i; j < Math.min(n, i + this.maxDepth); j++) {
                 const char = normRaw[j];
                 if (!curr.children.has(char)) break;
                 curr = curr.children.get(char);
-                if (curr.val !== undefined) {
-                    longestMatchVal = curr.val;
-                    longestMatchLen = j - i + 1;
-                }
+                if (curr.val !== undefined) { longestMatchVal = curr.val; longestMatchLen = j - i + 1; }
             }
-
             if (longestMatchVal !== null && longestMatchLen > 0) {
-                const cnSub = normRaw.slice(i, i + longestMatchLen);
-                rawTokens.push({ rawText: cnSub, qtText: longestMatchVal, rawStart: i, rawEnd: i + longestMatchLen });
+                rawTokens.push({ rawText: normRaw.slice(i, i + longestMatchLen), qtText: longestMatchVal, rawStart: i, rawEnd: i + longestMatchLen });
                 i += longestMatchLen;
             } else {
-                const char = normRaw[i];
-                rawTokens.push({ rawText: char, qtText: char, rawStart: i, rawEnd: i + 1 });
+                rawTokens.push({ rawText: normRaw[i], qtText: normRaw[i], rawStart: i, rawEnd: i + 1 });
                 i += 1;
             }
         }
-
         let outText = '';
         const tokens = [];
-
         for (let idx = 0; idx < rawTokens.length; idx++) {
             const t = rawTokens[idx];
-            if (idx > 0 && outText.length > 0) {
-                const lastChar = outText[outText.length - 1];
-                const nextChar = t.qtText[0];
-                if (this.isWordChar(lastChar) && this.isWordChar(nextChar)) {
-                    outText += ' ';
-                }
-            }
+            if (idx > 0 && outText.length > 0 && this.isWordChar(outText[outText.length - 1]) && this.isWordChar(t.qtText[0])) outText += ' ';
             const qtStart = outText.length;
             outText += t.qtText;
             tokens.push({ rawStart: t.rawStart, rawEnd: t.rawEnd, qtStart, qtEnd: outText.length });
         }
-
         return { text: outText.normalize('NFC'), tokens };
     }
 
-    isWordChar(ch) {
-        if (!ch) return false;
-        if (/[\[\]():;,.!?"'“”‘’—\-\s，。！？：；“”（）《》]/.test(ch)) return false;
-        return true;
-    }
+    isWordChar(ch) { return ch ? !(/[\[\]():;,.!?"'“”‘’—\-\s，。！？：；“”（）《》]/.test(ch)) : false; }
 }
 
 const nameQTEngine = new TrieNameQT();

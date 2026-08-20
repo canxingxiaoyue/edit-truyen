@@ -29,10 +29,6 @@
       type="text/javascript">
     </script>
 
-    <!-- Thư viện Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
     <!-- Liên kết File CSS bên ngoài -->
     <link rel="stylesheet" href="style.css">
 
@@ -66,7 +62,7 @@
 
             <div class="nav-right-controls">
                 <div class="font-controls">
-                    <span title="Chỉnh cỡ chữ">C cỡ chữ:</span>
+                    <span title="Chỉnh cỡ chữ">Cỡ chữ:</span>
                     <button id="btn-font-down">A-</button>
                     <button id="btn-font-up">A+</button>
 
@@ -251,7 +247,6 @@
                     <button class="btn-file btn-sm" id="btn-meta-undo" title="Hoàn tác thông tin (Ctrl+Z)" disabled>↩️ Undo</button>
                     <button class="btn-file btn-sm" id="btn-meta-redo" title="Làm lại thông tin (Ctrl+Y)" disabled>🔁 Redo</button>
                     
-                    <!-- BỔ SUNG NÚT LÀM MỚI Ở ĐÂY -->
                     <button class="btn-reset btn-sm" id="btn-reset-meta" title="Làm mới toàn bộ thông tin truyện">🔄 Làm mới</button>
                     
                     <div class="divider" style="height: 18px; margin: 0 4px;"></div>
@@ -525,9 +520,14 @@
     <!-- ĐOẠN MÃ KHỞI CHẠY CLERK VÀ AUTHENTICATION (BẢO VỆ CHỐNG CHẶN POPUP CỐC CỐC) -->
     <script>
         function triggerLoadProjects() {
+            // Tải dự án
             if (typeof startProjectAutoSync === 'function') startProjectAutoSync();
             else if (typeof loadSavedProjects === 'function') loadSavedProjects();
-            else if (typeof subscribeToSavedProjects === 'function') subscribeToSavedProjects();
+            
+            // KÍCH HOẠT TẢI TỪ ĐIỂN NAME QT TỪ CLOUD
+            if (typeof nameQTEngine !== 'undefined' && typeof nameQTEngine.loadFromStorage === 'function') {
+                nameQTEngine.loadFromStorage();
+            }
         }
 
         async function handleLoginClick(e) {

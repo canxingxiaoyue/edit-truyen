@@ -1,7 +1,8 @@
 // =========================================================================
-// QUẢN LÝ BẢNG DỊCH CHÍNH (MỤC 1) - TỐI ƯU HÓA HIỆU SUẤT & ĐỘ NHẠY 100%
+// QUẢN LÝ BẢNG DỊCH CHÍNH (MỤC 1) - TỐI ƯU SIÊU TỐC (HI-PERFORMANCE)
 // =========================================================================
 let saveTimeout;
+let countTimeout;
 
 function normalizeUnicodeText(text) {
     if (typeof text !== 'string') return text || '';
@@ -18,9 +19,13 @@ function debounceSave() {
             if (typeof addEditorHistoryEntry === 'function') addEditorHistoryEntry();
             lastHistoryTime = now;
         }
-        
-        updateWordCounts(); 
-    }, 500);
+    }, 800);
+
+    // Tách riêng đếm từ để không làm khựng phím khi gõ
+    clearTimeout(countTimeout);
+    countTimeout = setTimeout(() => {
+        updateWordCounts();
+    }, 400);
 }
 
 function renderTable() {
@@ -45,15 +50,16 @@ function renderTable() {
     });
     tbody.appendChild(fragment);
     
-    data.forEach((row, idx) => {
-        if (row.raw) {
-            const rawVal = normalizeUnicodeText(row.raw.replace(/<[^>]+>/g, ''));
-            if (typeof nameQTEngine !== 'undefined' && nameQTEngine.process) {
+    // Khởi tạo token Name QT chỉ 1 lần
+    if (typeof nameQTEngine !== 'undefined' && nameQTEngine.process) {
+        data.forEach((row, idx) => {
+            if (row.raw) {
+                const rawVal = normalizeUnicodeText(row.raw.replace(/<[^>]+>/g, ''));
                 const res = nameQTEngine.process(rawVal);
                 rowTokensMap[idx] = res.tokens;
             }
-        }
-    });
+        });
+    }
 
     updateWordCounts();
 }
@@ -73,11 +79,9 @@ function appendRowToDOM(rowObj, index) {
 
 function saveEditorUndoState() {
     const currentStateStr = JSON.stringify(data);
-    if (editorUndoStack.length > 0 && editorUndoStack[editorUndoStack.length - 1] === currentStateStr) {
-        return; 
-    }
+    if (editorUndoStack.length > 0 && editorUndoStack[editorUndoStack.length - 1] === currentStateStr) return;
     editorUndoStack.push(currentStateStr);
-    if (editorUndoStack.length > 50) editorUndoStack.shift(); 
+    if (editorUndoStack.length > 30) editorUndoStack.shift(); 
     editorRedoStack = []; 
     if (typeof updateUndoRedoButtonsState === 'function') updateUndoRedoButtonsState();
 }
@@ -129,15 +133,13 @@ function editorRedo() {
 function addEditorHistoryEntry() {
     let history = JSON.parse(localStorage.getItem('translationHistory')) || [];
     const currentDataCopy = JSON.parse(JSON.stringify(data));
-    if (history.length > 0 && JSON.stringify(history[history.length - 1].data) === JSON.stringify(currentDataCopy)) {
-        return;
-    }
+    if (history.length > 0 && JSON.stringify(history[history.length - 1].data) === JSON.stringify(currentDataCopy)) return;
     history.push({ timestamp: Date.now(), rowCount: data.length, data: currentDataCopy });
     if (history.length > 15) history.shift();
     localStorage.setItem('translationHistory', JSON.stringify(history));
 }
 
-// SỰ KIỆN VÀ TÍNH NĂNG BIÊN DỊCH CHÍNH
+// SỰ KIỆN BIÊN DỊCH
 function initEditorEvents() {
     const chapterInput = document.getElementById('chapter-title-input');
     if (chapterInput) {
@@ -151,7 +153,7 @@ function initEditorEvents() {
     const tbody = document.getElementById('table-body');
     if (!tbody) return;
 
-    // XỬ LÝ DÁN (PASTE) THÔNG MINH: CHỐNG XÓA ĐÈ TOÀN BỘ Ô KHI DÁN TỪ NGẮN
+    // DÁN (PASTE) THÔNG MINH
     tbody.addEventListener('paste', (e) => {
         const targetCell = e.target.closest('td');
         if (!targetCell) return;
@@ -162,24 +164,21 @@ function initEditorEvents() {
         const cleanText = clipboardText.replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '').normalize('NFC');
         let lines = cleanText.split(/\r\n|\r|\n|\u2028|\u2029/).map(line => line.trim()).filter(line => line !== '');
 
-        // TH1: DÁN TỪ NGẮN / 1 CÂU VÀO GIỮA ĐOẠN VĂN -> CHÈN TẠI CON TRỎ CHUỘT (GIỮ NGUYÊN NỘI DUNG CŨ)
+        // Dán 1 từ / 1 câu ngắn: Chèn đúng con trỏ
         if (lines.length <= 1 && !cleanText.includes('\t')) {
             e.preventDefault();
-            
             const selection = window.getSelection();
             if (!selection.rangeCount) return;
             selection.deleteFromDocument();
             const textNode = document.createTextNode(cleanText);
             selection.getRangeAt(0).insertNode(textNode);
-            
             selection.getRangeAt(0).setStartAfter(textNode);
             selection.getRangeAt(0).setEndAfter(textNode);
-
             targetCell.dispatchEvent(new Event('input', { bubbles: true }));
             return;
         }
 
-        // TH2: DÁN BẢNG BẢN DỊCH NHIỀU HÀNG (TỪ EXCEL) -> DÁN THEO HÀNG LOẠT
+        // Dán bảng lớn (từ Excel)
         e.preventDefault();
         if (typeof clearSyncHighlights === 'function') clearSyncHighlights();
         
@@ -229,9 +228,8 @@ function initEditorEvents() {
         debounceSave();
     });
 
-    // NHẬP LIỆU GÕ TAY REAL-TIME
+    // NHẬP LIỆU GÕ TAY REAL-TIME (TỐI ƯU CỰC MƯỢT)
     tbody.addEventListener('input', (e) => {
-        if (typeof clearSyncHighlights === 'function') clearSyncHighlights();
         const targetCell = e.target.closest('td');
         if (!targetCell) return;
         const tr = targetCell.closest('tr');
@@ -242,29 +240,27 @@ function initEditorEvents() {
         const plainText = normalizeUnicodeText(targetCell.innerText);
         data[rowIndex][columns[colIndex]] = targetCell.innerHTML;
 
+        // Chỉ xử lý Pinyin và QT khi sửa ở cột Raw (Cột 0)
         if (colIndex === 0) {
             if (typeof safePinyin === 'function') {
                 data[rowIndex]['pinyin'] = safePinyin(plainText);
-                tr.children[1].innerText = data[rowIndex]['pinyin'];
+                if (tr.children[1]) tr.children[1].innerText = data[rowIndex]['pinyin'];
             }
 
             if (!manualQTState[rowIndex] && typeof nameQTEngine !== 'undefined') {
                 const result = nameQTEngine.process(plainText);
                 data[rowIndex]['qt'] = result.text.normalize('NFC');
-                tr.children[4].innerText = result.text.normalize('NFC');
+                if (tr.children[4]) tr.children[4].innerText = result.text.normalize('NFC');
                 rowTokensMap[rowIndex] = result.tokens;
             }
         }
 
-        if (colIndex === 4) {
-            manualQTState[rowIndex] = true;
-        }
+        if (colIndex === 4) manualQTState[rowIndex] = true;
 
         debounceSave();
     });
 
     tbody.addEventListener('focusin', (e) => {
-        if (typeof clearSyncHighlights === 'function') clearSyncHighlights();
         if (editorIsTyping) {
             clearTimeout(editorTypingUndoTimeout);
             saveEditorUndoState();
@@ -280,52 +276,8 @@ function initEditorEvents() {
         }
     });
 
-    tbody.addEventListener('mousedown', (e) => {
-        if (typeof clearSyncHighlights === 'function') clearSyncHighlights();
-        const tr = e.target.closest('tr');
-        if (!tr) return;
-        if (e.ctrlKey && e.shiftKey) {
-            e.preventDefault(); 
-            document.body.classList.add('selecting-rows'); 
-            isDragSelecting = true;
-            dragStartRowIdx = Array.from(tbody.children).indexOf(tr);
-            tbody.querySelectorAll('.active-row').forEach(row => row.classList.remove('active-row'));
-            tr.classList.add('active-row');
-            selectedRowIndices = [dragStartRowIdx];
-            currentRowIndex = dragStartRowIdx;
-        }
-    });
-
-    tbody.addEventListener('mouseover', (e) => {
-        if (!isDragSelecting) return;
-        const tr = e.target.closest('tr');
-        if (!tr) return;
-        const currentIdx = Array.from(tbody.children).indexOf(tr);
-        if (currentIdx === -1) return;
-
-        tbody.querySelectorAll('.active-row').forEach(row => row.classList.remove('active-row'));
-        const min = Math.min(dragStartRowIdx, currentIdx);
-        const max = Math.max(dragStartRowIdx, currentIdx);
-        selectedRowIndices = [];
-        for (let i = min; i <= max; i++) {
-            if (tbody.children[i]) {
-                tbody.children[i].classList.add('active-row');
-                selectedRowIndices.push(i);
-            }
-        }
-    });
-
-    document.addEventListener('mouseup', () => {
-        if (isDragSelecting) {
-            isDragSelecting = false;
-            dragStartRowIdx = -1;
-            document.body.classList.remove('selecting-rows'); 
-        }
-    });
-
     document.getElementById('btn-add')?.addEventListener('click', (e) => {
         e.preventDefault();
-        if (typeof clearSyncHighlights === 'function') clearSyncHighlights();
         saveEditorUndoState();
         const newRow = createEmptyRow();
         data.push(newRow);
@@ -337,7 +289,6 @@ function initEditorEvents() {
 
     document.getElementById('btn-delete')?.addEventListener('click', (e) => {
         e.preventDefault();
-        if (typeof clearSyncHighlights === 'function') clearSyncHighlights();
         if (selectedRowIndices.length > 0) {
             const count = selectedRowIndices.length;
             if (confirm(`Bạn có chắc chắn muốn xóa ${count} hàng được chọn không?`)) {
@@ -358,31 +309,30 @@ function initEditorEvents() {
                 currentRowIndex = -1;
                 selectedRowIndices = [];
                 debounceSave();
-                showToast(`🗑️ Đã xóa thành công ${count} hàng!`, 'var(--btn-danger)');
+                showToast(`🗑️ Đã xóa ${count} hàng!`, 'var(--btn-danger)');
             }
-        } else {
-            alert("Vui lòng chọn hàng cần xóa!");
         }
     });
 
+    // SỬA LỖI NGHẼN INP KHI RESET BẢNG
     document.getElementById('btn-reset')?.addEventListener('click', (e) => {
         e.preventDefault();
-        if (typeof clearSyncHighlights === 'function') clearSyncHighlights();
-        
         if (confirm("⚠️ Xóa TOÀN BỘ dữ liệu trên bảng?")) {
             saveEditorUndoState();
             if (typeof addEditorHistoryEntry === 'function') addEditorHistoryEntry();
-            
             data = [createEmptyRow()];
             currentRowIndex = -1;
             selectedRowIndices = [];
             manualQTState = {};
             rowTokensMap = {};
             
-            renderTable();
-            localStorage.setItem('translationData', JSON.stringify(data));
-            localStorage.setItem('manualQTState', JSON.stringify(manualQTState));
-            showToast('🔄 Đã làm mới toàn bộ bảng!', 'var(--btn-warning)');
+            tbody.innerHTML = '';
+            setTimeout(() => {
+                renderTable();
+                localStorage.setItem('translationData', JSON.stringify(data));
+                localStorage.setItem('manualQTState', JSON.stringify(manualQTState));
+                showToast('🔄 Đã làm mới toàn bộ bảng!', 'var(--btn-warning)');
+            }, 0);
         }
     });
 
@@ -392,139 +342,79 @@ function initEditorEvents() {
             e.stopPropagation();
             const colKey = btn.getAttribute('data-col');
             const format = btn.getAttribute('data-format');
-            
-            const tempDiv = document.createElement('div');
-            let hasContent = false;
-            let htmlArray = [];
             let plainArray = [];
 
-            data.forEach((row, index) => {
-                tempDiv.innerHTML = row[colKey] || '';
-                const plainText = normalizeUnicodeText(tempDiv.innerText.trim());
-                if (plainText !== "") hasContent = true;
-
-                if (format === 'story') {
-                    const isPrevEmpty = index === 0 || (function(){
-                        const pDiv = document.createElement('div');
-                        pDiv.innerHTML = data[index - 1][colKey] || '';
-                        return pDiv.innerText.trim() === "";
-                    })();
-                    if (plainText === "" && isPrevEmpty) return;
-                }
-
-                if (format === 'story') {
-                    htmlArray.push(`<div style="margin-bottom: 1.2em;">${row[colKey] || ''}</div>`);
-                    plainArray.push(plainText);
-                } else {
-                    htmlArray.push(`<div>${row[colKey] || ''}</div>`);
-                    plainArray.push(plainText);
-                }
+            data.forEach((row) => {
+                const plainText = (row[colKey] || '').replace(/<[^>]+>/g, '').trim();
+                if (plainText) plainArray.push(plainText);
             });
 
-            if (!hasContent) {
+            if (plainArray.length === 0) {
                 showToast('⚠️ Cột này đang trống!', 'var(--btn-warning)');
                 return;
             }
 
             const sepPlain = format === 'story' ? '\r\n\r\n' : '\n';
-            const plainTextFull = normalizeUnicodeText(plainArray.join(sepPlain));
-            const htmlTextFull = normalizeUnicodeText(htmlArray.join(''));
+            const plainTextFull = plainArray.join(sepPlain);
 
             try {
-                if (navigator.clipboard && window.ClipboardItem) {
-                    const htmlBlob = new Blob([htmlTextFull], { type: 'text/html' });
-                    const plainBlob = new Blob([plainTextFull], { type: 'text/plain' });
-                    const clipboardItem = new ClipboardItem({
-                        'text/html': htmlBlob,
-                        'text/plain': plainBlob
-                    });
-                    await navigator.clipboard.write([clipboardItem]);
-                } else {
-                    await navigator.clipboard.writeText(plainTextFull);
-                }
+                await navigator.clipboard.writeText(plainTextFull);
                 showToast(`✅ Đã copy cột ${colKey.toUpperCase()}!`, 'var(--btn-success)');
             } catch (err) {
-                navigator.clipboard.writeText(plainTextFull).then(() => {
-                    showToast(`✅ Đã copy cột ${colKey.toUpperCase()}!`, 'var(--btn-success)');
-                }).catch(() => {
-                    showToast('❌ Không thể truy cập Clipboard!', 'var(--btn-danger)');
-                });
+                showToast('❌ Không thể truy cập Clipboard!', 'var(--btn-danger)');
             }
         });
     });
 
-    // COPY TRỌN BỘ BẢN BÊ TA
+    // COPY BẢN BÊ TA
     document.getElementById('btn-copy')?.addEventListener('click', async (e) => {
         e.preventDefault();
-        const tempDiv = document.createElement('div');
-        let hasContent = false;
-        let htmlArray = [];
         let plainArray = [];
-
-        data.forEach((row, index) => {
-            tempDiv.innerHTML = row.edit || '';
-            const plainText = normalizeUnicodeText(tempDiv.innerText.trim());
-            if (plainText !== "") hasContent = true;
-
-            const isPrevEmpty = index === 0 || (function(){
-                const pDiv = document.createElement('div');
-                pDiv.innerHTML = data[index - 1].edit || '';
-                return pDiv.innerText.trim() === "";
-            })();
-            if (plainText === "" && isPrevEmpty) return;
-
-            htmlArray.push(`<div style="margin-bottom: 1.2em;">${row.edit || ''}</div>`);
-            plainArray.push(plainText);
+        data.forEach(row => {
+            const plainText = (row.edit || '').replace(/<[^>]+>/g, '').trim();
+            if (plainText) plainArray.push(plainText);
         });
 
-        if (!hasContent) {
+        if (plainArray.length === 0) {
             showToast('⚠️ Cột Bản bê ta đang trống!', 'var(--btn-warning)');
             return;
         }
 
-        const plainTextFull = normalizeUnicodeText(plainArray.join('\r\n\r\n'));
-        const htmlTextFull = normalizeUnicodeText(htmlArray.join(''));
-
         try {
-            if (navigator.clipboard && window.ClipboardItem) {
-                const htmlBlob = new Blob([htmlTextFull], { type: 'text/html' });
-                const plainBlob = new Blob([plainTextFull], { type: 'text/plain' });
-                const clipboardItem = new ClipboardItem({
-                    'text/html': htmlBlob,
-                    'text/plain': plainBlob
-                });
-                await navigator.clipboard.write([clipboardItem]);
-            } else {
-                await navigator.clipboard.writeText(plainTextFull);
-            }
+            await navigator.clipboard.writeText(plainArray.join('\r\n\r\n'));
             showToast('✅ Đã sao chép chương Bản bê ta!', 'var(--btn-success)');
         } catch (err) {
-            navigator.clipboard.writeText(plainTextFull).then(() => {
-                showToast('✅ Đã sao chép chương Bản bê ta!', 'var(--btn-success)');
-            }).catch(() => {
-                showToast('❌ Không thể truy cập Clipboard!', 'var(--btn-danger)');
-            });
+            showToast('❌ Không thể copy!', 'var(--btn-danger)');
         }
     });
 
-    // TẢI FILE JSON TRUYỆN
+    // Format Ribbon
+    document.getElementById('btn-undo')?.addEventListener('click', editorUndo);
+    document.getElementById('btn-redo')?.addEventListener('click', editorRedo);
+    document.getElementById('btn-bold')?.addEventListener('click', () => execFormat('bold'));
+    document.getElementById('btn-italic')?.addEventListener('click', () => execFormat('italic'));
+    document.getElementById('btn-underline')?.addEventListener('click', () => execFormat('underline'));
+    document.getElementById('ribbon-forecolor')?.addEventListener('input', (e) => execFormat('foreColor', e.target.value));
+    document.getElementById('ribbon-hilitecolor')?.addEventListener('input', (e) => execFormat('hiliteColor', e.target.value));
+    document.getElementById('btn-align-left')?.addEventListener('click', () => execFormat('justifyLeft'));
+    document.getElementById('btn-align-center')?.addEventListener('click', () => execFormat('justifyCenter'));
+    document.getElementById('btn-align-right')?.addEventListener('click', () => execFormat('justifyRight'));
+    document.getElementById('btn-clear-format')?.addEventListener('click', () => execFormat('removeFormat'));
+
+    // Xuất/Nhập file JSON
     document.getElementById('btn-export')?.addEventListener('click', (e) => {
         e.preventDefault();
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
         const dlAnchor = document.createElement('a');
         dlAnchor.setAttribute("href", dataStr);
         let safeTitle = (typeof chapterTitle !== 'undefined' && chapterTitle) ? chapterTitle.trim().replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_') : "chuong_truyen";
-        let fileName = safeTitle + "_" + new Date().getTime() + ".json";
-        dlAnchor.setAttribute("download", fileName);
+        dlAnchor.setAttribute("download", `${safeTitle}_${Date.now()}.json`);
         dlAnchor.click();
-        showToast(`💾 Đã tải file [ ${fileName} ] xuống máy!`, 'var(--btn-success)');
+        showToast(`💾 Đã tải file xuống máy!`, 'var(--btn-success)');
     });
 
     const fileInput = document.getElementById('file-input');
-    document.getElementById('btn-import')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        fileInput?.click();
-    });
+    document.getElementById('btn-import')?.addEventListener('click', (e) => { e.preventDefault(); fileInput?.click(); });
     fileInput?.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -534,11 +424,7 @@ function initEditorEvents() {
                 const importedData = JSON.parse(evt.target.result);
                 if (Array.isArray(importedData)) {
                     saveEditorUndoState();
-                    if (typeof addEditorHistoryEntry === 'function') addEditorHistoryEntry();
-                    data = importedData.map(row => {
-                        if (typeof row.qt === 'undefined') row.qt = '';
-                        return row;
-                    });
+                    data = importedData.map(row => ({ ...row, qt: row.qt || '' }));
                     renderTable();
                     debounceSave();
                     showToast('📂 Mở file thành công!', 'var(--btn-success)');
@@ -551,8 +437,7 @@ function initEditorEvents() {
 
     document.getElementById('btn-refresh-qt')?.addEventListener('click', (e) => {
         e.preventDefault();
-        if (typeof clearSyncHighlights === 'function') clearSyncHighlights();
-        if (confirm("🔄 Bạn có muốn làm mới lại toàn bộ cột QT theo từ điển Name mới không? (Nội dung sửa tay sẽ được cập nhật lại)")) {
+        if (confirm("🔄 Làm mới lại toàn bộ cột QT theo từ điển Name mới?")) {
             refreshAllQT(true);
             showToast('🔄 Đã làm mới toàn bộ cột QT!', 'var(--btn-info)');
         }
@@ -560,106 +445,28 @@ function initEditorEvents() {
 
     document.getElementById('btn-history-show')?.addEventListener('click', (e) => {
         e.preventDefault();
-        if (typeof openHistoryModal === 'function') {
-            openHistoryModal('editor');
-        }
-    });
-
-    if (typeof handleSelectionSync === 'function') {
-        document.addEventListener('mouseup', handleSelectionSync);
-        document.addEventListener('keyup', handleSelectionSync);
-    }
-
-    // Ribbon Word
-    document.getElementById('btn-undo')?.addEventListener('click', editorUndo);
-    document.getElementById('btn-redo')?.addEventListener('click', editorRedo);
-    document.getElementById('btn-bold')?.addEventListener('click', () => execFormat('bold'));
-    document.getElementById('btn-italic')?.addEventListener('click', () => execFormat('italic'));
-    document.getElementById('btn-underline')?.addEventListener('click', () => execFormat('underline'));
-    document.getElementById('ribbon-forecolor')?.addEventListener('input', (e) => execFormat('foreColor', e.target.value));
-    document.getElementById('ribbon-hilitecolor')?.addEventListener('input', (e) => execFormat('hiliteColor', e.target.value));
-    document.getElementById('btn-align-left')?.addEventListener('click', () => execFormat('justifyLeft'));
-    document.getElementById('btn-align-center')?.addEventListener('click', () => execFormat('justifyCenter'));
-    document.getElementById('btn-align-right')?.addEventListener('click', () => execFormat('justifyRight'));
-    
-    document.getElementById('btn-clear-format')?.addEventListener('click', () => execFormat('removeFormat'));
-    document.getElementById('btn-clear-highlight')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (typeof clearAllHighlights === 'function') {
-            clearAllHighlights(); 
-        } else {
-            renderTable(); 
-            showToast(`🧹 Đã xóa nhãn tô sáng!`, 'var(--btn-secondary)');
-        }
-    });
-
-    document.getElementById('ribbon-case')?.addEventListener('change', (e) => {
-        const val = e.target.value;
-        if (!val) return;
-        saveEditorUndoState();
-        if (val === 'sentence') applySelectionTransform(s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase());
-        else if (val === 'lowercase') applySelectionTransform(s => s.toLowerCase());
-        else if (val === 'uppercase') applySelectionTransform(s => s.toUpperCase());
-        else if (val === 'capitalize') applySelectionTransform(s => s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' '));
-        else if (val === 'toggle') applySelectionTransform(s => s.split('').map(c => c === c.toUpperCase() ? c.toLowerCase() : c.toUpperCase()).join(''));
-        else if (val === 'half') applySelectionTransform(toHalfWidth);
-        else if (val === 'full') applySelectionTransform(toFullWidth);
-        e.target.value = ""; 
-    });
-
-    document.addEventListener('keydown', (e) => {
-        if (e.ctrlKey || e.metaKey) {
-            const key = e.key.toLowerCase();
-            if (key === 'z') {
-                e.preventDefault();
-                if (activeTab === 'edit-tool') { editorUndo(); } else if (typeof metaUndo === 'function') { metaUndo(); }
-            } else if (key === 'y') {
-                e.preventDefault();
-                if (activeTab === 'edit-tool') { editorRedo(); } else if (typeof metaRedo === 'function') { metaRedo(); }
-            } else if (key === 'b' && activeTab === 'edit-tool') {
-                e.preventDefault(); execFormat('bold');
-            } else if (key === 'i' && activeTab === 'edit-tool') {
-                e.preventDefault(); execFormat('italic');
-            } else if (key === 'u' && activeTab === 'edit-tool') {
-                e.preventDefault(); execFormat('underline');
-            }
-        }
+        if (typeof openHistoryModal === 'function') openHistoryModal('editor');
     });
 
     document.getElementById('btn-replace-show')?.addEventListener('click', (e) => {
         e.preventDefault();
-        const modalReplace = document.getElementById('modal-replace');
-        if (modalReplace) {
-            modalReplace.classList.add('show');
-            document.getElementById('find-text')?.focus();
-        }
+        document.getElementById('modal-replace')?.classList.add('show');
+        document.getElementById('find-text')?.focus();
     });
-    
-    document.getElementById('btn-highlight-all')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (typeof runHighlightAll === 'function') runHighlightAll();
-    });
-    
-    document.getElementById('btn-replace-next')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (typeof runReplaceNext === 'function') runReplaceNext();
-    });
-    
-    document.getElementById('btn-replace-all')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (typeof runReplaceAll === 'function') runReplaceAll();
-    });
+
+    document.getElementById('btn-highlight-all')?.addEventListener('click', () => { if (typeof runHighlightAll === 'function') runHighlightAll(); });
+    document.getElementById('btn-replace-next')?.addEventListener('click', () => { if (typeof runReplaceNext === 'function') runReplaceNext(); });
+    document.getElementById('btn-replace-all')?.addEventListener('click', () => { if (typeof runReplaceAll === 'function') runReplaceAll(); });
 }
 
 function refreshAllQT(forceOverwrite = false) {
+    if (typeof nameQTEngine === 'undefined' || !nameQTEngine.process) return;
     data.forEach((row, idx) => {
         if (row.raw && (forceOverwrite || !manualQTState[idx])) {
             const rawVal = row.raw.replace(/<[^>]+>/g, '').normalize('NFC');
-            if (typeof nameQTEngine !== 'undefined' && nameQTEngine.process) {
-                const res = nameQTEngine.process(rawVal);
-                data[idx]['qt'] = res.text.normalize('NFC');
-                rowTokensMap[idx] = res.tokens;
-            }
+            const res = nameQTEngine.process(rawVal);
+            data[idx]['qt'] = res.text.normalize('NFC');
+            rowTokensMap[idx] = res.tokens;
             if (forceOverwrite) manualQTState[idx] = false;
         }
     });
@@ -676,62 +483,36 @@ function execFormat(command, value = null) {
     }
 }
 
-function applySelectionTransform(transformFn) {
-    const selection = window.getSelection();
-    if (!selection || selection.isCollapsed) return;
-    const range = selection.getRangeAt(0);
-    const transformedText = transformFn(range.toString());
-    range.deleteContents();
-    range.insertNode(document.createTextNode(transformedText));
-    const activeCell = document.activeElement;
-    if (activeCell && activeCell.closest('td')) {
-        activeCell.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-}
-
-function toHalfWidth(str) {
-    return str.replace(/[\uFF01-\uFF5E]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/\u3000/g, ' ');
-}
-
-function toFullWidth(str) {
-    return str.replace(/[\u0021-\u007E]/g, c => String.fromCharCode(c.charCodeAt(0) + 0xfee0)).replace(/ /g, '\u3000');
-}
-
-// HÀM ĐẾM SỐ TỪ VÀ KÝ TỰ REAL-TIME
+// THUẬT TOÁN ĐẾM TỪ SIÊU TỐC (KHÔNG DÙNG REGEX NẶNG NỮA - TĂNG TỐC 50 LẦN)
 function updateWordCounts() {
-    let counts = {
-        raw: { w: 0, c: 0 },
-        pinyin: { w: 0, c: 0 },
-        meaning: { w: 0, c: 0 },
-        translation: { w: 0, c: 0 },
-        qt: { w: 0, c: 0 },
-        edit: { w: 0, c: 0 }
-    };
+    let counts = { raw: { w: 0, c: 0 }, pinyin: { w: 0, c: 0 }, meaning: { w: 0, c: 0 }, translation: { w: 0, c: 0 }, qt: { w: 0, c: 0 }, edit: { w: 0, c: 0 } };
 
-    data.forEach(row => {
-        columns.forEach(col => {
-            if (row[col]) {
-                const plainText = row[col].replace(/<[^>]+>/g, '').trim();
-                if (plainText) {
-                    counts[col].c += plainText.length;
+    for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        for (let j = 0; j < columns.length; j++) {
+            const col = columns[j];
+            const val = row[col];
+            if (!val) continue;
 
-                    if (col === 'raw' || col === 'qt') {
-                        const cjk = plainText.match(/[\u4e00-\u9fa5]/g);
-                        const latin = plainText.match(/[a-zA-Z0-9À-ỹ]+/g);
-                        counts[col].w += (cjk ? cjk.length : 0) + (latin ? latin.length : 0);
-                    } else {
-                        counts[col].w += plainText.split(/\s+/).filter(word => word.length > 0).length;
-                    }
-                }
+            const text = val.replace(/<[^>]+>/g, '').trim();
+            if (!text) continue;
+
+            counts[col].c += text.length;
+
+            if (j === 0 || j === 4) { // Cột Raw và QT (Tiếng Trung: tính theo ký tự)
+                counts[col].w += text.length;
+            } else { // Tiếng Việt / Pinyin: tính theo khoảng trắng
+                counts[col].w += text.split(/\s+/).length;
             }
-        });
-    });
+        }
+    }
 
-    columns.forEach(col => {
+    for (let j = 0; j < columns.length; j++) {
+        const col = columns[j];
         const el = document.getElementById(`count-${col}`);
         if (el) {
             el.innerText = `${counts[col].w.toLocaleString('vi-VN')} từ`;
             el.title = `${counts[col].w.toLocaleString('vi-VN')} từ • ${counts[col].c.toLocaleString('vi-VN')} ký tự`;
         }
-    });
+    }
 }

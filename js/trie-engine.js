@@ -1,5 +1,5 @@
 // =========================================================================
-// INDEXEDDB & POSTGRESQL ENGINE - DỊCH NAME QT QUẢN LÝ ĐA FILE
+// INDEXEDDB ENGINE - QUẢN LÝ & DỊCH NAME QT CỤC BỘ (SIÊU TỐC ĐỘ, 0% LAG)
 // =========================================================================
 const DB_NAME = 'NameQT_Store_DB_v3';
 const FILES_STORE = 'files_store_v3';
@@ -108,13 +108,18 @@ class TrieNameQT {
         this.buildTrie();
     }
 
-    // CHỈ LƯU VÀO MÁY (TỐC ĐỘ BÀN THỜ)
     async addOrUpdateFile(fileName, content, fileId = null) {
         const normContent = (content || '').normalize('NFC');
         const count = this.countEntries(normContent);
         const id = fileId || 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
         
-        const fileObj = { id, fileName: fileName || 'Name_QT.txt', content: normContent, count, updatedAt: Date.now() };
+        const fileObj = {
+            id,
+            fileName: fileName || 'Name_QT.txt',
+            content: normContent,
+            count,
+            updatedAt: Date.now()
+        };
 
         const idx = this.files.findIndex(f => f.id === id);
         if (idx >= 0) this.files[idx] = fileObj;
@@ -128,12 +133,6 @@ class TrieNameQT {
     async removeFile(fileId) {
         this.files = this.files.filter(f => f.id !== fileId);
         await deleteFileFromIndexedDB(fileId);
-        
-        // Xóa cả trên Cloud nếu có
-        const userId = (typeof window.Clerk !== 'undefined' && window.Clerk.user) ? window.Clerk.user.id : null;
-        if (userId) {
-            try { await fetch(`/api/nameqt?id=${fileId}&user_id=${userId}`, { method: 'DELETE' }); } catch (e) {}
-        }
         this.rebuildCombinedDict();
     }
 
@@ -144,74 +143,12 @@ class TrieNameQT {
         await clearFilesFromIndexedDB();
     }
 
-    // CHỈ LOAD TỪ MÁY LÊN KHI MỞ TRÌNH DUYỆT
     async loadFromStorage() {
         const localFiles = await loadFilesFromIndexedDB();
         if (localFiles && localFiles.length > 0) {
             this.files = localFiles;
             this.rebuildCombinedDict();
             if (typeof updateNameQTModalUI === 'function') updateNameQTModalUI();
-        }
-    }
-
-    // TÍNH NĂNG MỚI: ĐẨY 1 FILE LÊN CLOUD POSTGRES
-    async pushToCloud(fileId) {
-        const userId = (typeof window.Clerk !== 'undefined' && window.Clerk.user) ? window.Clerk.user.id : null;
-        if (!userId) { showToast("⚠️ Bạn cần đăng nhập để lưu lên Cloud!", "var(--btn-warning)"); return false; }
-        
-        const fileObj = this.files.find(f => f.id === fileId);
-        if (!fileObj) return false;
-
-        showToast(`⏳ Đang đẩy file "${fileObj.fileName}" lên Cloud... Vui lòng đợi!`, "var(--btn-info)");
-        
-        try {
-            const res = await fetch('/api/nameqt', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...fileObj, userId })
-            });
-            if (res.ok) {
-                showToast(`☁️ Đã lưu file "${fileObj.fileName}" lên Cloud thành công!`, "var(--btn-success)");
-                return true;
-            } else {
-                showToast("⚠️ Máy chủ báo lỗi khi lưu!", "var(--btn-danger)");
-                return false;
-            }
-        } catch (e) {
-            showToast("⚠️ Mất mạng, không thể kết nối Cloud!", "var(--btn-danger)");
-            return false;
-        }
-    }
-
-    // TÍNH NĂNG MỚI: KÉO TẤT CẢ TỪ CLOUD VỀ MÁY
-    async pullFromCloud() {
-        const userId = (typeof window.Clerk !== 'undefined' && window.Clerk.user) ? window.Clerk.user.id : null;
-        if (!userId) { showToast("⚠️ Bạn cần đăng nhập để tải từ Cloud!", "var(--btn-warning)"); return; }
-
-        showToast("⏳ Đang tải toàn bộ Name QT từ Cloud về máy...", "var(--btn-info)");
-        
-        try {
-            const res = await fetch(`/api/nameqt?userId=${userId}`);
-            if (res.ok) {
-                const result = await res.json();
-                const cloudFiles = result.data || [];
-                
-                if (cloudFiles.length > 0) {
-                    for (const cf of cloudFiles) {
-                        const idx = this.files.findIndex(f => f.id === cf.id || f.fileName === cf.fileName);
-                        if (idx >= 0) this.files[idx] = cf;
-                        else this.files.push(cf);
-                        await saveFileToIndexedDB(cf);
-                    }
-                    this.rebuildCombinedDict();
-                    if (typeof updateNameQTModalUI === 'function') updateNameQTModalUI();
-                    showToast(`✅ Đã nạp thành công ${cloudFiles.length} file từ Cloud về máy!`, "var(--btn-success)");
-                } else {
-                    showToast("⚠️ Cloud của bạn hiện đang trống!", "var(--btn-warning)");
-                }
-            }
-        } catch (e) {
-            showToast("⚠️ Không thể kết nối Cloud để tải về!", "var(--btn-danger)");
         }
     }
 
@@ -234,6 +171,7 @@ class TrieNameQT {
         const normRaw = rawText.normalize('NFC');
         let i = 0, n = normRaw.length;
         const rawTokens = [];
+
         while (i < n) {
             let longestMatchVal = null, longestMatchLen = 0;
             let curr = this.root;
@@ -241,21 +179,29 @@ class TrieNameQT {
                 const char = normRaw[j];
                 if (!curr.children.has(char)) break;
                 curr = curr.children.get(char);
-                if (curr.val !== undefined) { longestMatchVal = curr.val; longestMatchLen = j - i + 1; }
+                if (curr.val !== undefined) {
+                    longestMatchVal = curr.val;
+                    longestMatchLen = j - i + 1;
+                }
             }
             if (longestMatchVal !== null && longestMatchLen > 0) {
-                rawTokens.push({ rawText: normRaw.slice(i, i + longestMatchLen), qtText: longestMatchVal, rawStart: i, rawEnd: i + longestMatchLen });
+                const cnSub = normRaw.slice(i, i + longestMatchLen);
+                rawTokens.push({ rawText: cnSub, qtText: longestMatchVal, rawStart: i, rawEnd: i + longestMatchLen });
                 i += longestMatchLen;
             } else {
-                rawTokens.push({ rawText: normRaw[i], qtText: normRaw[i], rawStart: i, rawEnd: i + 1 });
+                const char = normRaw[i];
+                rawTokens.push({ rawText: char, qtText: char, rawStart: i, rawEnd: i + 1 });
                 i += 1;
             }
         }
+
         let outText = '';
         const tokens = [];
         for (let idx = 0; idx < rawTokens.length; idx++) {
             const t = rawTokens[idx];
-            if (idx > 0 && outText.length > 0 && this.isWordChar(outText[outText.length - 1]) && this.isWordChar(t.qtText[0])) outText += ' ';
+            if (idx > 0 && outText.length > 0 && this.isWordChar(outText[outText.length - 1]) && this.isWordChar(t.qtText[0])) {
+                outText += ' ';
+            }
             const qtStart = outText.length;
             outText += t.qtText;
             tokens.push({ rawStart: t.rawStart, rawEnd: t.rawEnd, qtStart, qtEnd: outText.length });
@@ -263,7 +209,10 @@ class TrieNameQT {
         return { text: outText.normalize('NFC'), tokens };
     }
 
-    isWordChar(ch) { return ch ? !(/[\[\]():;,.!?"'“”‘’—\-\s，。！？：；“”（）《》]/.test(ch)) : false; }
+    isWordChar(ch) {
+        if (!ch) return false;
+        return !(/[\[\]():;,.!?"'“”‘’—\-\s，。！？：；“”（）《》]/.test(ch));
+    }
 }
 
 const nameQTEngine = new TrieNameQT();

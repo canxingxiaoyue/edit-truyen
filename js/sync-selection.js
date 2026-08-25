@@ -1,7 +1,8 @@
 // =========================================================================
-// ĐỒNG BỘ BÔI ĐEN REAL-TIME RAW ↔ QT (HIGHLIGHT ĐÔI)
+// ĐỒNG BỘ BÔI ĐEN REAL-TIME RAW ↔ QT (TỐI ƯU CHỐNG LAG)
 // =========================================================================
 let isSyncHighlighting = false;
+let syncTimeout = null;
 
 function getTextNodeOffset(root, node, offset) {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
@@ -19,9 +20,7 @@ function getTextNodeAtOffset(root, offset) {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
     let current = walker.nextNode();
     while (current) {
-        if (offset <= current.textContent.length) {
-            return { node: current, offset };
-        }
+        if (offset <= current.textContent.length) return { node: current, offset };
         offset -= current.textContent.length;
         current = walker.nextNode();
     }
@@ -53,6 +52,13 @@ function restoreSelectionInCell(cell, saved) {
 }
 
 function handleSelectionSync() {
+    clearTimeout(syncTimeout);
+    syncTimeout = setTimeout(() => {
+        executeSelectionSync();
+    }, 50); // Debounce 50ms chống giật lag
+}
+
+function executeSelectionSync() {
     if (isSyncHighlighting || activeTab !== 'edit-tool') return;
 
     const selection = window.getSelection();
@@ -96,27 +102,17 @@ function handleSelectionSync() {
     if (colIndex === 0) {
         const matchedTokens = tokens.filter(t => t.rawStart < selEnd && t.rawEnd > selStart);
         if (matchedTokens.length > 0) {
-            const qtStart = matchedTokens[0].qtStart;
-            const qtEnd = matchedTokens[matchedTokens.length - 1].qtEnd;
-            const rawStart = matchedTokens[0].rawStart;
-            const rawEnd = matchedTokens[matchedTokens.length - 1].rawEnd;
-
             clearSyncHighlights();
-            applySyncHighlight(rawCell, rawStart, rawEnd);
-            applySyncHighlight(qtCell, qtStart, qtEnd);
+            applySyncHighlight(rawCell, matchedTokens[0].rawStart, matchedTokens[matchedTokens.length - 1].rawEnd);
+            applySyncHighlight(qtCell, matchedTokens[0].qtStart, matchedTokens[matchedTokens.length - 1].qtEnd);
             restoreSelectionInCell(activeCell, savedSelection);
         }
     } else if (colIndex === 4) {
         const matchedTokens = tokens.filter(t => t.qtStart < selEnd && t.qtEnd > selStart);
         if (matchedTokens.length > 0) {
-            const rawStart = matchedTokens[0].rawStart;
-            const rawEnd = matchedTokens[matchedTokens.length - 1].rawEnd;
-            const qtStart = matchedTokens[0].qtStart;
-            const qtEnd = matchedTokens[matchedTokens.length - 1].qtEnd;
-
             clearSyncHighlights();
-            applySyncHighlight(qtCell, qtStart, qtEnd);
-            applySyncHighlight(rawCell, rawStart, rawEnd);
+            applySyncHighlight(qtCell, matchedTokens[0].qtStart, matchedTokens[matchedTokens.length - 1].qtEnd);
+            applySyncHighlight(rawCell, matchedTokens[0].rawStart, matchedTokens[matchedTokens.length - 1].rawEnd);
             restoreSelectionInCell(activeCell, savedSelection);
         }
     }

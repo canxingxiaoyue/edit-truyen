@@ -10,7 +10,6 @@ function openHistoryModal(type) {
     modal.classList.add('show');
 }
 
-// 1. XÓA MỘT BẢN GHI CỤ THỂ
 function deleteHistoryEntry(type, originalIndex) {
     const storageKey = type === 'editor' ? 'translationHistory' : 'metadataHistory';
     let history = JSON.parse(localStorage.getItem(storageKey)) || [];
@@ -28,18 +27,13 @@ function deleteHistoryEntry(type, originalIndex) {
     }
 }
 
-// 2. XÓA TOÀN BỘ LỊCH SỬ CỦA 1 NGÀY
 function deleteHistoryByDate(type, dateStr, entriesToDelete) {
     if (confirm(`🗑️ Bạn có muốn XÓA SẠCH toàn bộ lịch sử của ngày "${dateStr}" không?`)) {
         const storageKey = type === 'editor' ? 'translationHistory' : 'metadataHistory';
         let history = JSON.parse(localStorage.getItem(storageKey)) || [];
-        
-        // Lấy ra danh sách các mốc thời gian cần xóa
         const timestampsToDelete = entriesToDelete.map(e => e.timestamp);
         
-        // Lọc bỏ những bản ghi nằm trong danh sách cần xóa
         history = history.filter(entry => !timestampsToDelete.includes(entry.timestamp));
-        
         localStorage.setItem(storageKey, JSON.stringify(history));
         
         if (typeof saveCurrentAsProject === 'function' && document.getElementById('chapter-title-input')?.value) {
@@ -51,7 +45,6 @@ function deleteHistoryByDate(type, dateStr, entriesToDelete) {
     }
 }
 
-// 3. XÓA TẤT CẢ LỊCH SỬ
 function deleteAllHistory(type) {
     if (confirm("⚠️ NGUY HIỂM: Xóa SẠCH TOÀN BỘ lịch sử hiện có? Hành động này không thể hoàn tác!")) {
         const storageKey = type === 'editor' ? 'translationHistory' : 'metadataHistory';
@@ -66,7 +59,6 @@ function deleteAllHistory(type) {
     }
 }
 
-// 4. VẼ GIAO DIỆN LỊCH SỬ
 function renderHistoryList(type) {
     const historyListDiv = document.getElementById('history-list');
     const modalTitle = document.querySelector('#modal-history h3');
@@ -87,7 +79,6 @@ function renderHistoryList(type) {
         }
     } catch (e) { history = []; }
 
-    // Xử lý chèn/Xóa nút "Xóa tất cả" ở dưới cùng
     if (modalActions) {
         const oldDelAllBtn = document.getElementById('btn-delete-all-history');
         if (oldDelAllBtn) oldDelAllBtn.remove();
@@ -97,7 +88,7 @@ function renderHistoryList(type) {
             btnDelAll.id = 'btn-delete-all-history';
             btnDelAll.className = 'btn-danger';
             btnDelAll.innerHTML = '🗑️ Xóa tất cả';
-            btnDelAll.style.marginRight = 'auto'; // Đẩy nút Đóng sang góc phải
+            btnDelAll.style.marginRight = 'auto';
             btnDelAll.onclick = () => deleteAllHistory(type);
             modalActions.insertBefore(btnDelAll, modalActions.firstChild);
         }
@@ -111,16 +102,13 @@ function renderHistoryList(type) {
     let processedHistory = history.map((item, idx) => ({ ...item, originalIndex: idx }));
     processedHistory.sort((a, b) => b.timestamp - a.timestamp);
 
-    // GOM NHÓM THEO NGÀY
     const groups = {};
     processedHistory.forEach(entry => {
         const dateObj = new Date(entry.timestamp);
         let dateStr = dateObj.toLocaleDateString('vi-VN');
-        
         if (dateStr === new Date().toLocaleDateString('vi-VN')) {
             dateStr = "Hôm nay (" + dateStr + ")";
         }
-
         if (!groups[dateStr]) groups[dateStr] = [];
         groups[dateStr].push(entry);
     });
@@ -135,23 +123,19 @@ function renderHistoryList(type) {
 
         const summaryEl = document.createElement('summary');
         summaryEl.className = 'history-date-header';
-        
-        // Thiết kế thanh tiêu đề ngày: Tên ngày ở trái, Số bản lưu ở giữa, Nút Xóa Ngày ở phải
         summaryEl.innerHTML = `📅 ${dateStr} <span style="font-size:0.8rem; font-weight:normal; color:gray; flex-grow:1;">(${entries.length} bản lưu)</span>`;
         
-        // NÚT XÓA NGÀY NAY
         const delDateBtn = document.createElement('button');
         delDateBtn.className = 'btn-danger';
         delDateBtn.innerHTML = '🗑️ Xóa ngày này';
         delDateBtn.style.padding = '3px 8px';
         delDateBtn.style.fontSize = '0.75rem';
         delDateBtn.onclick = (e) => {
-            e.preventDefault(); // Không gập/mở nhóm khi bấm nút
+            e.preventDefault();
             e.stopPropagation();
             deleteHistoryByDate(type, dateStr, entries);
         };
         summaryEl.appendChild(delDateBtn);
-
         detailsEl.appendChild(summaryEl);
 
         const itemsWrapper = document.createElement('div');
@@ -213,8 +197,8 @@ function renderHistoryList(type) {
     }
 }
 
-/// =========================================================================
-// RENDER DANH SÁCH FILE NAME QT TRONG MODAL
+// =========================================================================
+// RENDER DANH SÁCH FILE NAME QT TRONG MODAL (ĐÃ DỌN SẠCH NÚT CLOUD)
 // =========================================================================
 function renderNameQTFileList() {
     const listContainer = document.getElementById('nameqt-file-list');
@@ -222,69 +206,41 @@ function renderNameQTFileList() {
     listContainer.innerHTML = '';
 
     const files = (typeof nameQTEngine !== 'undefined' && nameQTEngine.files) ? nameQTEngine.files : [];
-    
-    // NÚT KÉO TOÀN BỘ TỪ CLOUD VỀ MÁY
-    const pullCloudDiv = document.createElement('div');
-    pullCloudDiv.style.marginBottom = '12px';
-    pullCloudDiv.style.textAlign = 'right';
-    pullCloudDiv.innerHTML = `<button id="btn-pull-cloud-name" class="btn-tool" style="background:var(--btn-info); color:white; border-radius:6px; padding:6px 12px; font-weight:bold;">📥 Tải toàn bộ Name QT từ Cloud về máy</button>`;
-    listContainer.appendChild(pullCloudDiv);
-
     if (files.length === 0) {
-        const emptyMsg = document.createElement('p');
-        emptyMsg.style = 'color:gray; font-size:0.85rem; font-style:italic; text-align:center; padding:10px;';
-        emptyMsg.innerHTML = 'Chưa có file Name QT nào ở máy này.';
-        listContainer.appendChild(emptyMsg);
-    } else {
-        files.forEach(file => {
-            const item = document.createElement('div');
-            item.className = `nameqt-file-item ${file.id === editingFileId ? 'editing' : ''}`;
-            
-            let ts = file.updatedAt || Date.now();
-            if (typeof ts === 'string' && /^\d+$/.test(ts)) ts = Number(ts);
-            const dateStr = new Date(ts).toLocaleDateString('vi-VN');
-
-            item.innerHTML = `
-                <div class="nameqt-file-info">
-                    <span class="nameqt-file-name">📄 ${escapeHTML(file.fileName || 'Name_QT.txt')}</span>
-                    <span class="nameqt-file-meta">${(file.count || 0).toLocaleString('vi-VN')} từ • Sửa lần cuối: ${dateStr}</span>
-                </div>
-                <div class="nameqt-file-actions">
-                    <button class="btn-tool btn-xs btn-push-cloud" data-id="${file.id}" title="Lưu file này lên Cloud">☁️ Đẩy lên Cloud</button>
-                    <button class="btn-tool btn-xs btn-edit-file" data-id="${file.id}" title="Sửa file">✏️ Sửa</button>
-                    <button class="btn-danger btn-xs btn-del-file" data-id="${file.id}" title="Xóa file">🗑️ Xóa</button>
-                </div>
-            `;
-            listContainer.appendChild(item);
-        });
+        listContainer.innerHTML = '<p style="color:gray; font-size:0.85rem; font-style:italic; text-align:center; padding:10px;">Chưa có file Name QT nào trong bộ nhớ máy tính này.</p>';
+        return;
     }
 
-    // Sự kiện tải từ Cloud
-    document.getElementById('btn-pull-cloud-name')?.addEventListener('click', async (e) => {
-        e.preventDefault();
-        await nameQTEngine.pullFromCloud();
+    files.forEach(file => {
+        const item = document.createElement('div');
+        item.className = `nameqt-file-item ${file.id === editingFileId ? 'editing' : ''}`;
+        
+        let ts = file.updatedAt || Date.now();
+        if (typeof ts === 'string' && /^\d+$/.test(ts)) ts = Number(ts);
+        const dateStr = new Date(ts).toLocaleDateString('vi-VN');
+
+        item.innerHTML = `
+            <div class="nameqt-file-info">
+                <span class="nameqt-file-name">📄 ${escapeHTML(file.fileName || 'Name_QT.txt')}</span>
+                <span class="nameqt-file-meta">${(file.count || 0).toLocaleString('vi-VN')} từ • Sửa lần cuối: ${dateStr}</span>
+            </div>
+            <div class="nameqt-file-actions">
+                <button class="btn-tool btn-xs btn-edit-file" data-id="${file.id}" title="Chỉnh sửa file này">✏️ Sửa</button>
+                <button class="btn-danger btn-xs btn-del-file" data-id="${file.id}" title="Xóa file này">🗑️ Xóa</button>
+            </div>
+        `;
+        listContainer.appendChild(item);
     });
 
-    // Sự kiện Đẩy lên Cloud
-    listContainer.querySelectorAll('.btn-push-cloud').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            const id = e.currentTarget.getAttribute('data-id');
-            await nameQTEngine.pushToCloud(id);
-        });
-    });
-
-    // Sự kiện Sửa
     listContainer.querySelectorAll('.btn-edit-file').forEach(btn => {
         btn.addEventListener('click', (e) => startEditingFile(e.currentTarget.getAttribute('data-id')));
     });
 
-    // Sự kiện Xóa
     listContainer.querySelectorAll('.btn-del-file').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const id = e.currentTarget.getAttribute('data-id');
             const file = nameQTEngine?.files?.find(f => f.id === id);
-            if (file && confirm(`Bạn có chắc chắn muốn XÓA file Name "${file.fileName}" khỏi máy tính và Cloud?`)) {
+            if (file && confirm(`Bạn có chắc chắn muốn XÓA file Name "${file.fileName}"?`)) {
                 await nameQTEngine.removeFile(id);
                 if (editingFileId === id) cancelEditingFile();
                 showToast(`🗑️ Đã xóa file "${file.fileName}"!`, 'var(--btn-danger)');
@@ -294,6 +250,25 @@ function renderNameQTFileList() {
         });
     });
 }
+
+function startEditingFile(fileId) {
+    const file = nameQTEngine?.files?.find(f => f.id === fileId);
+    if (!file) return;
+
+    editingFileId = fileId;
+    const textInput = document.getElementById('nameqt-text-input');
+    const fileNameInput = document.getElementById('nameqt-filename-input');
+    const cancelBtn = document.getElementById('btn-cancel-edit-file');
+    const updateBtn = document.getElementById('btn-update-nameqt');
+
+    if (textInput) textInput.value = file.content || '';
+    if (fileNameInput) { fileNameInput.value = file.fileName || ''; fileNameInput.style.display = 'block'; }
+    if (cancelBtn) cancelBtn.style.display = 'inline-flex';
+    if (updateBtn) updateBtn.innerHTML = '💾 Lưu sửa đổi File';
+
+    renderNameQTFileList();
+}
+
 function cancelEditingFile() {
     editingFileId = null;
     const textInput = document.getElementById('nameqt-text-input');

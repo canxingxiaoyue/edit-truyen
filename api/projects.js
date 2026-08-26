@@ -9,12 +9,22 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
 
     try {
+        // 1. GET: LẤY DANH SÁCH HOẶC CHI TIẾT
         if (req.method === 'GET') {
-            const { userId } = req.query;
+            const { userId, id } = req.query;
             if (!userId) return res.status(400).json({ error: 'Thiếu userId' });
 
+            if (id) {
+                const { rows } = await sql`
+                    SELECT id, name, chapter_title as "chapterTitle", story_title as "storyTitle", row_count as "rowCount", size, data, metadata, history, updated_at as "updatedAt"
+                    FROM projects 
+                    WHERE id = ${String(id)} AND user_id = ${String(userId)}
+                `;
+                return res.status(200).json({ success: true, data: rows[0] || null });
+            }
+
             const { rows } = await sql`
-                SELECT id, name, chapter_title as "chapterTitle", story_title as "storyTitle", row_count as "rowCount", size, data, metadata, history, updated_at as "updatedAt"
+                SELECT id, name, chapter_title as "chapterTitle", story_title as "storyTitle", row_count as "rowCount", size, updated_at as "updatedAt"
                 FROM projects 
                 WHERE user_id = ${String(userId)} 
                 ORDER BY updated_at DESC
@@ -22,10 +32,9 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true, data: rows });
         }
 
+        // 2. POST: TẠO MỚI / CẬP NHẬT
         if (req.method === 'POST') {
-            // Đã bổ sung thêm "history" vào payload
             const { id, userId, name, chapterTitle, storyTitle, rowCount, size, data, metadata, history, updatedAt } = req.body;
-
             if (!id || !userId) return res.status(400).json({ error: 'Thiếu id hoặc userId' });
 
             const jsonData = typeof data === 'string' ? data : JSON.stringify(data || []);
@@ -36,8 +45,17 @@ export default async function handler(req, res) {
             await sql`
                 INSERT INTO projects (id, user_id, name, chapter_title, story_title, row_count, size, data, metadata, history, updated_at)
                 VALUES (
-                    ${String(id)}, ${String(userId)}, ${String(name || '')}, ${String(chapterTitle || '')}, ${String(storyTitle || '')}, 
-                    ${Number(rowCount) || 0}, ${Number(size) || 0}, ${jsonData}::jsonb, ${jsonMeta}::jsonb, ${jsonHistory}::jsonb, ${ts}
+                    ${String(id)}, 
+                    ${String(userId)}, 
+                    ${String(name || '')}, 
+                    ${String(chapterTitle || '')}, 
+                    ${String(storyTitle || '')}, 
+                    ${Number(rowCount) || 0}, 
+                    ${Number(size) || 0}, 
+                    ${jsonData}::jsonb, 
+                    ${jsonMeta}::jsonb, 
+                    ${jsonHistory}::jsonb, 
+                    ${ts}
                 )
                 ON CONFLICT (id) 
                 DO UPDATE SET 
@@ -51,10 +69,10 @@ export default async function handler(req, res) {
                     history = EXCLUDED.history,
                     updated_at = EXCLUDED.updated_at;
             `;
-            
             return res.status(200).json({ success: true, message: 'Saved to Postgres' });
         }
 
+        // 3. DELETE: XÓA
         if (req.method === 'DELETE') {
             const { id, user_id } = req.query;
             if (!id || !user_id) return res.status(400).json({ error: 'Thiếu id hoặc user_id' });

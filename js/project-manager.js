@@ -1,5 +1,5 @@
 // =========================================================================
-// QUẢN LÝ DỰ ÁN DỮ LIỆU - TỐI ƯU HÓA AUTO-SYNC (CHỐNG NGHẼN CPU)
+// QUẢN LÝ DỰ ÁN DỮ LIỆU - ĐỒNG BỘ POSTGRESQL & TỰ ĐỘNG GIẢI NÉN MẢNG DỮ LIỆU
 // =========================================================================
 
 const API_URL = '/api/projects'; 
@@ -19,16 +19,20 @@ function formatDate(val) {
 }
 
 function getUserIdForProject() {
-    if (typeof window.Clerk !== 'undefined' && window.Clerk.user) {
-        return window.Clerk.user.id;
+    if (typeof window.Clerk !== 'undefined') {
+        if (window.Clerk.user && window.Clerk.user.id) return window.Clerk.user.id;
+        if (window.Clerk.session && window.Clerk.session.user && window.Clerk.session.user.id) return window.Clerk.session.user.id;
+        if (window.Clerk.client && window.Clerk.client.sessions && window.Clerk.client.sessions.length > 0) {
+            const active = window.Clerk.client.sessions.find(s => s.status === 'active') || window.Clerk.client.sessions[0];
+            if (active && active.user && active.user.id) return active.user.id;
+        }
     }
     return 'guest_local_user';
 }
 
-// 1. TẢI DANH SÁCH DỰ ÁN TỪ POSTGRESQL (CHỈ CHẠY KHI CẦN)
+// 1. TẢI DANH SÁCH DỰ ÁN
 async function loadSavedProjects(isSilent = false) {
     const userId = getUserIdForProject();
-
     let localData = [];
     try { localData = JSON.parse(localStorage.getItem('mySavedProjects')) || []; } catch (e) {}
 
@@ -49,7 +53,7 @@ async function loadSavedProjects(isSilent = false) {
             const result = await response.json();
             const dbProjects = result.data || result.projects || result || []; 
 
-            localSavedProjectsCache = dbProjects;
+            localSavedProjectsCache = Array.isArray(dbProjects) ? dbProjects : [dbProjects];
             localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache));
             renderMyProjectsListUI();
             calculateStorageMetrics();
@@ -62,16 +66,16 @@ async function loadSavedProjects(isSilent = false) {
     }
 }
 
-// CHỈ TỰ ĐỘNG LÀM MỚI KHI ĐANG MỞ CỬA SỔ MODAL (CHỐNG LAG KHI ĐANG DỊCH TRUYỆN)
 function startProjectAutoSync() {
     stopProjectAutoSync();
     loadSavedProjects(false);
+    calculateStorageMetrics();
     projectSyncInterval = setInterval(() => {
         const modal = document.getElementById('modal-my-data');
         if (modal && modal.classList.contains('show')) {
             loadSavedProjects(true);
         } else {
-            stopProjectAutoSync(); // Tự động hủy nếu modal đã đóng
+            stopProjectAutoSync();
         }
     }, 5000); 
 }
@@ -92,6 +96,7 @@ async function saveProjectToCloudAndLocal(projObj) {
     else localSavedProjectsCache.unshift(projObj);
     localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache));
     renderMyProjectsListUI();
+    calculateStorageMetrics();
 
     if (userId !== 'guest_local_user') {
         try {
@@ -104,12 +109,15 @@ async function saveProjectToCloudAndLocal(projObj) {
 
             if (response.ok) {
                 showToast(`💾 Đã lưu dự án "${projObj.name}" lên Database!`, 'var(--btn-success)');
+                loadSavedProjects(true);
             } else {
                 showToast("⚠️ Server báo lỗi khi lưu!", "var(--btn-warning)");
             }
         } catch (err) {
             showToast("⚠️ Mất kết nối Server, đã lưu tạm vào máy!", "var(--btn-warning)");
         }
+    } else {
+        showToast(`💾 Đã lưu tạm dự án "${projObj.name}" vào máy!`, 'var(--btn-success)');
     }
 }
 
@@ -119,6 +127,7 @@ async function deleteProjectFromCloudAndLocal(projId) {
     localSavedProjectsCache = localSavedProjectsCache.filter(p => p.id !== projId);
     localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache));
     renderMyProjectsListUI();
+    calculateStorageMetrics();
 
     if (userId !== 'guest_local_user') {
         try {
@@ -131,7 +140,7 @@ function calculateStorageMetrics() {
     const summaryEl = document.getElementById('storage-summary-info');
     if (summaryEl) {
         const userId = getUserIdForProject();
-        const isCloud = userId !== 'guest_local_user';
+        const isCloud = (userId !== 'guest_local_user');
         summaryEl.innerHTML = `☁️ Trạng thái: <strong>${isCloud ? '🟢 Đã kết nối PostgreSQL Server' : '🟡 Lưu cục bộ (Cần đăng nhập)'}</strong> • Tổng dự án đã lưu: <strong>${localSavedProjectsCache.length}</strong>`;
     }
 }
@@ -182,26 +191,66 @@ function renderMyProjectsListUI() {
         listBody.appendChild(tr);
     });
 
-    // Mở dự án
+    // MỞ DỰ ÁN (ĐÃ FIX LỖI MỞ BỊ TRẮNG BẢNG)
     listBody.querySelectorAll('.btn-open-proj').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
             const id = e.currentTarget.getAttribute('data-id');
-            const proj = localSavedProjectsCache.find(p => p.id === id);
-            if (proj && confirm(`Mở dự án "${proj.name}"? Dữ liệu hiện tại trên màn hình sẽ được thay thế.`)) {
+            const summary = localSavedProjectsCache.find(p => p.id === id);
+            if (!summary) return;
+
+            if (confirm(`Mở dự án "${summary.name}"? Dữ liệu hiện tại trên màn hình sẽ được thay thế.`)) {
+                showToast("⏳ Đang tải nội dung dự án...", "var(--btn-info)");
                 
-                let parsedData = proj.data;
-                if (typeof parsedData === 'string') {
-                    try { parsedData = JSON.parse(parsedData); } catch(e) {}
+                let proj = summary;
+                const userId = getUserIdForProject();
+                
+                // Kéo chi tiết từ Server
+                if (userId !== 'guest_local_user') {
+                    try {
+                        const res = await fetch(`${API_URL}?userId=${userId}&id=${id}`);
+                        if (res.ok) {
+                            const result = await res.json();
+                            let fetched = result.data || result;
+                            if (Array.isArray(fetched)) {
+                                fetched = fetched.find(p => p.id === id) || fetched[0];
+                            }
+                            if (fetched) proj = fetched;
+                        }
+                    } catch(err) { console.error("Lỗi tải chi tiết:", err); }
                 }
-                data = parsedData;
+
+                // 1. PHỤC HỒI BẢNG DỊCH (Tự động bóc tách JSON hoặc Mảng)
+                let rawData = proj.data;
+                if (typeof rawData === 'string') {
+                    try { rawData = JSON.parse(rawData); } catch(e) {}
+                }
+                
+                if (Array.isArray(rawData) && rawData.length > 0) {
+                    data = rawData;
+                } else if (proj.rawContent && Array.isArray(proj.rawContent)) {
+                    // Tương thích ngược nếu lưu dạng cột rời
+                    data = proj.rawContent.map((r, i) => ({
+                        raw: r || '',
+                        pinyin: proj.pinyin?.[i] || '',
+                        meaning: proj.meaning?.[i] || '',
+                        translation: proj.betaContent?.[i] || '',
+                        qt: proj.qtContent?.[i] || '',
+                        edit: proj.editContent?.[i] || ''
+                    }));
+                } else {
+                    data = [createEmptyRow()];
+                }
+
                 if (proj.chapterTitle && typeof chapterTitle !== 'undefined') {
                     chapterTitle = proj.chapterTitle;
                     const chapterInput = document.getElementById('chapter-title-input');
                     if (chapterInput) chapterInput.value = chapterTitle;
                 }
+                
                 renderTable();
                 debounceSave();
 
+                // 2. PHỤC HỒI THÔNG TIN TRUYỆN
                 if (proj.metadata) {
                     let parsedMeta = proj.metadata;
                     if (typeof parsedMeta === 'string') {
@@ -212,6 +261,7 @@ function renderMyProjectsListUI() {
                     if (typeof renderMetadata === 'function') renderMetadata();
                 }
 
+                // 3. PHỤC HỒI LỊCH SỬ
                 if (proj.history) {
                     let parsedHist = proj.history;
                     if (typeof parsedHist === 'string') {
@@ -221,7 +271,7 @@ function renderMyProjectsListUI() {
                     if (parsedHist.metadata) localStorage.setItem('metadataHistory', JSON.stringify(parsedHist.metadata));
                 }
 
-                showToast(`📂 Đã mở dự án "${proj.name}"!`, 'var(--btn-success)');
+                showToast(`📂 Đã mở dự án "${proj.name}" thành công!`, 'var(--btn-success)');
                 stopProjectAutoSync();
                 document.getElementById('modal-my-data')?.classList.remove('show');
             }
@@ -309,6 +359,7 @@ function initProjectManagerEvents() {
             try {
                 localSavedProjectsCache = JSON.parse(e.newValue) || [];
                 renderMyProjectsListUI();
+                calculateStorageMetrics();
             } catch(err) {}
         }
     });

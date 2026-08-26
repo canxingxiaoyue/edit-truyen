@@ -1,5 +1,5 @@
 // =========================================================================
-// INDEXEDDB ENGINE - QUẢN LÝ & DỊCH NAME QT CỤC BỘ (SIÊU TỐC ĐỘ, 0% LAG)
+// ULTRA-LIGHTWEIGHT NAME QT ENGINE - 0% LAG KHI CHUYỂN TAB & TIẾT KIỆM RAM
 // =========================================================================
 const DB_NAME = 'NameQT_Store_DB_v3';
 const FILES_STORE = 'files_store_v3';
@@ -65,21 +65,21 @@ async function clearFilesFromIndexedDB() {
     } catch (e) {}
 }
 
-class TrieNameQT {
+class FastNameQTEngine {
     constructor() {
         this.dict = new Map();
         this.files = []; 
-        this.root = { children: new Map() };
-        this.maxDepth = 0;
+        this.maxDepth = 15;
+        this.isLoaded = false; // CỜ CHỐNG NẠP LẶP LẠI KHI CHUYỂN TAB
     }
 
     countEntries(txtContent) {
         if (!txtContent) return 0;
         const lines = txtContent.normalize('NFC').replace(/^\uFEFF/, '').split(/\r?\n/);
         let count = 0;
-        for (let line of lines) {
-            line = line.trim();
-            if (!line || line.startsWith('#')) continue;
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line || line.charCodeAt(0) === 35) continue;
             if (line.indexOf('=') > 0) count++;
         }
         return count;
@@ -87,25 +87,32 @@ class TrieNameQT {
 
     rebuildCombinedDict() {
         this.dict.clear();
-        for (const file of this.files) {
+        let maxLen = 1;
+
+        for (let f = 0; f < this.files.length; f++) {
+            const file = this.files[f];
             if (!file || !file.content) continue;
-            const lines = file.content.normalize('NFC').replace(/^\uFEFF/, '').split(/\r?\n/);
-            for (let line of lines) {
-                line = line.trim();
-                if (!line || line.startsWith('#')) continue;
+
+            const lines = file.content.replace(/^\uFEFF/, '').split(/\r?\n/);
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line || line.charCodeAt(0) === 35) continue;
+
                 const eqIndex = line.indexOf('=');
                 if (eqIndex > 0) {
-                    const cn = line.slice(0, eqIndex).trim().normalize('NFC');
-                    let vi = line.slice(eqIndex + 1).trim().normalize('NFC');
+                    const cn = line.slice(0, eqIndex).trim();
+                    let vi = line.slice(eqIndex + 1).trim();
                     if (cn && vi) {
                         if (vi.includes('/')) vi = vi.split('/')[0].trim();
                         if (vi.includes(',')) vi = vi.split(',')[0].trim();
                         this.dict.set(cn, vi);
+                        if (cn.length > maxLen) maxLen = cn.length;
                     }
                 }
             }
         }
-        this.buildTrie();
+        this.maxDepth = Math.min(maxLen, 25);
+        this.isLoaded = true;
     }
 
     async addOrUpdateFile(fileName, content, fileId = null) {
@@ -139,11 +146,16 @@ class TrieNameQT {
     async clearStorage() {
         this.dict.clear();
         this.files = [];
-        this.buildTrie();
+        this.isLoaded = false;
         await clearFilesFromIndexedDB();
     }
 
-    async loadFromStorage() {
+    async loadFromStorage(forceReload = false) {
+        // NẾU ĐÃ NẠP VÀO RAM RỒI -> BỎ QUA NGAY LẬP TỨC (0ms, KHÔNG BỊ LAG KHI CHUYỂN TAB)
+        if (this.isLoaded && this.dict.size > 0 && !forceReload) {
+            return;
+        }
+
         const localFiles = await loadFilesFromIndexedDB();
         if (localFiles && localFiles.length > 0) {
             this.files = localFiles;
@@ -152,42 +164,33 @@ class TrieNameQT {
         }
     }
 
-    buildTrie() {
-        this.root = { children: new Map() };
-        this.maxDepth = 0;
-        for (let [cn, vi] of this.dict.entries()) {
-            let curr = this.root;
-            for (let char of cn) {
-                if (!curr.children.has(char)) curr.children.set(char, { children: new Map() });
-                curr = curr.children.get(char);
-            }
-            curr.val = vi;
-            if (cn.length > this.maxDepth) this.maxDepth = cn.length;
-        }
-    }
-
     process(rawText) {
         if (!rawText) return { text: '', tokens: [] };
         const normRaw = rawText.normalize('NFC');
-        let i = 0, n = normRaw.length;
+        const n = normRaw.length;
+        let i = 0;
         const rawTokens = [];
+        const maxL = this.maxDepth;
 
         while (i < n) {
-            let longestMatchVal = null, longestMatchLen = 0;
-            let curr = this.root;
-            for (let j = i; j < Math.min(n, i + this.maxDepth); j++) {
-                const char = normRaw[j];
-                if (!curr.children.has(char)) break;
-                curr = curr.children.get(char);
-                if (curr.val !== undefined) {
-                    longestMatchVal = curr.val;
-                    longestMatchLen = j - i + 1;
+            let matchVal = null;
+            let matchLen = 0;
+
+            const limit = Math.min(n - i, maxL);
+            for (let len = limit; len >= 1; len--) {
+                const sub = normRaw.substr(i, len);
+                const val = this.dict.get(sub);
+                if (val !== undefined) {
+                    matchVal = val;
+                    matchLen = len;
+                    break;
                 }
             }
-            if (longestMatchVal !== null && longestMatchLen > 0) {
-                const cnSub = normRaw.slice(i, i + longestMatchLen);
-                rawTokens.push({ rawText: cnSub, qtText: longestMatchVal, rawStart: i, rawEnd: i + longestMatchLen });
-                i += longestMatchLen;
+
+            if (matchVal !== null && matchLen > 0) {
+                const cnSub = normRaw.substr(i, matchLen);
+                rawTokens.push({ rawText: cnSub, qtText: matchVal, rawStart: i, rawEnd: i + matchLen });
+                i += matchLen;
             } else {
                 const char = normRaw[i];
                 rawTokens.push({ rawText: char, qtText: char, rawStart: i, rawEnd: i + 1 });
@@ -215,4 +218,4 @@ class TrieNameQT {
     }
 }
 
-const nameQTEngine = new TrieNameQT();
+const nameQTEngine = new FastNameQTEngine();

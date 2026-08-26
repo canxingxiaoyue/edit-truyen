@@ -1,5 +1,5 @@
 // =========================================================================
-// ĐỒNG BỘ BÔI ĐEN REAL-TIME RAW ↔ QT (TỐI ƯU CHỐNG LAG)
+// ĐỒNG BỘ BÔI ĐEN REAL-TIME RAW ↔ QT (TÔ VÀNG ĐỒNG THỜI TỨC THÌ)
 // =========================================================================
 let isSyncHighlighting = false;
 let syncTimeout = null;
@@ -55,11 +55,12 @@ function handleSelectionSync() {
     clearTimeout(syncTimeout);
     syncTimeout = setTimeout(() => {
         executeSelectionSync();
-    }, 50); // Debounce 50ms chống giật lag
+    }, 20); // Phản hồi tức thì trong 20ms
 }
 
 function executeSelectionSync() {
-    if (isSyncHighlighting || activeTab !== 'edit-tool') return;
+    if (isSyncHighlighting) return;
+    if (typeof activeTab !== 'undefined' && activeTab !== 'edit-tool') return;
 
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) return;
@@ -74,12 +75,24 @@ function executeSelectionSync() {
     if (!tr) return;
 
     const tbody = document.getElementById('table-body');
+    if (!tbody) return;
+
     const rowIndex = Array.from(tbody.children).indexOf(tr);
     const colIndex = Array.from(tr.children).indexOf(td);
 
+    // Chỉ xử lý khi bôi đen ở cột Raw (0) hoặc cột QT (4)
     if (colIndex !== 0 && colIndex !== 4) return;
 
-    const tokens = rowTokensMap[rowIndex];
+    // Tự động phân tích Token ngay lập tức nếu chưa có trong bộ nhớ
+    let tokens = (typeof rowTokensMap !== 'undefined') ? rowTokensMap[rowIndex] : null;
+    if (!tokens || tokens.length === 0) {
+        const rawVal = (data[rowIndex]?.raw || tr.children[0]?.innerText || '').replace(/<[^>]+>/g, '').normalize('NFC');
+        if (typeof nameQTEngine !== 'undefined' && nameQTEngine.process) {
+            const res = nameQTEngine.process(rawVal);
+            tokens = res.tokens;
+            if (typeof rowTokensMap !== 'undefined') rowTokensMap[rowIndex] = tokens;
+        }
+    }
     if (!tokens || tokens.length === 0) return;
 
     const selectedText = selection.toString();
@@ -99,20 +112,33 @@ function executeSelectionSync() {
     const activeCell = colIndex === 0 ? rawCell : qtCell;
     const savedSelection = saveSelectionRelativeToCell(activeCell, window.getSelection());
 
+    // 1. Bôi đen ở cột Raw -> Tô vàng tương ứng bên cột QT
     if (colIndex === 0) {
         const matchedTokens = tokens.filter(t => t.rawStart < selEnd && t.rawEnd > selStart);
         if (matchedTokens.length > 0) {
+            const rawStart = matchedTokens[0].rawStart;
+            const rawEnd = matchedTokens[matchedTokens.length - 1].rawEnd;
+            const qtStart = matchedTokens[0].qtStart;
+            const qtEnd = matchedTokens[matchedTokens.length - 1].qtEnd;
+
             clearSyncHighlights();
-            applySyncHighlight(rawCell, matchedTokens[0].rawStart, matchedTokens[matchedTokens.length - 1].rawEnd);
-            applySyncHighlight(qtCell, matchedTokens[0].qtStart, matchedTokens[matchedTokens.length - 1].qtEnd);
+            applySyncHighlight(rawCell, rawStart, rawEnd);
+            applySyncHighlight(qtCell, qtStart, qtEnd);
             restoreSelectionInCell(activeCell, savedSelection);
         }
-    } else if (colIndex === 4) {
+    } 
+    // 2. Bôi đen ở cột QT -> Tô vàng tương ứng bên cột Raw
+    else if (colIndex === 4) {
         const matchedTokens = tokens.filter(t => t.qtStart < selEnd && t.qtEnd > selStart);
         if (matchedTokens.length > 0) {
+            const rawStart = matchedTokens[0].rawStart;
+            const rawEnd = matchedTokens[matchedTokens.length - 1].rawEnd;
+            const qtStart = matchedTokens[0].qtStart;
+            const qtEnd = matchedTokens[matchedTokens.length - 1].qtEnd;
+
             clearSyncHighlights();
-            applySyncHighlight(qtCell, matchedTokens[0].qtStart, matchedTokens[matchedTokens.length - 1].qtEnd);
-            applySyncHighlight(rawCell, matchedTokens[0].rawStart, matchedTokens[matchedTokens.length - 1].rawEnd);
+            applySyncHighlight(qtCell, qtStart, qtEnd);
+            applySyncHighlight(rawCell, rawStart, rawEnd);
             restoreSelectionInCell(activeCell, savedSelection);
         }
     }
@@ -143,5 +169,10 @@ function applySyncHighlight(cell, start, end) {
 }
 
 function escapeHTML(str) {
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+// TỰ ĐỘNG GẮN SỰ KIỆN LẮNG NGHE CHUỘT VÀ PHÍM TOÀN TRANG
+document.addEventListener('mouseup', handleSelectionSync);
+document.addEventListener('keyup', handleSelectionSync);

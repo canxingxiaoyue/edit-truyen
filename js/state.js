@@ -64,15 +64,20 @@ let lastMetaHistoryTime = 0;
 
 // Bộ màu sắc giao diện
 const themes = {
-    light: { bg: '#f8fafc', text: '#334155', active: '#cbd5e1', hover: 'rgba(0,0,0,0.03)' },
-    sepia: { bg: '#f5eedc', text: '#4a3622', active: '#d6c5a3', hover: '#ebdcb9' },
-    sage:  { bg: '#e3ede3', text: '#1e301e', active: '#b8ccb8', hover: '#d1dfd1' },
-    dreamy:{ bg: '#faf0f5', text: '#522d42', active: '#e8c1db', hover: '#f3d9ea' },
-    dark:  { bg: '#1e293b', text: '#cbd5e1', active: '#334155', hover: '#24304a' },
-    night: { bg: '#0d1b2a', text: '#e0e1dd', active: '#1b2d42', hover: '#12253b' },
-    oled:  { bg: '#000000', text: '#e2e8f0', active: '#2d2d30', hover: '#161618' }
-};
+    // Sáng & Pastel
+    light:   { bg: '#f8fafc', text: '#334155', active: '#cbd5e1', hover: 'rgba(0,0,0,0.03)' },
+    sepia:   { bg: '#f5eedc', text: '#4a3622', active: '#d6c5a3', hover: '#ebdcb9' },
+    sage:    { bg: '#e3ede3', text: '#1e301e', active: '#b8ccb8', hover: '#d1dfd1' },
+    dreamy:  { bg: '#faf0f5', text: '#522d42', active: '#e8c1db', hover: '#f3d9ea' },
+    peach:   { bg: '#fdf4ed', text: '#523628', active: '#f8d2be', hover: '#faeade' }, // 🍑 Mơ đào hoàng hôn
+    mint:    { bg: '#eef7f6', text: '#1f4844', active: '#c7eae6', hover: '#e1f3f1' }, // 🧊 Băng ngọc tuyết
+    coral:   { bg: '#fdf1f3', text: '#542834', active: '#f6cbd3', hover: '#fae3e7' }, // 🍓 Hồng trà san hô
 
+    // Tối & Dịu mắt
+    dark:    { bg: '#1e293b', text: '#cbd5e1', active: '#334155', hover: '#24304a' },
+    night:   { bg: '#0d1b2a', text: '#e0e1dd', active: '#1b2d42', hover: '#12253b' },
+    oled:    { bg: '#000000', text: '#e2e8f0', active: '#2d2d30', hover: '#161618' }
+};
 function showToast(message, bgColor = '#10b981') {
     const toast = document.getElementById('toast');
     if (!toast) return;

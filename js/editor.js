@@ -1,5 +1,5 @@
 // =========================================================================
-// QUẢN LÝ BẢNG DỊCH CHÍNH (MỤC 1) - TỐI ƯU SIÊU TỐC (HI-PERFORMANCE)
+// QUẢN LÝ BẢNG DỊCH CHÍNH (MỤC 1) - TỐI ƯU SIÊU TỐC & ĐẦY ĐỦ PHÍM TẮT
 // =========================================================================
 let saveTimeout;
 let countTimeout;
@@ -21,7 +21,6 @@ function debounceSave() {
         }
     }, 800);
 
-    // Tách riêng đếm từ để không làm khựng phím khi gõ
     clearTimeout(countTimeout);
     countTimeout = setTimeout(() => {
         updateWordCounts();
@@ -50,7 +49,6 @@ function renderTable() {
     });
     tbody.appendChild(fragment);
     
-    // Khởi tạo token Name QT chỉ 1 lần
     if (typeof nameQTEngine !== 'undefined' && nameQTEngine.process) {
         data.forEach((row, idx) => {
             if (row.raw) {
@@ -116,7 +114,7 @@ function editorUndo() {
     renderTable();
     debounceSave();
     if (typeof updateUndoRedoButtonsState === 'function') updateUndoRedoButtonsState();
-    showToast('↩️ Đã hoàn tác dịch thuật', 'var(--btn-info)');
+    showToast('↩️ Đã hoàn tác dịch thuật (Undo)', 'var(--btn-info)');
 }
 
 function editorRedo() {
@@ -127,7 +125,7 @@ function editorRedo() {
     renderTable();
     debounceSave();
     if (typeof updateUndoRedoButtonsState === 'function') updateUndoRedoButtonsState();
-    showToast('🔁 Đã làm lại dịch thuật', 'var(--btn-info)');
+    showToast('🔁 Đã làm lại dịch thuật (Redo)', 'var(--btn-info)');
 }
 
 function addEditorHistoryEntry() {
@@ -139,7 +137,7 @@ function addEditorHistoryEntry() {
     localStorage.setItem('translationHistory', JSON.stringify(history));
 }
 
-// SỰ KIỆN BIÊN DỊCH
+// SỰ KIỆN BIÊN DỊCH CHÍNH
 function initEditorEvents() {
     const chapterInput = document.getElementById('chapter-title-input');
     if (chapterInput) {
@@ -164,7 +162,6 @@ function initEditorEvents() {
         const cleanText = clipboardText.replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '').normalize('NFC');
         let lines = cleanText.split(/\r\n|\r|\n|\u2028|\u2029/).map(line => line.trim()).filter(line => line !== '');
 
-        // Dán 1 từ / 1 câu ngắn: Chèn đúng con trỏ
         if (lines.length <= 1 && !cleanText.includes('\t')) {
             e.preventDefault();
             const selection = window.getSelection();
@@ -178,7 +175,6 @@ function initEditorEvents() {
             return;
         }
 
-        // Dán bảng lớn (từ Excel)
         e.preventDefault();
         if (typeof clearSyncHighlights === 'function') clearSyncHighlights();
         
@@ -228,7 +224,7 @@ function initEditorEvents() {
         debounceSave();
     });
 
-    // NHẬP LIỆU GÕ TAY REAL-TIME (TỐI ƯU CỰC MƯỢT)
+    // NHẬP LIỆU GÕ TAY REAL-TIME
     tbody.addEventListener('input', (e) => {
         const targetCell = e.target.closest('td');
         if (!targetCell) return;
@@ -240,7 +236,6 @@ function initEditorEvents() {
         const plainText = normalizeUnicodeText(targetCell.innerText);
         data[rowIndex][columns[colIndex]] = targetCell.innerHTML;
 
-        // Chỉ xử lý Pinyin và QT khi sửa ở cột Raw (Cột 0)
         if (colIndex === 0) {
             if (typeof safePinyin === 'function') {
                 data[rowIndex]['pinyin'] = safePinyin(plainText);
@@ -314,7 +309,6 @@ function initEditorEvents() {
         }
     });
 
-    // SỬA LỖI NGHẼN INP KHI RESET BẢNG
     document.getElementById('btn-reset')?.addEventListener('click', (e) => {
         e.preventDefault();
         if (confirm("⚠️ Xóa TOÀN BỘ dữ liệu trên bảng?")) {
@@ -336,7 +330,7 @@ function initEditorEvents() {
         }
     });
 
-    // COPY TỪNG CỘT
+    // Copy Cột
     document.querySelectorAll('.col-copy-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -355,10 +349,8 @@ function initEditorEvents() {
             }
 
             const sepPlain = format === 'story' ? '\r\n\r\n' : '\n';
-            const plainTextFull = plainArray.join(sepPlain);
-
             try {
-                await navigator.clipboard.writeText(plainTextFull);
+                await navigator.clipboard.writeText(plainArray.join(sepPlain));
                 showToast(`✅ Đã copy cột ${colKey.toUpperCase()}!`, 'var(--btn-success)');
             } catch (err) {
                 showToast('❌ Không thể truy cập Clipboard!', 'var(--btn-danger)');
@@ -366,7 +358,7 @@ function initEditorEvents() {
         });
     });
 
-    // COPY BẢN BÊ TA
+    // Copy Bản bê ta
     document.getElementById('btn-copy')?.addEventListener('click', async (e) => {
         e.preventDefault();
         let plainArray = [];
@@ -388,9 +380,9 @@ function initEditorEvents() {
         }
     });
 
-    // Format Ribbon
-    document.getElementById('btn-undo')?.addEventListener('click', editorUndo);
-    document.getElementById('btn-redo')?.addEventListener('click', editorRedo);
+    // Các nút bấm Ribbon
+    document.getElementById('btn-undo')?.addEventListener('click', () => { if (activeTab === 'edit-tool') editorUndo(); else if (typeof metaUndo === 'function') metaUndo(); });
+    document.getElementById('btn-redo')?.addEventListener('click', () => { if (activeTab === 'edit-tool') editorRedo(); else if (typeof metaRedo === 'function') metaRedo(); });
     document.getElementById('btn-bold')?.addEventListener('click', () => execFormat('bold'));
     document.getElementById('btn-italic')?.addEventListener('click', () => execFormat('italic'));
     document.getElementById('btn-underline')?.addEventListener('click', () => execFormat('underline'));
@@ -401,7 +393,43 @@ function initEditorEvents() {
     document.getElementById('btn-align-right')?.addEventListener('click', () => execFormat('justifyRight'));
     document.getElementById('btn-clear-format')?.addEventListener('click', () => execFormat('removeFormat'));
 
-    // Xuất/Nhập file JSON
+    // =========================================================================
+    // KHÔI PHỤC PHÍM TẮT BÀN PHÍM TOÀN DIỆN (CTRL+Z, CTRL+Y, CTRL+SHIFT+Z,...)
+    // =========================================================================
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey || e.metaKey) {
+            const key = e.key.toLowerCase();
+            
+            // Phím tắt Hoàn tác: Ctrl + Z
+            if (key === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                if (activeTab === 'edit-tool') {
+                    editorUndo();
+                } else if (typeof metaUndo === 'function') {
+                    metaUndo();
+                }
+            } 
+            // Phím tắt Làm lại: Ctrl + Y HOẶC Ctrl + Shift + Z
+            else if (key === 'y' || (key === 'z' && e.shiftKey)) {
+                e.preventDefault();
+                if (activeTab === 'edit-tool') {
+                    editorRedo();
+                } else if (typeof metaRedo === 'function') {
+                    metaRedo();
+                }
+            } 
+            // Phím tắt Định dạng
+            else if (key === 'b' && activeTab === 'edit-tool') {
+                e.preventDefault(); execFormat('bold');
+            } else if (key === 'i' && activeTab === 'edit-tool') {
+                e.preventDefault(); execFormat('italic');
+            } else if (key === 'u' && activeTab === 'edit-tool') {
+                e.preventDefault(); execFormat('underline');
+            }
+        }
+    });
+
+    // Xuất/Nhập file
     document.getElementById('btn-export')?.addEventListener('click', (e) => {
         e.preventDefault();
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
@@ -483,7 +511,6 @@ function execFormat(command, value = null) {
     }
 }
 
-// THUẬT TOÁN ĐẾM TỪ SIÊU TỐC (KHÔNG DÙNG REGEX NẶNG NỮA - TĂNG TỐC 50 LẦN)
 function updateWordCounts() {
     let counts = { raw: { w: 0, c: 0 }, pinyin: { w: 0, c: 0 }, meaning: { w: 0, c: 0 }, translation: { w: 0, c: 0 }, qt: { w: 0, c: 0 }, edit: { w: 0, c: 0 } };
 
@@ -499,9 +526,9 @@ function updateWordCounts() {
 
             counts[col].c += text.length;
 
-            if (j === 0 || j === 4) { // Cột Raw và QT (Tiếng Trung: tính theo ký tự)
+            if (j === 0 || j === 4) { 
                 counts[col].w += text.length;
-            } else { // Tiếng Việt / Pinyin: tính theo khoảng trắng
+            } else { 
                 counts[col].w += text.split(/\s+/).length;
             }
         }

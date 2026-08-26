@@ -89,7 +89,6 @@ function applyTheme(themeKey) {
     if (themeSelect) themeSelect.value = themeKey;
     localStorage.setItem('appTheme', themeKey);
 }
-
 function initTabEvents() {
     document.getElementById('tab-edit')?.addEventListener('click', () => switchTab('edit-tool'));
     document.getElementById('tab-story')?.addEventListener('click', () => switchTab('story-info'));

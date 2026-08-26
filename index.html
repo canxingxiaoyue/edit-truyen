@@ -54,12 +54,10 @@
                 <span class="app-name">công cụ edit</span>
             </div>
 
-            <nav class="main-nav-links">
-                <button class="nav-link active" id="nav-home">Trang chủ</button>
-                <button class="nav-link" id="nav-my-projects">📂 Dữ liệu của tôi</button>
-                <button class="nav-link" id="nav-docs" onclick="alert('Công cụ Biên Dịch & Edit Truyện Chuyên Nghiệp v3.0\nHỗ trợ dịch Name QT, Pinyin, Quản lý tiến độ.')">Tài liệu</button>
-            </nav>
-
+           <nav class="main-nav-links">
+    <button class="nav-link active" id="nav-home">Trang chủ</button>
+    <button class="nav-link" id="nav-my-projects">📂 Dữ liệu của tôi</button>
+</nav>
             <div class="nav-right-controls">
                 <div class="font-controls">
                     <span title="Chỉnh cỡ chữ">Cỡ chữ:</span>
@@ -86,14 +84,21 @@
                         </optgroup>
                     </select>
 
-                    <select id="theme-select" class="font-select" title="Chọn giao diện màu">
-                        <option value="light">☀️ Sáng sữa</option>
-                        <option value="sepia">🍂 Giấy ấm (Sepia)</option>
-                        <option value="sage">🍃 Xanh lục dịu</option>
-                        <option value="dreamy">🌸 Hồng tím pastel</option>
-                        <option value="dark">🌙 Tối xám dịu</option>
-                        <option value="night">🌌 Đêm biển thẳm</option>
-                        <option value="oled">🖤 OLED Đen tuyền</option>
+                   <select id="theme-select" class="font-select" title="Chọn giao diện màu">
+                        <optgroup label="Sáng & Pastel">
+                            <option value="light">☀️ Sáng sữa</option>
+                            <option value="sepia">🍂 Giấy ấm (Sepia)</option>
+                            <option value="sage">🍃 Xanh lục dịu</option>
+                            <option value="dreamy">🌸 Hồng tím pastel</option>
+                            <option value="peach">🍑 Mơ đào hoàng hôn</option>
+                            <option value="mint">🧊 Băng ngọc tuyết</option>
+                            <option value="coral">🍓 Hồng trà san hô</option>
+                        </optgroup>
+                        <optgroup label="Tối & Dịu mắt">
+                            <option value="dark">🌙 Tối xám dịu</option>
+                            <option value="night">🌊 Đêm biển thẳm</option>
+                            <option value="oled">🖤 OLED Đen tuyền</option>
+                        </optgroup>
                     </select>
                 </div>
                 <!-- KHU VỰC CLERK AVATAR / ĐĂNG NHẬP -->

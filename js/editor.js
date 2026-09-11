@@ -128,13 +128,43 @@ function editorRedo() {
     showToast('🔁 Đã làm lại dịch thuật (Redo)', 'var(--btn-info)');
 }
 
+// =========================================================================
+// QUẢN LÝ LỊCH SỬ DỊCH: KHÔNG GIỚI HẠN BẢN GHI / NGÀY - GIỮ NGUYÊN VĨNH VIỄN
+// =========================================================================
 function addEditorHistoryEntry() {
-    let history = JSON.parse(localStorage.getItem('translationHistory')) || [];
-    const currentDataCopy = JSON.parse(JSON.stringify(data));
-    if (history.length > 0 && JSON.stringify(history[history.length - 1].data) === JSON.stringify(currentDataCopy)) return;
-    history.push({ timestamp: Date.now(), rowCount: data.length, data: currentDataCopy });
-    if (history.length > 15) history.shift();
-    localStorage.setItem('translationHistory', JSON.stringify(history));
+    try {
+        let history = JSON.parse(localStorage.getItem('translationHistory')) || [];
+        const currentDataCopy = JSON.parse(JSON.stringify(data));
+
+        // Tránh tạo bản ghi trùng lặp liên tiếp nếu dữ liệu chưa có thay đổi
+        if (history.length > 0 && JSON.stringify(history[history.length - 1].data) === JSON.stringify(currentDataCopy)) {
+            return;
+        }
+
+        // Tạo record mới độc lập, không ghi đè record cũ, không giới hạn số lượng hay số ngày
+        history.push({ 
+            timestamp: Date.now(), 
+            rowCount: data.length, 
+            data: currentDataCopy 
+        });
+
+        // Không dùng shift(), slice(), splice(), prune() - Dữ liệu giữ vĩnh viễn cho đến khi chủ động xóa
+        try {
+            localStorage.setItem('translationHistory', JSON.stringify(history));
+        } catch (storageErr) {
+            // Kiểm tra và bắt lỗi khi chạm ngưỡng dung lượng vật lý của trình duyệt (~5MB)
+            if (storageErr.name === 'QuotaExceededError' || storageErr.code === 22 || storageErr.code === 1014) {
+                console.warn("⚠️ Bộ nhớ trình duyệt (localStorage) đã đầy dung lượng vật lý!");
+                if (typeof showToast === 'function') {
+                    showToast("⚠️ Dung lượng lưu trữ của trình duyệt đã đầy, hãy chủ động xóa bớt lịch sử cũ!", "var(--btn-warning)");
+                }
+            } else {
+                console.error("Lỗi khi lưu lịch sử dịch vào localStorage:", storageErr);
+            }
+        }
+    } catch (e) {
+        console.error("Lỗi addEditorHistoryEntry:", e);
+    }
 }
 
 // SỰ KIỆN BIÊN DỊCH CHÍNH
@@ -393,14 +423,11 @@ function initEditorEvents() {
     document.getElementById('btn-align-right')?.addEventListener('click', () => execFormat('justifyRight'));
     document.getElementById('btn-clear-format')?.addEventListener('click', () => execFormat('removeFormat'));
 
-    // =========================================================================
-    // KHÔI PHỤC PHÍM TẮT BÀN PHÍM TOÀN DIỆN (CTRL+Z, CTRL+Y, CTRL+SHIFT+Z,...)
-    // =========================================================================
+    // Khôi phục phím tắt bàn phím toàn diện (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z,...)
     document.addEventListener('keydown', (e) => {
         if (e.ctrlKey || e.metaKey) {
             const key = e.key.toLowerCase();
             
-            // Phím tắt Hoàn tác: Ctrl + Z
             if (key === 'z' && !e.shiftKey) {
                 e.preventDefault();
                 if (activeTab === 'edit-tool') {
@@ -409,7 +436,6 @@ function initEditorEvents() {
                     metaUndo();
                 }
             } 
-            // Phím tắt Làm lại: Ctrl + Y HOẶC Ctrl + Shift + Z
             else if (key === 'y' || (key === 'z' && e.shiftKey)) {
                 e.preventDefault();
                 if (activeTab === 'edit-tool') {
@@ -418,7 +444,6 @@ function initEditorEvents() {
                     metaRedo();
                 }
             } 
-            // Phím tắt Định dạng
             else if (key === 'b' && activeTab === 'edit-tool') {
                 e.preventDefault(); execFormat('bold');
             } else if (key === 'i' && activeTab === 'edit-tool') {
@@ -511,6 +536,7 @@ function execFormat(command, value = null) {
     }
 }
 
+// THUẬT TOÁN ĐẾM TỪ SIÊU TỐC
 function updateWordCounts() {
     let counts = { raw: { w: 0, c: 0 }, pinyin: { w: 0, c: 0 }, meaning: { w: 0, c: 0 }, translation: { w: 0, c: 0 }, qt: { w: 0, c: 0 }, edit: { w: 0, c: 0 } };
 

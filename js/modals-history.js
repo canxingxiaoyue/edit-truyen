@@ -1,7 +1,18 @@
 // =========================================================================
-// QUẢN LÝ LỊCH SỬ DỊCH & HỘP THOẠI MODAL NAME QT
+// QUẢN LÝ LỊCH SỬ DỊCH & NAME QT (CÁCH LY HOÀN TOÀN VỚI PROJECT - 0% LỖI UPLOAD)
 // =========================================================================
 let editingFileId = null;
+
+// HÀM BẢO VỆ CHỐNG LỖI KHI RENDER TÊN FILE
+function escapeHTML(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
 
 function openHistoryModal(type) {
     const modal = document.getElementById('modal-history');
@@ -10,55 +21,69 @@ function openHistoryModal(type) {
     modal.classList.add('show');
 }
 
-function deleteHistoryEntry(type, originalIndex) {
+// 1. XÓA MỘT BẢN GHI THEO TIMESTAMP (CHỈ XÓA LỊCH SỬ, TUYỆT ĐỐI KHÔNG LƯU DỰ ÁN)
+function deleteHistoryEntry(type, timestamp) {
     const storageKey = type === 'editor' ? 'translationHistory' : 'metadataHistory';
-    let history = JSON.parse(localStorage.getItem(storageKey)) || [];
+    let history = [];
+    try {
+        history = JSON.parse(localStorage.getItem(storageKey)) || [];
+    } catch (e) { history = []; }
     
     if (confirm("🗑️ Bạn có chắc chắn muốn xóa bản sao lưu này không?")) {
-        history.splice(originalIndex, 1); 
-        localStorage.setItem(storageKey, JSON.stringify(history));
-        
-        if (typeof saveCurrentAsProject === 'function' && document.getElementById('chapter-title-input')?.value) {
-            saveCurrentAsProject(true); 
+        history = history.filter(item => item.timestamp !== timestamp);
+        try {
+            localStorage.setItem(storageKey, JSON.stringify(history));
+        } catch (err) {
+            console.error("Lỗi cập nhật localStorage:", err);
         }
         
+        // CHỈ CẬP NHẬT LẠI GIAO DIỆN MODAL - KHÔNG KÍCH HOẠT LƯU DỰ ÁN
         renderHistoryList(type); 
-        showToast("Đã xóa bản sao lưu lịch sử!", "var(--btn-danger)");
+        showToast("Đã xóa bản sao lưu!", "var(--btn-danger)");
     }
 }
 
+// 2. XÓA TOÀN BỘ LỊCH SỬ CỦA 1 NGÀY (CHỈ XÓA LỊCH SỬ, TUYỆT ĐỐI KHÔNG LƯU DỰ ÁN)
 function deleteHistoryByDate(type, dateStr, entriesToDelete) {
     if (confirm(`🗑️ Bạn có muốn XÓA SẠCH toàn bộ lịch sử của ngày "${dateStr}" không?`)) {
         const storageKey = type === 'editor' ? 'translationHistory' : 'metadataHistory';
-        let history = JSON.parse(localStorage.getItem(storageKey)) || [];
-        const timestampsToDelete = entriesToDelete.map(e => e.timestamp);
+        let history = [];
+        try {
+            history = JSON.parse(localStorage.getItem(storageKey)) || [];
+        } catch (e) { history = []; }
         
-        history = history.filter(entry => !timestampsToDelete.includes(entry.timestamp));
-        localStorage.setItem(storageKey, JSON.stringify(history));
+        const timestampsToDelete = new Set(entriesToDelete.map(e => e.timestamp));
+        history = history.filter(entry => !timestampsToDelete.has(entry.timestamp));
         
-        if (typeof saveCurrentAsProject === 'function' && document.getElementById('chapter-title-input')?.value) {
-            saveCurrentAsProject(true); 
+        try {
+            localStorage.setItem(storageKey, JSON.stringify(history));
+        } catch (err) {
+            console.error("Lỗi cập nhật localStorage:", err);
         }
         
+        // CHỈ CẬP NHẬT LẠI GIAO DIỆN MODAL - KHÔNG KÍCH HOẠT LƯU DỰ ÁN
         renderHistoryList(type); 
         showToast(`🗑️ Đã xóa sạch lịch sử ngày ${dateStr}!`, "var(--btn-danger)");
     }
 }
 
+// 3. XÓA TẤT CẢ LỊCH SỬ (CHỈ LÀM RỖNG LỊCH SỬ, TUYỆT ĐỐI KHÔNG LƯU DỰ ÁN)
 function deleteAllHistory(type) {
     if (confirm("⚠️ NGUY HIỂM: Xóa SẠCH TOÀN BỘ lịch sử hiện có? Hành động này không thể hoàn tác!")) {
         const storageKey = type === 'editor' ? 'translationHistory' : 'metadataHistory';
-        localStorage.setItem(storageKey, "[]");
-        
-        if (typeof saveCurrentAsProject === 'function' && document.getElementById('chapter-title-input')?.value) {
-            saveCurrentAsProject(true); 
+        try {
+            localStorage.setItem(storageKey, "[]");
+        } catch (err) {
+            console.error("Lỗi cập nhật localStorage:", err);
         }
         
+        // CHỈ CẬP NHẬT LẠI GIAO DIỆN MODAL - KHÔNG KÍCH HOẠT LƯU DỰ ÁN
         renderHistoryList(type); 
         showToast("🗑️ Đã dọn sạch toàn bộ lịch sử!", "var(--btn-danger)");
     }
 }
 
+// 4. VẼ GIAO DIỆN LỊCH SỬ THEO TỪNG NGÀY (LƯU VĨNH VIỄN, KHÔNG GIỚI HẠN NHÂN TẠO)
 function renderHistoryList(type) {
     const historyListDiv = document.getElementById('history-list');
     const modalTitle = document.querySelector('#modal-history h3');
@@ -70,15 +95,16 @@ function renderHistoryList(type) {
     try {
         if (type === 'editor') {
             if (modalTitle) modalTitle.innerHTML = '🕒 Lịch sử sửa đổi (Dịch thuật)';
-            if (modalDesc) modalDesc.innerHTML = 'Các bản sao lưu được nhóm theo ngày. Bạn có thể khôi phục hoặc xóa từng bản.';
+            if (modalDesc) modalDesc.innerHTML = 'Lịch sử được lưu trữ theo từng ngày vĩnh viễn đến khi bạn chủ động xóa.';
             history = JSON.parse(localStorage.getItem('translationHistory')) || [];
         } else {
             if (modalTitle) modalTitle.innerHTML = '🕒 Lịch sử sửa đổi (Thông tin truyện)';
-            if (modalDesc) modalDesc.innerHTML = 'Các bản sao lưu thông tin nhân vật, xưng hô, từ ngữ.';
+            if (modalDesc) modalDesc.innerHTML = 'Bản sao lưu thông tin nhân vật, xưng hô, từ ngữ theo từng ngày.';
             history = JSON.parse(localStorage.getItem('metadataHistory')) || [];
         }
     } catch (e) { history = []; }
 
+    // Quản lý nút Xóa Tất Cả
     if (modalActions) {
         const oldDelAllBtn = document.getElementById('btn-delete-all-history');
         if (oldDelAllBtn) oldDelAllBtn.remove();
@@ -87,7 +113,7 @@ function renderHistoryList(type) {
             const btnDelAll = document.createElement('button');
             btnDelAll.id = 'btn-delete-all-history';
             btnDelAll.className = 'btn-danger';
-            btnDelAll.innerHTML = '🗑️ Xóa tất cả';
+            btnDelAll.innerHTML = '🗑️ Xóa tất cả lịch sử';
             btnDelAll.style.marginRight = 'auto';
             btnDelAll.onclick = () => deleteAllHistory(type);
             modalActions.insertBefore(btnDelAll, modalActions.firstChild);
@@ -99,16 +125,22 @@ function renderHistoryList(type) {
         return;
     }
 
-    let processedHistory = history.map((item, idx) => ({ ...item, originalIndex: idx }));
-    processedHistory.sort((a, b) => b.timestamp - a.timestamp);
+    // Sắp xếp mới nhất lên đầu để tiện tra cứu
+    let processedHistory = [...history].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
+    // GOM NHÓM THEO TỪNG NGÀY CHUẨN XÁC
     const groups = {};
+    const todayLocaleStr = new Date().toLocaleDateString('vi-VN');
+
     processedHistory.forEach(entry => {
-        const dateObj = new Date(entry.timestamp);
+        const ts = Number(entry.timestamp) || Date.now();
+        const dateObj = new Date(ts);
         let dateStr = dateObj.toLocaleDateString('vi-VN');
-        if (dateStr === new Date().toLocaleDateString('vi-VN')) {
+        
+        if (dateStr === todayLocaleStr) {
             dateStr = "Hôm nay (" + dateStr + ")";
         }
+
         if (!groups[dateStr]) groups[dateStr] = [];
         groups[dateStr].push(entry);
     });
@@ -125,6 +157,7 @@ function renderHistoryList(type) {
         summaryEl.className = 'history-date-header';
         summaryEl.innerHTML = `📅 ${dateStr} <span style="font-size:0.8rem; font-weight:normal; color:gray; flex-grow:1;">(${entries.length} bản lưu)</span>`;
         
+        // NÚT XÓA NGÀY NÀY
         const delDateBtn = document.createElement('button');
         delDateBtn.className = 'btn-danger';
         delDateBtn.innerHTML = '🗑️ Xóa ngày này';
@@ -142,7 +175,8 @@ function renderHistoryList(type) {
         itemsWrapper.className = 'history-items-wrapper';
 
         entries.forEach(entry => {
-            const date = new Date(entry.timestamp);
+            const ts = Number(entry.timestamp) || Date.now();
+            const date = new Date(ts);
             const timeStr = date.toLocaleTimeString('vi-VN');
             
             const item = document.createElement('div');
@@ -182,7 +216,7 @@ function renderHistoryList(type) {
             delBtn.className = 'btn-delete';
             delBtn.innerText = 'Xóa';
             delBtn.style.padding = '4px 8px';
-            delBtn.onclick = () => deleteHistoryEntry(type, entry.originalIndex);
+            delBtn.onclick = () => deleteHistoryEntry(type, entry.timestamp);
 
             actionDiv.appendChild(restoreBtn);
             actionDiv.appendChild(delBtn);
@@ -198,7 +232,7 @@ function renderHistoryList(type) {
 }
 
 // =========================================================================
-// RENDER DANH SÁCH FILE NAME QT TRONG MODAL (ĐÃ DỌN SẠCH NÚT CLOUD)
+// RENDER DANH SÁCH FILE NAME QT TRONG MODAL
 // =========================================================================
 function renderNameQTFileList() {
     const listContainer = document.getElementById('nameqt-file-list');

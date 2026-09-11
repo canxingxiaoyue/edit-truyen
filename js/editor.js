@@ -360,54 +360,110 @@ function initEditorEvents() {
         }
     });
 
-    // Copy Cột
+    // =========================================================================
+    // HÀM TRÍCH XUẤT NỘI DUNG Ô (GIỮ NGUYÊN XUỐNG DÒNG BÊN TRONG Ô)
+    // =========================================================================
+    function extractCellContent(html) {
+        if (!html) return '';
+        let str = String(html);
+
+        // Chuyển đổi các thẻ xuống dòng HTML thành ký tự \n thực tế
+        str = str
+            .replace(/<br\s*[\/]?>/gi, '\n')
+            .replace(/<\/div>\s*<div>/gi, '\n')
+            .replace(/<div[^>]*>/gi, '\n')
+            .replace(/<\/div>/gi, '')
+            .replace(/<p[^>]*>/gi, '\n')
+            .replace(/<\/p>/gi, '')
+            .replace(/&nbsp;/gi, ' ');
+
+        // Decode các ký tự HTML entities
+        const temp = document.createElement('div');
+        temp.innerHTML = str;
+        let plain = temp.textContent || temp.innerText || '';
+
+        // Chuẩn hóa ngắt dòng về chuẩn \n
+        plain = plain.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+        return plain.trim();
+    }
+
+    // HÀM SAO CHÉP CLIPBOARD AN TOÀN TRÊN MỌI THIẾT BỊ
+    async function copyTextToClipboard(text, successMsg) {
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+            } else {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            }
+            showToast(successMsg, 'var(--btn-success)');
+        } catch (err) {
+            console.error('Lỗi sao chép:', err);
+            showToast('❌ Không thể truy cập bộ nhớ tạm!', 'var(--btn-danger)');
+        }
+    }
+
+    // =========================================================================
+    // COPY TOÀN BỘ CỘT (MỖI HÀNG CÁCH NHAU ĐÚNG \n\n, KHÔNG BỊ DÍNH LIỀN)
+    // =========================================================================
     document.querySelectorAll('.col-copy-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
             const colKey = btn.getAttribute('data-col');
-            const format = btn.getAttribute('data-format');
-            let plainArray = [];
+            if (!colKey) return;
 
+            const textBlocks = [];
+
+            // Lấy nội dung từng ô theo đúng thứ tự hàng từ trên xuống dưới
             data.forEach((row) => {
-                const plainText = (row[colKey] || '').replace(/<[^>]+>/g, '').trim();
-                if (plainText) plainArray.push(plainText);
+                const text = extractCellContent(row[colKey]);
+                if (text !== '') {
+                    textBlocks.push(text);
+                }
             });
 
-            if (plainArray.length === 0) {
-                showToast('⚠️ Cột này đang trống!', 'var(--btn-warning)');
+            if (textBlocks.length === 0) {
+                showToast(`⚠️ Cột ${colKey.toUpperCase()} đang trống!`, 'var(--btn-warning)');
                 return;
             }
 
-            const sepPlain = format === 'story' ? '\r\n\r\n' : '\n';
-            try {
-                await navigator.clipboard.writeText(plainArray.join(sepPlain));
-                showToast(`✅ Đã copy cột ${colKey.toUpperCase()}!`, 'var(--btn-success)');
-            } catch (err) {
-                showToast('❌ Không thể truy cập Clipboard!', 'var(--btn-danger)');
-            }
+            // Nối nội dung các hàng bằng đúng 2 dấu xuống dòng \n\n
+            const fullContent = textBlocks.join('\n\n');
+
+            await copyTextToClipboard(fullContent, `✅ Đã copy cột ${colKey.toUpperCase()}!`);
         });
     });
 
-    // Copy Bản bê ta
+    // =========================================================================
+    // COPY TRỌN BỘ BẢN BÊ TA (MỖI HÀNG CÁCH NHAU ĐÚNG \n\n)
+    // =========================================================================
     document.getElementById('btn-copy')?.addEventListener('click', async (e) => {
         e.preventDefault();
-        let plainArray = [];
+        const textBlocks = [];
+
         data.forEach(row => {
-            const plainText = (row.edit || '').replace(/<[^>]+>/g, '').trim();
-            if (plainText) plainArray.push(plainText);
+            const text = extractCellContent(row.edit);
+            if (text !== '') {
+                textBlocks.push(text);
+            }
         });
 
-        if (plainArray.length === 0) {
+        if (textBlocks.length === 0) {
             showToast('⚠️ Cột Bản bê ta đang trống!', 'var(--btn-warning)');
             return;
         }
 
-        try {
-            await navigator.clipboard.writeText(plainArray.join('\r\n\r\n'));
-            showToast('✅ Đã sao chép chương Bản bê ta!', 'var(--btn-success)');
-        } catch (err) {
-            showToast('❌ Không thể copy!', 'var(--btn-danger)');
-        }
+        const fullContent = textBlocks.join('\n\n');
+
+        await copyTextToClipboard(fullContent, '✅ Đã sao chép chương Bản bê ta!');
     });
 
     // Các nút bấm Ribbon

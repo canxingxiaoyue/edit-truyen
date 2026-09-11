@@ -360,14 +360,14 @@ function initEditorEvents() {
         }
     });
 
-    // =========================================================================
+// =========================================================================
     // HÀM TRÍCH XUẤT NỘI DUNG Ô (GIỮ NGUYÊN XUỐNG DÒNG BÊN TRONG Ô)
     // =========================================================================
     function extractCellContent(html) {
         if (!html) return '';
         let str = String(html);
 
-        // Chuyển đổi các thẻ xuống dòng HTML thành ký tự \n thực tế
+        // 1. Chuyển đổi các thẻ xuống dòng HTML thành ký tự \n thực tế
         str = str
             .replace(/<br\s*[\/]?>/gi, '\n')
             .replace(/<\/div>\s*<div>/gi, '\n')
@@ -377,25 +377,54 @@ function initEditorEvents() {
             .replace(/<\/p>/gi, '')
             .replace(/&nbsp;/gi, ' ');
 
-        // Decode các ký tự HTML entities
+        // 2. Decode các ký tự HTML entities
         const temp = document.createElement('div');
         temp.innerHTML = str;
         let plain = temp.textContent || temp.innerText || '';
 
-        // Chuẩn hóa ngắt dòng về chuẩn \n
+        // 3. Chuẩn hóa ngắt dòng về \n
         plain = plain.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
         return plain.trim();
     }
 
-    // HÀM SAO CHÉP CLIPBOARD AN TOÀN TRÊN MỌI THIẾT BỊ
-    async function copyTextToClipboard(text, successMsg) {
+    // =========================================================================
+    // HÀM SAO CHÉP KÉP (XUẤT ĐỒNG THỜI HTML VÀ PLAIN TEXT CHO WATTPAD & WORD)
+    // =========================================================================
+    async function copyAdvancedToClipboard(textBlocks, successMsg) {
+        if (!textBlocks || textBlocks.length === 0) {
+            showToast('⚠️ Cột này đang trống!', 'var(--btn-warning)');
+            return;
+        }
+
+        // 1. Định dạng Text thuần (cho Notepad / khung chat)
+        const plainText = textBlocks.join('\r\n\r\n');
+
+        // 2. Định dạng Rich Text HTML chuyên dụng cho Wattpad, Word, Google Docs:
+        // Kẹp thẻ <p><br></p> ở giữa mỗi hàng để ép Wattpad phải hiển thị dòng trắng cách biệt!
+        const htmlText = textBlocks.map(block => {
+            const safeHtml = block
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\n/g, '<br>');
+            return `<p>${safeHtml}</p>`;
+        }).join('<p><br></p>');
+
         try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(text);
+            if (navigator.clipboard && window.ClipboardItem) {
+                const textBlob = new Blob([plainText], { type: 'text/plain' });
+                const htmlBlob = new Blob([htmlText], { type: 'text/html' });
+                const clipboardItem = new ClipboardItem({
+                    'text/plain': textBlob,
+                    'text/html': htmlBlob
+                });
+                await navigator.clipboard.write([clipboardItem]);
+            } else if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(plainText);
             } else {
                 const textarea = document.createElement('textarea');
-                textarea.value = text;
+                textarea.value = plainText;
                 textarea.style.position = 'fixed';
                 textarea.style.opacity = '0';
                 document.body.appendChild(textarea);
@@ -406,13 +435,18 @@ function initEditorEvents() {
             }
             showToast(successMsg, 'var(--btn-success)');
         } catch (err) {
-            console.error('Lỗi sao chép:', err);
-            showToast('❌ Không thể truy cập bộ nhớ tạm!', 'var(--btn-danger)');
+            try {
+                await navigator.clipboard.writeText(plainText);
+                showToast(successMsg, 'var(--btn-success)');
+            } catch (e) {
+                console.error('Lỗi sao chép:', err);
+                showToast('❌ Không thể truy cập bộ nhớ tạm!', 'var(--btn-danger)');
+            }
         }
     }
 
     // =========================================================================
-    // COPY TOÀN BỘ CỘT (MỖI HÀNG CÁCH NHAU ĐÚNG \n\n, KHÔNG BỊ DÍNH LIỀN)
+    // COPY TOÀN BỘ CỘT (CÓ DÒNG TRẮNG CÁCH BIỆT TRÊN WATTPAD)
     // =========================================================================
     document.querySelectorAll('.col-copy-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
@@ -421,8 +455,6 @@ function initEditorEvents() {
             if (!colKey) return;
 
             const textBlocks = [];
-
-            // Lấy nội dung từng ô theo đúng thứ tự hàng từ trên xuống dưới
             data.forEach((row) => {
                 const text = extractCellContent(row[colKey]);
                 if (text !== '') {
@@ -435,15 +467,12 @@ function initEditorEvents() {
                 return;
             }
 
-            // Nối nội dung các hàng bằng đúng 2 dấu xuống dòng \n\n
-            const fullContent = textBlocks.join('\n\n');
-
-            await copyTextToClipboard(fullContent, `✅ Đã copy cột ${colKey.toUpperCase()}!`);
+            await copyAdvancedToClipboard(textBlocks, `✅ Đã copy cột ${colKey.toUpperCase()}!`);
         });
     });
 
     // =========================================================================
-    // COPY TRỌN BỘ BẢN BÊ TA (MỖI HÀNG CÁCH NHAU ĐÚNG \n\n)
+    // COPY TRỌN BỘ BẢN BÊ TA (CÓ DÒNG TRẮNG CÁCH BIỆT TRÊN WATTPAD)
     // =========================================================================
     document.getElementById('btn-copy')?.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -461,9 +490,7 @@ function initEditorEvents() {
             return;
         }
 
-        const fullContent = textBlocks.join('\n\n');
-
-        await copyTextToClipboard(fullContent, '✅ Đã sao chép chương Bản bê ta!');
+        await copyAdvancedToClipboard(textBlocks, '✅ Đã sao chép chương Bản bê ta!');
     });
 
     // Các nút bấm Ribbon

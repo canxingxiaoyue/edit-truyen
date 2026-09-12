@@ -1,5 +1,5 @@
 // =========================================================================
-// QUẢN LÝ DỰ ÁN DỮ LIỆU - CHỐNG TRÀN BỘ NHỚ LOCALSTORAGE (5MB QUOTA SAFE)
+// QUẢN LÝ DỰ ÁN DỮ LIỆU - CHỐNG LỖI VĂNG BẢN LƯU & GIỚI HẠN VERCEL 4.5MB
 // =========================================================================
 
 const API_URL = '/api/projects'; 
@@ -18,7 +18,6 @@ function formatDate(val) {
     return isNaN(d.getTime()) ? 'Mới tạo' : d.toLocaleString('vi-VN');
 }
 
-// BẢN TÓM TẮT SIÊU NHẸ (CHỈ ~150 BYTES/DỰ ÁN, CHỐNG TRÀN BỘ NHỚ 5MB)
 function toProjectSummary(proj) {
     return {
         id: proj.id,
@@ -43,21 +42,20 @@ function getUserIdForProject() {
     return 'guest_local_user';
 }
 
-// 1. TẢI DANH SÁCH DỰ ÁN (TỰ ĐỘNG GIẢI PHÓNG RÁC 5MB CŨ)
+// 1. TẢI DANH SÁCH DỰ ÁN
 async function loadSavedProjects(isSilent = false) {
     const userId = getUserIdForProject();
     
-    // Nạp và tự động dọn sạch các trường nặng trong localStorage cũ
     try {
         let localData = JSON.parse(localStorage.getItem('mySavedProjects')) || [];
         if (localData.some(p => p.data || p.history)) {
             localData = localData.map(toProjectSummary);
             localStorage.setItem('mySavedProjects', JSON.stringify(localData));
         }
-        localSavedProjectsCache = localData;
-    } catch (e) {
-        localSavedProjectsCache = [];
-    }
+        if (localSavedProjectsCache.length === 0) {
+            localSavedProjectsCache = localData;
+        }
+    } catch (e) {}
 
     if (userId === 'guest_local_user') {
         renderMyProjectsListUI();
@@ -79,9 +77,8 @@ async function loadSavedProjects(isSilent = false) {
             
             try {
                 localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache));
-            } catch (storageErr) {
-                console.warn("Bộ nhớ đệm đầy, chỉ hiển thị từ Cloud.");
-            }
+            } catch (storageErr) {}
+            
             renderMyProjectsListUI();
             calculateStorageMetrics();
         }
@@ -113,49 +110,79 @@ function stopProjectAutoSync() {
     }
 }
 
-// 2. LƯU DỰ ÁN (BẢO VỆ CHỐNG LỖI QUOTAEXCEEDEDERROR TUYỆT ĐỐI)
+// 2. LƯU DỰ ÁN (XỬ LÝ DỮ LIỆU CHUẨN XÁC, CHỐNG LỖI VĂNG DỰ ÁN)
 async function saveProjectToCloudAndLocal(projObj) {
     const userId = getUserIdForProject();
-
-    // 1. Tạo bản tóm tắt siêu nhẹ cho danh sách hiển thị
     const summaryObj = toProjectSummary(projObj);
 
-    const idx = localSavedProjectsCache.findIndex(p => p.id === projObj.id || p.name === projObj.name);
-    if (idx >= 0) localSavedProjectsCache[idx] = summaryObj;
-    else localSavedProjectsCache.unshift(summaryObj);
+    // NẾU LƯU TRÊN MÁY (GUEST)
+    if (userId === 'guest_local_user') {
+        const idx = localSavedProjectsCache.findIndex(p => p.id === projObj.id || p.name === projObj.name);
+        if (idx >= 0) localSavedProjectsCache[idx] = summaryObj;
+        else localSavedProjectsCache.unshift(summaryObj);
 
-    // 2. Lưu bản tóm tắt vào localStorage (chỉ vài KB, vĩnh viễn không bị tràn 5MB)
-    try {
-        const lightSummaries = localSavedProjectsCache.map(toProjectSummary);
-        localStorage.setItem('mySavedProjects', JSON.stringify(lightSummaries));
-    } catch (storageErr) {
-        console.warn("⚠️ Không thể ghi localStorage, tiếp tục đẩy lên Cloud...");
+        try {
+            localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache.map(toProjectSummary)));
+        } catch (e) {}
+
+        renderMyProjectsListUI();
+        calculateStorageMetrics();
+        showToast(`💾 Đã lưu dự án "${projObj.name}" vào máy!`, 'var(--btn-success)');
+        return;
     }
 
-    renderMyProjectsListUI();
-    calculateStorageMetrics();
+    // LƯU LÊN CLOUD POSTGRESQL (CÓ BẢO VỆ CHỐNG TRÀN DUNG LƯỢNG 4.5MB CỦA VERCEL)
+    showToast(`⏳ Đang lưu "${projObj.name}" lên Cloud...`, 'var(--btn-info)');
 
-    // 3. Đẩy toàn bộ dữ liệu đầy đủ (data, metadata, history) lên Cloud PostgreSQL
-    if (userId !== 'guest_local_user') {
-        try {
-            const payload = { ...projObj, userId: userId }; 
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (response.ok) {
-                showToast(`💾 Đã lưu dự án "${projObj.name}" lên Cloud thành công!`, 'var(--btn-success)');
-                loadSavedProjects(true);
-            } else {
-                showToast("⚠️ Server báo lỗi khi lưu!", "var(--btn-warning)");
-            }
-        } catch (err) {
-            showToast("⚠️ Mất kết nối Server!", "var(--btn-warning)");
+    // Chuẩn bị bản sao lịch sử an toàn cho Cloud (dưới 2MB để không bị Vercel chặn)
+    let cloudHistory = projObj.history || {};
+    try {
+        let cloudTrans = cloudHistory.translation || [];
+        let cloudMeta = cloudHistory.metadata || [];
+        
+        if (JSON.stringify(cloudTrans).length > 2 * 1024 * 1024) {
+            cloudTrans = cloudTrans.slice(-30); // Giữ 30 mốc gần nhất cho Cloud
         }
-    } else {
-        showToast(`💾 Đã lưu tạm dự án "${projObj.name}" vào máy!`, 'var(--btn-success)');
+        if (JSON.stringify(cloudMeta).length > 1 * 1024 * 1024) {
+            cloudMeta = cloudMeta.slice(-30);
+        }
+        cloudHistory = { translation: cloudTrans, metadata: cloudMeta };
+    } catch (e) {}
+
+    const payload = { 
+        ...projObj, 
+        history: cloudHistory,
+        userId: userId 
+    };
+
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            // SERVER ĐÃ XÁC NHẬN LƯU THÀNH CÔNG -> MỚI CẬP NHẬT VÀO DANH SÁCH
+            const idx = localSavedProjectsCache.findIndex(p => p.id === projObj.id || p.name === projObj.name);
+            if (idx >= 0) localSavedProjectsCache[idx] = summaryObj;
+            else localSavedProjectsCache.unshift(summaryObj);
+
+            try {
+                localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache.map(toProjectSummary)));
+            } catch (e) {}
+
+            renderMyProjectsListUI();
+            calculateStorageMetrics();
+            showToast(`💾 Đã lưu dự án "${projObj.name}" lên Cloud thành công!`, 'var(--btn-success)');
+        } else {
+            const errText = await response.text();
+            console.error("🔴 Lỗi từ máy chủ:", response.status, errText);
+            alert(`⚠️ Không thể lưu lên Cloud (Mã lỗi ${response.status})!\nChi tiết: ${errText.slice(0, 150)}`);
+        }
+    } catch (err) {
+        console.error("Lỗi mạng:", err);
+        alert("⚠️ Không thể kết nối đến máy chủ Cloud! Vui lòng kiểm tra lại đường truyền mạng.");
     }
 }
 
@@ -241,7 +268,7 @@ function renderMyProjectsListUI() {
         listBody.appendChild(tr);
     });
 
-    // MỞ DỰ ÁN (TẢI DỮ LIỆU ĐẦY ĐỦ TỪ CLOUD)
+    // MỞ DỰ ÁN
     listBody.querySelectorAll('.btn-open-proj').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const id = e.currentTarget.getAttribute('data-id');
@@ -266,7 +293,6 @@ function renderMyProjectsListUI() {
                     } catch(err) { console.error("Lỗi tải chi tiết:", err); }
                 }
 
-                // 1. Phục hồi bảng dịch
                 let rawData = proj.data;
                 if (typeof rawData === 'string') {
                     try { rawData = JSON.parse(rawData); } catch(e) {}
@@ -287,7 +313,6 @@ function renderMyProjectsListUI() {
                 renderTable();
                 debounceSave();
 
-                // 2. Phục hồi thông tin truyện
                 if (proj.metadata) {
                     let parsedMeta = proj.metadata;
                     if (typeof parsedMeta === 'string') {
@@ -298,7 +323,6 @@ function renderMyProjectsListUI() {
                     if (typeof renderMetadata === 'function') renderMetadata();
                 }
 
-                // 3. Phục hồi lịch sử đa ngày
                 if (proj.history) {
                     let parsedHist = proj.history;
                     if (typeof parsedHist === 'string') {
@@ -315,7 +339,7 @@ function renderMyProjectsListUI() {
         });
     });
 
-    // NHÂN BẢN DỰ ÁN
+    // NHÂN BẢN
     listBody.querySelectorAll('.btn-dup-proj').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const id = e.currentTarget.getAttribute('data-id');
@@ -346,7 +370,7 @@ function renderMyProjectsListUI() {
         });
     });
 
-    // XÓA DỰ ÁN
+    // XÓA
     listBody.querySelectorAll('.btn-del-proj').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const id = e.currentTarget.getAttribute('data-id');

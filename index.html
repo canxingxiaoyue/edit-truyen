@@ -29,6 +29,9 @@
       type="text/javascript">
     </script>
 
+    <!-- Thư viện Google Identity Services & Google Drive -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
     <!-- Liên kết File CSS bên ngoài -->
     <link rel="stylesheet" href="style.css">
 
@@ -41,6 +44,7 @@
     <script src="js/search-replace.js" defer></script>
     <script src="js/modals-history.js" defer></script>
     <script src="js/quick-name.js" defer></script>
+    <script src="js/google-drive.js" defer></script>
     <script src="js/project-manager.js" defer></script>
     <script src="js/app.js" defer></script>
 </head>
@@ -54,10 +58,11 @@
                 <span class="app-name">công cụ edit</span>
             </div>
 
-           <nav class="main-nav-links">
-    <button class="nav-link active" id="nav-home">Trang chủ</button>
-    <button class="nav-link" id="nav-my-projects">📂 Dữ liệu của tôi</button>
-</nav>
+            <nav class="main-nav-links">
+                <button class="nav-link active" id="nav-home">Trang chủ</button>
+                <button class="nav-link" id="nav-my-projects">📂 Dữ liệu của tôi</button>
+            </nav>
+
             <div class="nav-right-controls">
                 <div class="font-controls">
                     <span title="Chỉnh cỡ chữ">Cỡ chữ:</span>
@@ -84,7 +89,7 @@
                         </optgroup>
                     </select>
 
-                   <select id="theme-select" class="font-select" title="Chọn giao diện màu">
+                    <select id="theme-select" class="font-select" title="Chọn giao diện màu">
                         <optgroup label="Sáng & Pastel">
                             <option value="light">☀️ Sáng sữa</option>
                             <option value="sepia">🍂 Giấy ấm (Sepia)</option>
@@ -522,17 +527,10 @@
     <!-- Hộp thông báo Toast -->
     <div id="toast"></div>
 
-    <!-- ĐOẠN MÃ KHỞI CHẠY CLERK VÀ AUTHENTICATION (BẢO VỆ CHỐNG CHẶN POPUP CỐC CỐC) -->
+    <!-- ĐOẠN MÃ KHỞI CHẠY CLERK VÀ AUTHENTICATION -->
     <script>
         function triggerLoadProjects() {
-            // Tải dự án
-            if (typeof startProjectAutoSync === 'function') startProjectAutoSync();
-            else if (typeof loadSavedProjects === 'function') loadSavedProjects();
-            
-            // KÍCH HOẠT TẢI TỪ ĐIỂN NAME QT TỪ CLOUD
-            if (typeof nameQTEngine !== 'undefined' && typeof nameQTEngine.loadFromStorage === 'function') {
-                nameQTEngine.loadFromStorage();
-            }
+            if (typeof loadSavedProjects === 'function') loadSavedProjects();
         }
 
         async function handleLoginClick(e) {

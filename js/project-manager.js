@@ -1,10 +1,8 @@
 // =========================================================================
-// QUẢN LÝ DỰ ÁN DỮ LIỆU - CHỐNG LỖI VĂNG BẢN LƯU & GIỚI HẠN VERCEL 4.5MB
+// QUẢN LÝ DỰ ÁN DỮ LIỆU - LƯU TRỮ TRỰC TIẾP TRÊN GOOGLE DRIVE (15 GB MIỄN PHÍ)
 // =========================================================================
 
-const API_URL = '/api/projects'; 
 let localSavedProjectsCache = []; 
-let projectSyncInterval = null;   
 
 function escapeHTML(str) {
     if (!str) return '';
@@ -30,195 +28,97 @@ function toProjectSummary(proj) {
     };
 }
 
-function getUserIdForProject() {
-    if (typeof window.Clerk !== 'undefined') {
-        if (window.Clerk.user && window.Clerk.user.id) return window.Clerk.user.id;
-        if (window.Clerk.session && window.Clerk.session.user && window.Clerk.session.user.id) return window.Clerk.session.user.id;
-        if (window.Clerk.client && window.Clerk.client.sessions && window.Clerk.client.sessions.length > 0) {
-            const active = window.Clerk.client.sessions.find(s => s.status === 'active') || window.Clerk.client.sessions[0];
-            if (active && active.user && active.user.id) return active.user.id;
+// 1. TẢI DANH SÁCH DỰ ÁN (ƯU TIÊN TẢI TỪ GOOGLE DRIVE)
+async function loadSavedProjects() {
+    // Nếu đã đăng nhập Google Drive -> Tải danh sách trực tiếp từ Google Drive
+    if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
+        const driveProjects = await gdriveListProjects();
+        if (driveProjects) {
+            localSavedProjectsCache = driveProjects;
+            renderMyProjectsListUI();
+            calculateStorageMetrics();
+            return;
         }
     }
-    return 'guest_local_user';
-}
 
-// 1. TẢI DANH SÁCH DỰ ÁN
-async function loadSavedProjects(isSilent = false) {
-    const userId = getUserIdForProject();
-    
+    // Nếu chưa đăng nhập Google Drive -> Lấy bộ nhớ đệm tại máy
     try {
         let localData = JSON.parse(localStorage.getItem('mySavedProjects')) || [];
-        if (localData.some(p => p.data || p.history)) {
-            localData = localData.map(toProjectSummary);
-            localStorage.setItem('mySavedProjects', JSON.stringify(localData));
-        }
-        if (localSavedProjectsCache.length === 0) {
-            localSavedProjectsCache = localData;
-        }
-    } catch (e) {}
-
-    if (userId === 'guest_local_user') {
-        renderMyProjectsListUI();
-        calculateStorageMetrics();
-        return;
+        localSavedProjectsCache = localData.map(toProjectSummary);
+    } catch (e) {
+        localSavedProjectsCache = [];
     }
 
-    try {
-        const response = await fetch(`${API_URL}?userId=${userId}`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-        if (response.ok) {
-            const result = await response.json();
-            const dbProjects = result.data || result.projects || result || []; 
-
-            localSavedProjectsCache = Array.isArray(dbProjects) ? dbProjects.map(toProjectSummary) : [toProjectSummary(dbProjects)];
-            
-            try {
-                localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache));
-            } catch (storageErr) {}
-            
-            renderMyProjectsListUI();
-            calculateStorageMetrics();
-        }
-    } catch (err) {
-        if (!isSilent) console.error("Lỗi kết nối API:", err);
-        renderMyProjectsListUI();
-        calculateStorageMetrics();
-    }
-}
-
-function startProjectAutoSync() {
-    stopProjectAutoSync();
-    loadSavedProjects(false);
+    renderMyProjectsListUI();
     calculateStorageMetrics();
-    projectSyncInterval = setInterval(() => {
-        const modal = document.getElementById('modal-my-data');
-        if (modal && modal.classList.contains('show')) {
-            loadSavedProjects(true);
-        } else {
-            stopProjectAutoSync();
-        }
-    }, 5000); 
 }
 
-function stopProjectAutoSync() {
-    if (projectSyncInterval) {
-        clearInterval(projectSyncInterval);
-        projectSyncInterval = null;
-    }
-}
-
-// 2. LƯU DỰ ÁN (XỬ LÝ DỮ LIỆU CHUẨN XÁC, CHỐNG LỖI VĂNG DỰ ÁN)
+// 2. LƯU DỰ ÁN (LƯU VÀO GOOGLE DRIVE + BẢO VỆ MÁY)
 async function saveProjectToCloudAndLocal(projObj) {
-    const userId = getUserIdForProject();
     const summaryObj = toProjectSummary(projObj);
 
-    // NẾU LƯU TRÊN MÁY (GUEST)
-    if (userId === 'guest_local_user') {
-        const idx = localSavedProjectsCache.findIndex(p => p.id === projObj.id || p.name === projObj.name);
-        if (idx >= 0) localSavedProjectsCache[idx] = summaryObj;
-        else localSavedProjectsCache.unshift(summaryObj);
-
-        try {
-            localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache.map(toProjectSummary)));
-        } catch (e) {}
-
-        renderMyProjectsListUI();
-        calculateStorageMetrics();
-        showToast(`💾 Đã lưu dự án "${projObj.name}" vào máy!`, 'var(--btn-success)');
-        return;
-    }
-
-    // LƯU LÊN CLOUD POSTGRESQL (CÓ BẢO VỆ CHỐNG TRÀN DUNG LƯỢNG 4.5MB CỦA VERCEL)
-    showToast(`⏳ Đang lưu "${projObj.name}" lên Cloud...`, 'var(--btn-info)');
-
-    // Chuẩn bị bản sao lịch sử an toàn cho Cloud (dưới 2MB để không bị Vercel chặn)
-    let cloudHistory = projObj.history || {};
-    try {
-        let cloudTrans = cloudHistory.translation || [];
-        let cloudMeta = cloudHistory.metadata || [];
-        
-        if (JSON.stringify(cloudTrans).length > 2 * 1024 * 1024) {
-            cloudTrans = cloudTrans.slice(-30); // Giữ 30 mốc gần nhất cho Cloud
-        }
-        if (JSON.stringify(cloudMeta).length > 1 * 1024 * 1024) {
-            cloudMeta = cloudMeta.slice(-30);
-        }
-        cloudHistory = { translation: cloudTrans, metadata: cloudMeta };
-    } catch (e) {}
-
-    const payload = { 
-        ...projObj, 
-        history: cloudHistory,
-        userId: userId 
-    };
+    // Lưu đệm tóm tắt tại máy
+    const idx = localSavedProjectsCache.findIndex(p => p.id === projObj.id || p.name === projObj.name);
+    if (idx >= 0) localSavedProjectsCache[idx] = summaryObj;
+    else localSavedProjectsCache.unshift(summaryObj);
 
     try {
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (response.ok) {
-            // SERVER ĐÃ XÁC NHẬN LƯU THÀNH CÔNG -> MỚI CẬP NHẬT VÀO DANH SÁCH
-            const idx = localSavedProjectsCache.findIndex(p => p.id === projObj.id || p.name === projObj.name);
-            if (idx >= 0) localSavedProjectsCache[idx] = summaryObj;
-            else localSavedProjectsCache.unshift(summaryObj);
-
-            try {
-                localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache.map(toProjectSummary)));
-            } catch (e) {}
-
-            renderMyProjectsListUI();
-            calculateStorageMetrics();
-            showToast(`💾 Đã lưu dự án "${projObj.name}" lên Cloud thành công!`, 'var(--btn-success)');
-        } else {
-            const errText = await response.text();
-            console.error("🔴 Lỗi từ máy chủ:", response.status, errText);
-            alert(`⚠️ Không thể lưu lên Cloud (Mã lỗi ${response.status})!\nChi tiết: ${errText.slice(0, 150)}`);
-        }
-    } catch (err) {
-        console.error("Lỗi mạng:", err);
-        alert("⚠️ Không thể kết nối đến máy chủ Cloud! Vui lòng kiểm tra lại đường truyền mạng.");
-    }
-}
-
-// 3. XÓA DỰ ÁN
-async function deleteProjectFromCloudAndLocal(projId) {
-    const userId = getUserIdForProject();
-    localSavedProjectsCache = localSavedProjectsCache.filter(p => p.id !== projId);
-    
-    try {
-        localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache.map(toProjectSummary)));
+        localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache));
     } catch (e) {}
 
     renderMyProjectsListUI();
     calculateStorageMetrics();
 
-    if (userId !== 'guest_local_user') {
-        try {
-            await fetch(`${API_URL}?id=${projId}&user_id=${userId}`, { method: 'DELETE' });
-        } catch (err) { console.error("Lỗi xóa dự án:", err); }
+    // NẾU ĐÃ KẾT NỐI GOOGLE DRIVE -> LƯU VĨNH VIỄN VÀO THƯ MỤC GOOGLE DRIVE
+    if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
+        showToast(`⏳ Đang lưu "${projObj.name}" vào Google Drive...`, 'var(--btn-info)');
+        const ok = await gdriveSaveProject(projObj);
+        if (ok) {
+            showToast(`💾 Đã lưu dự án "${projObj.name}" lên Google Drive!`, 'var(--btn-success)');
+            loadSavedProjects();
+        } else {
+            showToast("⚠️ Không thể lưu lên Google Drive!", "var(--btn-warning)");
+        }
+        return;
+    }
+
+    // Nếu chưa kết nối Google Drive, thông báo lưu ở máy và hiển thị nút kết nối
+    showToast(`💾 Đã lưu tạm vào máy! Hãy bấm "Kết nối Google Drive" để lưu vĩnh viễn 15GB.`, 'var(--btn-info)');
+}
+
+// 3. XÓA DỰ ÁN
+async function deleteProjectFromCloudAndLocal(projId) {
+    localSavedProjectsCache = localSavedProjectsCache.filter(p => p.id !== projId);
+    try {
+        localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache));
+    } catch (e) {}
+
+    renderMyProjectsListUI();
+    calculateStorageMetrics();
+
+    // Xóa file trên Google Drive
+    if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
+        await gdriveDeleteProject(projId);
     }
 }
 
+// HIỂN THỊ TRẠNG THÁI VÀ NÚT BẤM KẾT NỐI GOOGLE DRIVE
 function calculateStorageMetrics() {
     const summaryEl = document.getElementById('storage-summary-info');
     if (summaryEl) {
-        const userId = getUserIdForProject();
-        const isCloud = (userId !== 'guest_local_user');
-        
-        let totalBytes = 0;
-        localSavedProjectsCache.forEach(p => {
-            totalBytes += Number(p.size) || 0;
-        });
-        const totalMB = (totalBytes / (1024 * 1024)).toFixed(2);
+        const isDrive = (typeof isGDriveConnected === 'function' && isGDriveConnected());
         const count = localSavedProjectsCache.length;
 
-        summaryEl.innerHTML = `☁️ Trạng thái: <strong>${isCloud ? '🟢 Đã kết nối PostgreSQL Server (Không giới hạn)' : '🟡 Lưu cục bộ (Cần đăng nhập)'}</strong> • Tổng dự án: <strong>${count}</strong> (Dung lượng: ~<strong>${totalMB} MB</strong>)`;
+        if (isDrive) {
+            summaryEl.innerHTML = `☁️ Trạng thái: <strong><span style="color:#10b981;">🟢 Đã kết nối Google Drive (15 GB Miễn phí)</span></strong> • Tổng dự án: <strong>${count}</strong>`;
+        } else {
+            summaryEl.innerHTML = `☁️ Trạng thái: <strong><span style="color:#f59e0b;">🟡 Lưu tạm ở máy</span></strong> • <button id="btn-connect-gdrive-inline" class="btn-xs btn-add" style="margin-left:8px; font-weight:bold; cursor:pointer;">🔑 Kết nối Google Drive</button>`;
+            
+            document.getElementById('btn-connect-gdrive-inline')?.addEventListener('click', (e) => {
+                e.preventDefault();
+                requestGDriveAuth();
+            });
+        }
     }
 }
 
@@ -261,14 +161,13 @@ function renderMyProjectsListUI() {
             <td style="text-align:center;">${sizeKB} KB</td>
             <td style="text-align:center;">
                 <button class="btn-add btn-xs btn-open-proj" data-id="${proj.id}" title="Mở dự án này">📂 Mở</button>
-                <button class="btn-tool btn-xs btn-dup-proj" data-id="${proj.id}" title="Nhân bản">📋 Nhân bản</button>
                 <button class="btn-danger btn-xs btn-del-proj" data-id="${proj.id}" title="Xóa">🗑️ Xóa</button>
             </td>
         `;
         listBody.appendChild(tr);
     });
 
-    // MỞ DỰ ÁN
+    // MỞ DỰ ÁN TỪ GOOGLE DRIVE
     listBody.querySelectorAll('.btn-open-proj').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const id = e.currentTarget.getAttribute('data-id');
@@ -276,23 +175,17 @@ function renderMyProjectsListUI() {
             if (!summary) return;
 
             if (confirm(`Mở dự án "${summary.name}"? Dữ liệu hiện tại trên màn hình sẽ được thay thế.`)) {
-                showToast("⏳ Đang tải nội dung dự án từ Cloud...", "var(--btn-info)");
+                showToast("⏳ Đang tải nội dung dự án từ Google Drive...", "var(--btn-info)");
                 
                 let proj = summary;
-                const userId = getUserIdForProject();
 
-                if (userId !== 'guest_local_user') {
-                    try {
-                        const res = await fetch(`${API_URL}?userId=${userId}&id=${id}`);
-                        if (res.ok) {
-                            const result = await res.json();
-                            let fetched = result.data || result;
-                            if (Array.isArray(fetched)) fetched = fetched.find(p => p.id === id) || fetched[0];
-                            if (fetched) proj = fetched;
-                        }
-                    } catch(err) { console.error("Lỗi tải chi tiết:", err); }
+                // Tải chi tiết file JSON từ Google Drive
+                if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
+                    const fullProj = await gdriveGetProjectContent(id);
+                    if (fullProj) proj = fullProj;
                 }
 
+                // 1. Khôi phục bảng dịch
                 let rawData = proj.data;
                 if (typeof rawData === 'string') {
                     try { rawData = JSON.parse(rawData); } catch(e) {}
@@ -313,6 +206,7 @@ function renderMyProjectsListUI() {
                 renderTable();
                 debounceSave();
 
+                // 2. Khôi phục thông tin truyện (Mục 2)
                 if (proj.metadata) {
                     let parsedMeta = proj.metadata;
                     if (typeof parsedMeta === 'string') {
@@ -323,6 +217,7 @@ function renderMyProjectsListUI() {
                     if (typeof renderMetadata === 'function') renderMetadata();
                 }
 
+                // 3. Khôi phục lịch sử sửa đổi đa ngày
                 if (proj.history) {
                     let parsedHist = proj.history;
                     if (typeof parsedHist === 'string') {
@@ -332,50 +227,18 @@ function renderMyProjectsListUI() {
                     if (parsedHist.metadata) localStorage.setItem('metadataHistory', JSON.stringify(parsedHist.metadata));
                 }
 
-                showToast(`📂 Đã mở dự án "${proj.name}" thành công!`, 'var(--btn-success)');
-                stopProjectAutoSync();
+                showToast(`📂 Đã mở dự án "${proj.name}" từ Google Drive thành công!`, 'var(--btn-success)');
                 document.getElementById('modal-my-data')?.classList.remove('show');
             }
         });
     });
 
-    // NHÂN BẢN
-    listBody.querySelectorAll('.btn-dup-proj').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            const id = e.currentTarget.getAttribute('data-id');
-            const proj = localSavedProjectsCache.find(p => p.id === id);
-            if (!proj) return;
-
-            showToast("⏳ Đang nhân bản dự án...", "var(--btn-info)");
-            let fullProj = proj;
-            const userId = getUserIdForProject();
-
-            if (userId !== 'guest_local_user') {
-                try {
-                    const res = await fetch(`${API_URL}?userId=${userId}&id=${id}`);
-                    if (res.ok) {
-                        const result = await res.json();
-                        let fetched = result.data || result;
-                        if (Array.isArray(fetched)) fetched = fetched.find(p => p.id === id) || fetched[0];
-                        if (fetched) fullProj = fetched;
-                    }
-                } catch (err) { console.error("Lỗi nhân bản:", err); }
-            }
-
-            const newProj = JSON.parse(JSON.stringify(fullProj));
-            newProj.id = 'proj_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-            newProj.name = (proj.name || 'Dự án') + ' (Bản sao)';
-            newProj.updatedAt = Date.now();
-            await saveProjectToCloudAndLocal(newProj);
-        });
-    });
-
-    // XÓA
+    // XÓA DỰ ÁN
     listBody.querySelectorAll('.btn-del-proj').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const id = e.currentTarget.getAttribute('data-id');
             const proj = localSavedProjectsCache.find(p => p.id === id);
-            if (proj && confirm(`Xóa vĩnh viễn dự án "${proj.name}" khỏi Cloud?`)) {
+            if (proj && confirm(`Xóa vĩnh viễn dự án "${proj.name}" khỏi Google Drive?`)) {
                 await deleteProjectFromCloudAndLocal(id);
                 showToast(`🗑️ Đã xóa dự án "${proj.name}"!`, 'var(--btn-danger)');
             }
@@ -388,7 +251,7 @@ async function saveCurrentAsProject() {
     const titleVal = (typeof chapterTitle !== 'undefined' && chapterTitle) ? chapterTitle.trim() : 'Chương_Mới';
     const storyTitleVal = (typeof metadata !== 'undefined' && metadata.title) ? metadata.title.trim() : '';
 
-    const namePrompt = prompt("Nhập tên lưu cho Dự án / Chương này lên Server (Sẽ tạo bản mới):", titleVal);
+    const namePrompt = prompt("Nhập tên lưu cho Dự án / Chương này:", titleVal);
     if (!namePrompt) return;
 
     const dataStr = JSON.stringify(data);
@@ -415,28 +278,17 @@ async function saveCurrentAsProject() {
 
 function initProjectManagerEvents() {
     document.getElementById('nav-my-projects')?.addEventListener('click', () => {
-        startProjectAutoSync();
+        loadSavedProjects();
         document.getElementById('modal-my-data')?.classList.add('show');
     });
 
     document.getElementById('btn-close-my-data')?.addEventListener('click', () => {
-        stopProjectAutoSync();
         document.getElementById('modal-my-data')?.classList.remove('show');
     });
 
     document.getElementById('btn-save-current-as-project')?.addEventListener('click', saveCurrentAsProject);
     document.getElementById('project-search-input')?.addEventListener('input', renderMyProjectsListUI);
     document.getElementById('project-sort-select')?.addEventListener('change', renderMyProjectsListUI);
-
-    window.addEventListener('storage', (e) => {
-        if (e.key === 'mySavedProjects') {
-            try {
-                localSavedProjectsCache = JSON.parse(e.newValue) || [];
-                renderMyProjectsListUI();
-                calculateStorageMetrics();
-            } catch(err) {}
-        }
-    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {

@@ -102,7 +102,7 @@ async function deleteProjectFromCloudAndLocal(projId) {
     }
 }
 
-// HIỂN THỊ TRẠNG THÁI VÀ NÚT BẤM KẾT NỐI GOOGLE DRIVE
+// HIỂN THỊ TRẠNG THÁI VÀ NÚT BẤM KẾT NỐI GOOGLE DRIVE (ĐÃ FIX SỰ KIỆN CLICK 100%)
 function calculateStorageMetrics() {
     const summaryEl = document.getElementById('storage-summary-info');
     if (summaryEl) {
@@ -112,12 +112,7 @@ function calculateStorageMetrics() {
         if (isDrive) {
             summaryEl.innerHTML = `☁️ Trạng thái: <strong><span style="color:#10b981;">🟢 Đã kết nối Google Drive (15 GB Miễn phí)</span></strong> • Tổng dự án: <strong>${count}</strong>`;
         } else {
-            summaryEl.innerHTML = `☁️ Trạng thái: <strong><span style="color:#f59e0b;">🟡 Lưu tạm ở máy</span></strong> • <button id="btn-connect-gdrive-inline" class="btn-xs btn-add" style="margin-left:8px; font-weight:bold; cursor:pointer;">🔑 Kết nối Google Drive</button>`;
-            
-            document.getElementById('btn-connect-gdrive-inline')?.addEventListener('click', (e) => {
-                e.preventDefault();
-                requestGDriveAuth();
-            });
+            summaryEl.innerHTML = `☁️ Trạng thái: <strong><span style="color:#f59e0b;">🟡 Lưu tạm ở máy</span></strong> • <button id="btn-connect-gdrive-inline" type="button" class="btn-xs btn-add" style="margin-left:8px; font-weight:bold; cursor:pointer;">🔑 Kết nối Google Drive</button>`;
         }
     }
 }
@@ -289,6 +284,24 @@ function initProjectManagerEvents() {
     document.getElementById('btn-save-current-as-project')?.addEventListener('click', saveCurrentAsProject);
     document.getElementById('project-search-input')?.addEventListener('input', renderMyProjectsListUI);
     document.getElementById('project-sort-select')?.addEventListener('change', renderMyProjectsListUI);
+
+    // =========================================================================
+    // LẮNG NGHE SỰ KIỆN CLICK TOÀN CỤC CHO NÚT KẾT NỐI GOOGLE DRIVE
+    // =========================================================================
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('#btn-connect-gdrive-inline');
+        if (btn) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof window.handleGoogleDriveConnect === 'function') {
+                window.handleGoogleDriveConnect(e);
+            } else if (typeof requestGDriveAuth === 'function') {
+                requestGDriveAuth();
+            } else {
+                alert("⚠️ Chưa tải được thư viện Google Drive!\nVui lòng kiểm tra lại: Bạn đã tạo file js/google-drive.js và nhúng vào index.html chưa?");
+            }
+        }
+    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {

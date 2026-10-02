@@ -524,6 +524,38 @@
         </div>
     </div>
 
+    <!-- =============================================================== -->
+    <!-- CỬA SỔ RIÊNG GOOGLE DRIVE - VIBE XANH LÁ DỊU (SAGE DRIVE MODAL) -->
+    <!-- =============================================================== -->
+    <div class="modal-overlay" id="modal-gdrive-auth">
+        <div class="modal-content sage-gdrive-card">
+            <!-- Header Vibe Xanh Thảo Mộc -->
+            <div class="sage-gdrive-header">
+                <span class="sage-gdrive-icon">🌿📁</span>
+                <h3>Không Gian Google Drive Của Bạn</h3>
+                <p>Lưu trữ và đồng bộ kho truyện vĩnh viễn với 15 GB miễn phí</p>
+            </div>
+
+            <div class="sage-gdrive-body">
+                <!-- Hộp thông báo trạng thái -->
+                <div id="gdrive-status-box" class="sage-gdrive-status">
+                    <span>Trạng thái: <strong>🟡 Chưa kết nối Google Drive</strong></span>
+                </div>
+
+                <div class="sage-gdrive-desc">
+                    Mỗi chương truyện, bản dịch và lịch sử sửa đổi sẽ được lưu an toàn trực tiếp vào thư mục <strong>CongCuEdit_Projects</strong> trên Google Drive của bạn.
+                </div>
+            </div>
+
+            <!-- Nút bấm hành động -->
+            <div class="modal-actions sage-gdrive-actions">
+                <button type="button" class="btn-file" id="btn-close-gdrive-modal">Đóng</button>
+                <button type="button" class="btn-danger" id="btn-disconnect-gdrive" style="display:none;">Ngắt kết nối</button>
+                <button type="button" class="btn-sage-gdrive-login" id="btn-login-gdrive">🌿 Đăng nhập Google Drive</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Hộp thông báo Toast -->
     <div id="toast"></div>
 

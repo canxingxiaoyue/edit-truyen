@@ -802,3 +802,96 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     gap: 6px;
 }
 .history-actions { display: flex; gap: 6px; }
+/* ========================================================= */
+/* THIẾT KẾ CỬA SỔ GOOGLE DRIVE VIBE XANH LÁ DỊU (SAGE GREEN) */
+/* ========================================================= */
+.sage-gdrive-card {
+    max-width: 460px !important;
+    width: 90% !important;
+    padding: 0 !important;
+    border-radius: 20px !important;
+    overflow: hidden !important;
+    border: 1px solid #a7f3d0 !important;
+    background: #ffffff !important;
+    box-shadow: 0 20px 45px rgba(16, 185, 129, 0.16) !important;
+    font-family: inherit;
+}
+
+.sage-gdrive-header {
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 50%, #a7f3d0 100%);
+    padding: 26px 20px 22px;
+    text-align: center;
+    border-bottom: 1px solid #bbf7d0;
+}
+
+.sage-gdrive-icon {
+    font-size: 2.3rem;
+    display: inline-block;
+    margin-bottom: 6px;
+    filter: drop-shadow(0 2px 4px rgba(16, 185, 129, 0.25));
+}
+
+.sage-gdrive-header h3 {
+    margin: 0 0 6px 0 !important;
+    color: #065f46 !important;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.sage-gdrive-header p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #047857;
+    opacity: 0.9;
+}
+
+.sage-gdrive-body {
+    padding: 22px 24px 10px;
+}
+
+.sage-gdrive-status {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 0.9rem;
+    color: #065f46;
+    text-align: center;
+    margin-bottom: 14px;
+}
+
+.sage-gdrive-desc {
+    font-size: 0.85rem;
+    color: #4b5563;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.sage-gdrive-actions {
+    padding: 16px 24px 22px !important;
+    background: #ffffff !important;
+    border-top: none !important;
+    gap: 10px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.btn-sage-gdrive-login {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    padding: 10px 20px !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    cursor: pointer !important;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+    transition: all 0.2s ease !important;
+}
+
+.btn-sage-gdrive-login:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
+}

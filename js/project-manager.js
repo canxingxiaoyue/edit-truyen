@@ -1,5 +1,5 @@
 // =========================================================================
-// QUẢN LÝ DỰ ÁN DỮ LIỆU - LƯU TRỮ TRỰC TIẾP TRÊN GOOGLE DRIVE (15 GB MIỄN PHÍ)
+// QUẢN LÝ DỰ ÁN DỮ LIỆU - LIÊN KẾT CỬA SỔ XANH LÁ GOOGLE DRIVE
 // =========================================================================
 
 let localSavedProjectsCache = []; 
@@ -28,9 +28,8 @@ function toProjectSummary(proj) {
     };
 }
 
-// 1. TẢI DANH SÁCH DỰ ÁN (ƯU TIÊN TẢI TỪ GOOGLE DRIVE)
+// 1. TẢI DANH SÁCH DỰ ÁN (ƯU TIÊN GOOGLE DRIVE)
 async function loadSavedProjects() {
-    // Nếu đã đăng nhập Google Drive -> Tải danh sách trực tiếp từ Google Drive
     if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
         const driveProjects = await gdriveListProjects();
         if (driveProjects) {
@@ -41,7 +40,6 @@ async function loadSavedProjects() {
         }
     }
 
-    // Nếu chưa đăng nhập Google Drive -> Lấy bộ nhớ đệm tại máy
     try {
         let localData = JSON.parse(localStorage.getItem('mySavedProjects')) || [];
         localSavedProjectsCache = localData.map(toProjectSummary);
@@ -53,11 +51,10 @@ async function loadSavedProjects() {
     calculateStorageMetrics();
 }
 
-// 2. LƯU DỰ ÁN (LƯU VÀO GOOGLE DRIVE + BẢO VỆ MÁY)
+// 2. LƯU DỰ ÁN (LƯU LÊN GOOGLE DRIVE)
 async function saveProjectToCloudAndLocal(projObj) {
     const summaryObj = toProjectSummary(projObj);
 
-    // Lưu đệm tóm tắt tại máy
     const idx = localSavedProjectsCache.findIndex(p => p.id === projObj.id || p.name === projObj.name);
     if (idx >= 0) localSavedProjectsCache[idx] = summaryObj;
     else localSavedProjectsCache.unshift(summaryObj);
@@ -69,7 +66,7 @@ async function saveProjectToCloudAndLocal(projObj) {
     renderMyProjectsListUI();
     calculateStorageMetrics();
 
-    // NẾU ĐÃ KẾT NỐI GOOGLE DRIVE -> LƯU VĨNH VIỄN VÀO THƯ MỤC GOOGLE DRIVE
+    // NẾU ĐÃ KẾT NỐI DRIVE
     if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
         showToast(`⏳ Đang lưu "${projObj.name}" vào Google Drive...`, 'var(--btn-info)');
         const ok = await gdriveSaveProject(projObj);
@@ -82,8 +79,9 @@ async function saveProjectToCloudAndLocal(projObj) {
         return;
     }
 
-    // Nếu chưa kết nối Google Drive, thông báo lưu ở máy và hiển thị nút kết nối
-    showToast(`💾 Đã lưu tạm vào máy! Hãy bấm "Kết nối Google Drive" để lưu vĩnh viễn 15GB.`, 'var(--btn-info)');
+    // NẾU CHƯA KẾT NỐI -> MỞ CỬA SỔ XANH LÁ HƯỚNG DẪN ĐĂNG NHẬP
+    showToast(`💾 Đã lưu tạm vào máy! Hãy kết nối Google Drive để lưu vĩnh viễn 15GB.`, 'var(--btn-info)');
+    if (typeof openGDriveModal === 'function') openGDriveModal();
 }
 
 // 3. XÓA DỰ ÁN
@@ -96,13 +94,12 @@ async function deleteProjectFromCloudAndLocal(projId) {
     renderMyProjectsListUI();
     calculateStorageMetrics();
 
-    // Xóa file trên Google Drive
     if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
         await gdriveDeleteProject(projId);
     }
 }
 
-// HIỂN THỊ TRẠNG THÁI VÀ NÚT BẤM KẾT NỐI GOOGLE DRIVE (ĐÃ FIX SỰ KIỆN CLICK 100%)
+// HIỂN THỊ NÚT MỞ CỬA SỔ XANH LÁ GOOGLE DRIVE
 function calculateStorageMetrics() {
     const summaryEl = document.getElementById('storage-summary-info');
     if (summaryEl) {
@@ -110,9 +107,9 @@ function calculateStorageMetrics() {
         const count = localSavedProjectsCache.length;
 
         if (isDrive) {
-            summaryEl.innerHTML = `☁️ Trạng thái: <strong><span style="color:#10b981;">🟢 Đã kết nối Google Drive (15 GB Miễn phí)</span></strong> • Tổng dự án: <strong>${count}</strong>`;
+            summaryEl.innerHTML = `☁️ Trạng thái: <strong><span style="color:#059669;">🟢 Đã kết nối Google Drive (15 GB)</span></strong> • Tổng dự án: <strong>${count}</strong> • <button id="btn-open-gdrive-auth" type="button" class="btn-xs btn-tool" style="cursor:pointer; margin-left:6px;">🌿 Quản lý Drive</button>`;
         } else {
-            summaryEl.innerHTML = `☁️ Trạng thái: <strong><span style="color:#f59e0b;">🟡 Lưu tạm ở máy</span></strong> • <button id="btn-connect-gdrive-inline" type="button" class="btn-xs btn-add" style="margin-left:8px; font-weight:bold; cursor:pointer;">🔑 Kết nối Google Drive</button>`;
+            summaryEl.innerHTML = `☁️ Trạng thái: <strong><span style="color:#d97706;">🟡 Lưu tạm ở máy</span></strong> • <button id="btn-open-gdrive-auth" type="button" class="btn-xs btn-sage-gdrive-login" style="margin-left:8px; cursor:pointer; font-weight:600;">🌿 Kết nối Google Drive</button>`;
         }
     }
 }
@@ -162,7 +159,7 @@ function renderMyProjectsListUI() {
         listBody.appendChild(tr);
     });
 
-    // MỞ DỰ ÁN TỪ GOOGLE DRIVE
+    // MỞ DỰ ÁN
     listBody.querySelectorAll('.btn-open-proj').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const id = e.currentTarget.getAttribute('data-id');
@@ -170,27 +167,21 @@ function renderMyProjectsListUI() {
             if (!summary) return;
 
             if (confirm(`Mở dự án "${summary.name}"? Dữ liệu hiện tại trên màn hình sẽ được thay thế.`)) {
-                showToast("⏳ Đang tải nội dung dự án từ Google Drive...", "var(--btn-info)");
+                showToast("⏳ Đang tải dự án từ Google Drive...", "var(--btn-info)");
                 
                 let proj = summary;
 
-                // Tải chi tiết file JSON từ Google Drive
                 if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
                     const fullProj = await gdriveGetProjectContent(id);
                     if (fullProj) proj = fullProj;
                 }
 
-                // 1. Khôi phục bảng dịch
                 let rawData = proj.data;
                 if (typeof rawData === 'string') {
                     try { rawData = JSON.parse(rawData); } catch(e) {}
                 }
                 
-                if (Array.isArray(rawData) && rawData.length > 0) {
-                    data = rawData;
-                } else {
-                    data = [createEmptyRow()];
-                }
+                data = (Array.isArray(rawData) && rawData.length > 0) ? rawData : [createEmptyRow()];
 
                 if (proj.chapterTitle && typeof chapterTitle !== 'undefined') {
                     chapterTitle = proj.chapterTitle;
@@ -201,7 +192,6 @@ function renderMyProjectsListUI() {
                 renderTable();
                 debounceSave();
 
-                // 2. Khôi phục thông tin truyện (Mục 2)
                 if (proj.metadata) {
                     let parsedMeta = proj.metadata;
                     if (typeof parsedMeta === 'string') {
@@ -212,7 +202,6 @@ function renderMyProjectsListUI() {
                     if (typeof renderMetadata === 'function') renderMetadata();
                 }
 
-                // 3. Khôi phục lịch sử sửa đổi đa ngày
                 if (proj.history) {
                     let parsedHist = proj.history;
                     if (typeof parsedHist === 'string') {
@@ -222,13 +211,13 @@ function renderMyProjectsListUI() {
                     if (parsedHist.metadata) localStorage.setItem('metadataHistory', JSON.stringify(parsedHist.metadata));
                 }
 
-                showToast(`📂 Đã mở dự án "${proj.name}" từ Google Drive thành công!`, 'var(--btn-success)');
+                showToast(`📂 Đã mở dự án "${proj.name}" từ Google Drive!`, 'var(--btn-success)');
                 document.getElementById('modal-my-data')?.classList.remove('show');
             }
         });
     });
 
-    // XÓA DỰ ÁN
+    // XÓA
     listBody.querySelectorAll('.btn-del-proj').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const id = e.currentTarget.getAttribute('data-id');
@@ -285,21 +274,11 @@ function initProjectManagerEvents() {
     document.getElementById('project-search-input')?.addEventListener('input', renderMyProjectsListUI);
     document.getElementById('project-sort-select')?.addEventListener('change', renderMyProjectsListUI);
 
-    // =========================================================================
-    // LẮNG NGHE SỰ KIỆN CLICK TOÀN CỤC CHO NÚT KẾT NỐI GOOGLE DRIVE
-    // =========================================================================
+    // MỞ CỬA SỔ XANH LÁ GOOGLE DRIVE
     document.addEventListener('click', (e) => {
-        const btn = e.target.closest('#btn-connect-gdrive-inline');
-        if (btn) {
+        if (e.target && (e.target.id === 'btn-open-gdrive-auth' || e.target.closest('#btn-open-gdrive-auth'))) {
             e.preventDefault();
-            e.stopPropagation();
-            if (typeof window.handleGoogleDriveConnect === 'function') {
-                window.handleGoogleDriveConnect(e);
-            } else if (typeof requestGDriveAuth === 'function') {
-                requestGDriveAuth();
-            } else {
-                alert("⚠️ Chưa tải được thư viện Google Drive!\nVui lòng kiểm tra lại: Bạn đã tạo file js/google-drive.js và nhúng vào index.html chưa?");
-            }
+            if (typeof openGDriveModal === 'function') openGDriveModal();
         }
     });
 }

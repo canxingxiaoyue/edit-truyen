@@ -1,5 +1,5 @@
 // =========================================================================
-// GOOGLE DRIVE API V3 ENGINE - KẾT NỐI TRỰC TIẾP & BẢO ĐẢM SỰ KIỆN CLICK 100%
+// GOOGLE DRIVE API V3 ENGINE - TÍCH HỢP CỬA SỔ XANH LÁ DỊU (SAGE MODAL)
 // =========================================================================
 
 const CLIENT_ID = '214662773459-nepa84k1u7uhp1j08p250f9v42q0mbk6.apps.googleusercontent.com';
@@ -29,11 +29,12 @@ function initGoogleDriveAuth() {
                     localStorage.setItem('gdrive_token_expires', String(tokenExpiresAt));
 
                     showToast("🟢 Đã kết nối Google Drive thành công!", "var(--btn-success)");
+                    updateGDriveModalUI();
                     await getOrCreateFolder();
                     if (typeof loadSavedProjects === 'function') loadSavedProjects();
+                    closeGDriveModal();
                 },
             });
-            console.log("✅ Đã khởi tạo Google Auth thành công!");
         } catch (e) {
             console.error("Lỗi initTokenClient:", e);
         }
@@ -44,50 +45,62 @@ function isGDriveConnected() {
     return accessToken && Date.now() < (tokenExpiresAt - 60000);
 }
 
-// HÀM MỞ CỬA SỔ ĐĂNG NHẬP GOOGLE
-function requestGDriveAuth() {
-    console.log("👉 Bắt đầu yêu cầu đăng nhập Google Drive...");
-    
-    if (!tokenClient) {
-        initGoogleDriveAuth();
-    }
-
+// BẬT CỬA SỔ ĐĂNG NHẬP GOOGLE
+function triggerGooglePopup() {
+    if (!tokenClient) initGoogleDriveAuth();
     if (tokenClient) {
-        try {
-            tokenClient.requestAccessToken({ prompt: isGDriveConnected() ? '' : 'consent' });
-        } catch (err) {
-            console.error("Lỗi mở popup Google:", err);
-            alert("⚠️ Trình duyệt chặn mở cửa sổ đăng nhập Google: " + err.message);
-        }
+        tokenClient.requestAccessToken({ prompt: isGDriveConnected() ? '' : 'consent' });
     } else {
-        if (typeof google === 'undefined' || !google.accounts) {
-            alert("⚠️ Trình duyệt chưa tải được thư viện Google (accounts.google.com)!\n\nNguyên nhân:\n1. Tiện ích chặn quảng cáo (AdBlock) đang bật.\n2. Tính năng bảo vệ của Cốc Cốc đang chặn script.\n👉 Hãy tắt AdBlock và bấm F5 tải lại trang nhé!");
-        } else {
-            initGoogleDriveAuth();
-            if (tokenClient) {
-                tokenClient.requestAccessToken({ prompt: 'consent' });
-            } else {
-                alert("Đang khởi tạo kết nối Google, vui lòng bấm lại nút lần nữa!");
-            }
-        }
+        alert("Thư viện Google đang tải, vui lòng bấm lại sau 2 giây!");
     }
 }
 
-// ĐĂNG KÝ HÀM TOÀN CỤC ĐỂ BẤM LÀ CHẠY
-window.handleGoogleDriveConnect = function(e) {
-    if (e) { e.preventDefault(); e.stopPropagation(); }
-    requestGDriveAuth();
-};
+// =========================================================================
+// QUẢN LÝ MỞ / ĐÓNG CỬA SỔ XANH LÁ DỊU (MODAL)
+// =========================================================================
+function openGDriveModal() {
+    const modal = document.getElementById('modal-gdrive-auth');
+    if (!modal) return;
+    updateGDriveModalUI();
+    modal.classList.add('show');
+}
 
-// LẮNG NGHE SỰ KIỆN CLICK TOÀN CỤC (CHỐNG MẤT SỰ KIỆN CLICK KHI INNERHTML RENDER LẠI)
-document.addEventListener('click', (e) => {
-    if (e.target && (e.target.id === 'btn-connect-gdrive-inline' || e.target.closest('#btn-connect-gdrive-inline'))) {
-        e.preventDefault();
-        e.stopPropagation();
-        window.handleGoogleDriveConnect(e);
+function closeGDriveModal() {
+    document.getElementById('modal-gdrive-auth')?.classList.remove('show');
+}
+
+function updateGDriveModalUI() {
+    const statusBox = document.getElementById('gdrive-status-box');
+    const loginBtn = document.getElementById('btn-login-gdrive');
+    const logoutBtn = document.getElementById('btn-disconnect-gdrive');
+    const connected = isGDriveConnected();
+
+    if (connected) {
+        if (statusBox) statusBox.innerHTML = `Trạng thái: <strong><span style="color:#059669;">🟢 Đã kết nối Google Drive (15 GB Miễn phí)</span></strong>`;
+        if (loginBtn) loginBtn.innerHTML = '🌿 Đổi tài khoản khác';
+        if (logoutBtn) logoutBtn.style.display = 'inline-block';
+    } else {
+        if (statusBox) statusBox.innerHTML = `Trạng thái: <strong><span style="color:#d97706;">🟡 Chưa kết nối Google Drive</span></strong>`;
+        if (loginBtn) loginBtn.innerHTML = '🌿 Đăng nhập Google Drive';
+        if (logoutBtn) logoutBtn.style.display = 'none';
     }
-});
+}
 
+function disconnectGDrive() {
+    if (confirm("Bạn có chắc chắn muốn ngắt kết nối tài khoản Google Drive trên máy này?")) {
+        accessToken = null;
+        tokenExpiresAt = 0;
+        appFolderId = null;
+        localStorage.removeItem('gdrive_access_token');
+        localStorage.removeItem('gdrive_token_expires');
+        localStorage.removeItem('gdrive_folder_id');
+        showToast("Đã ngắt kết nối Google Drive!", "var(--btn-info)");
+        updateGDriveModalUI();
+        if (typeof calculateStorageMetrics === 'function') calculateStorageMetrics();
+    }
+}
+
+// CÁC HÀM XỬ LÝ DRIVE
 async function getOrCreateFolder() {
     if (appFolderId) return appFolderId;
     if (!isGDriveConnected()) return null;
@@ -120,7 +133,6 @@ async function getOrCreateFolder() {
         if (appFolderId) localStorage.setItem('gdrive_folder_id', appFolderId);
         return appFolderId;
     } catch (e) {
-        console.error("Lỗi tạo thư mục Google Drive:", e);
         return null;
     }
 }
@@ -151,14 +163,13 @@ async function gdriveListProjects() {
             };
         });
     } catch (e) {
-        console.error("Lỗi lấy danh sách từ Google Drive:", e);
         return null;
     }
 }
 
 async function gdriveSaveProject(projObj) {
     if (!isGDriveConnected()) {
-        requestGDriveAuth();
+        openGDriveModal();
         return false;
     }
     const folderId = await getOrCreateFolder();
@@ -229,9 +240,7 @@ async function gdriveGetProjectContent(fileId) {
         if (res.ok) {
             return await res.json();
         }
-    } catch (e) {
-        console.error("Lỗi đọc file từ Google Drive:", e);
-    }
+    } catch (e) {}
     return null;
 }
 
@@ -248,6 +257,10 @@ async function gdriveDeleteProject(fileId) {
     }
 }
 
+// GẮN SỰ KIỆN NÚT BẤM TRONG CỬA SỔ XANH LÁ
 window.addEventListener('load', () => {
     initGoogleDriveAuth();
+    document.getElementById('btn-login-gdrive')?.addEventListener('click', triggerGooglePopup);
+    document.getElementById('btn-close-gdrive-modal')?.addEventListener('click', closeGDriveModal);
+    document.getElementById('btn-disconnect-gdrive')?.addEventListener('click', disconnectGDrive);
 });

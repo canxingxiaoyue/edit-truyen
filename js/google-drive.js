@@ -11,7 +11,6 @@ let accessToken = localStorage.getItem('gdrive_access_token') || null;
 let tokenExpiresAt = Number(localStorage.getItem('gdrive_token_expires')) || 0;
 let appFolderId = localStorage.getItem('gdrive_folder_id') || null;
 
-// Khởi tạo Google Identity Services
 function initGoogleDriveAuth() {
     if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
         tokenClient = google.accounts.oauth2.initTokenClient({
@@ -36,22 +35,19 @@ function initGoogleDriveAuth() {
     }
 }
 
-// Kiểm tra token còn sống không
 function isGDriveConnected() {
     return accessToken && Date.now() < (tokenExpiresAt - 60000);
 }
 
-// Đăng nhập Google Drive
 function requestGDriveAuth() {
     if (!tokenClient) initGoogleDriveAuth();
     if (tokenClient) {
         tokenClient.requestAccessToken({ prompt: isGDriveConnected() ? '' : 'consent' });
     } else {
-        alert("Thư viện Google chưa tải xong, vui lòng thử lại sau 2 giây!");
+        alert("Thư viện Google đang tải, vui lòng bấm lại sau 2 giây!");
     }
 }
 
-// Tìm hoặc tạo Thư mục CongCuEdit_Projects trên Drive
 async function getOrCreateFolder() {
     if (appFolderId) return appFolderId;
     if (!isGDriveConnected()) return null;
@@ -121,7 +117,7 @@ async function gdriveListProjects() {
     }
 }
 
-// 2. LƯU DỰ ÁN LÊN GOOGLE DRIVE (KHÔNG GIỚI HẠN 4.5MB CỦA VERCEL)
+// 2. LƯU DỰ ÁN LÊN GOOGLE DRIVE (KHÔNG GIỚI HẠN DUNG LƯỢNG)
 async function gdriveSaveProject(projObj) {
     if (!isGDriveConnected()) {
         requestGDriveAuth();
@@ -145,7 +141,6 @@ async function gdriveSaveProject(projObj) {
         }
     };
 
-    // Kiểm tra file trùng tên trên Drive để ghi đè
     let existingFileId = null;
     try {
         const q = encodeURIComponent(`name='${fileName}' and '${folderId}' in parents and trashed=false`);
@@ -158,7 +153,6 @@ async function gdriveSaveProject(projObj) {
         }
     } catch (e) {}
 
-    // Upload dữ liệu Multipart (Trực tiếp từ Trình duyệt sang Google Drive)
     const boundary = '-------GDriveProjectUploadBoundary';
     const delimiter = "\r\n--" + boundary + "\r\n";
     const closeDelim = "\r\n--" + boundary + "--";
@@ -218,7 +212,6 @@ async function gdriveDeleteProject(fileId) {
     }
 }
 
-// Khởi chạy khi load trang
 window.addEventListener('load', () => {
     initGoogleDriveAuth();
 });

@@ -1,42 +1,35 @@
 // =========================================================================
-// GOOGLE DRIVE API V3 ENGINE - TÍCH HỢP CỬA SỔ XANH LÁ DỊU (SAGE MODAL)
+// GOOGLE DRIVE API V3 - CHẾ ĐỘ CHUYỂN TRANG (REDIRECT MODE - 0% BỊ CHẶN)
 // =========================================================================
 
 const CLIENT_ID = '214662773459-nepa84k1u7uhp1j08p250f9v42q0mbk6.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 const FOLDER_NAME = 'CongCuEdit_Projects';
 
-let tokenClient = null;
 let accessToken = localStorage.getItem('gdrive_access_token') || null;
 let tokenExpiresAt = Number(localStorage.getItem('gdrive_token_expires')) || 0;
 let appFolderId = localStorage.getItem('gdrive_folder_id') || null;
 
-function initGoogleDriveAuth() {
-    if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
-        try {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: async (resp) => {
-                    if (resp.error !== undefined) {
-                        console.error("Lỗi xác thực Google:", resp);
-                        alert("❌ Đăng nhập Google thất bại: " + resp.error);
-                        return;
-                    }
-                    accessToken = resp.access_token;
-                    tokenExpiresAt = Date.now() + (Number(resp.expires_in) * 1000);
-                    localStorage.setItem('gdrive_access_token', accessToken);
-                    localStorage.setItem('gdrive_token_expires', String(tokenExpiresAt));
+// TỰ ĐỘNG BẮT TOKEN KHI GOOGLE CHUYỂN HƯỚNG VỀ LẠI WEB
+function checkUrlForOAuthToken() {
+    if (window.location.hash && window.location.hash.includes('access_token')) {
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const token = params.get('access_token');
+        const expiresIn = params.get('expires_in') || 3599;
 
-                    showToast("🟢 Đã kết nối Google Drive thành công!", "var(--btn-success)");
-                    updateGDriveModalUI();
-                    await getOrCreateFolder();
-                    if (typeof loadSavedProjects === 'function') loadSavedProjects();
-                    closeGDriveModal();
-                },
-            });
-        } catch (e) {
-            console.error("Lỗi initTokenClient:", e);
+        if (token) {
+            accessToken = token;
+            tokenExpiresAt = Date.now() + (Number(expiresIn) * 1000);
+            localStorage.setItem('gdrive_access_token', accessToken);
+            localStorage.setItem('gdrive_token_expires', String(tokenExpiresAt));
+
+            // Xóa đoạn hash loằng ngoằng trên thanh URL cho sạch
+            history.replaceState(null, null, window.location.pathname + window.location.search);
+
+            showToast("🟢 Đã kết nối Google Drive thành công!", "var(--btn-success)");
+            getOrCreateFolder();
+            if (typeof loadSavedProjects === 'function') loadSavedProjects();
         }
     }
 }
@@ -45,19 +38,21 @@ function isGDriveConnected() {
     return accessToken && Date.now() < (tokenExpiresAt - 60000);
 }
 
-// BẬT CỬA SỔ ĐĂNG NHẬP GOOGLE
-function triggerGooglePopup() {
-    if (!tokenClient) initGoogleDriveAuth();
-    if (tokenClient) {
-        tokenClient.requestAccessToken({ prompt: isGDriveConnected() ? '' : 'consent' });
-    } else {
-        alert("Thư viện Google đang tải, vui lòng bấm lại sau 2 giây!");
-    }
+// CHUYỂN TRANG THẲNG SANG GOOGLE (KHÔNG DÙNG POPUP - 100% THÀNH CÔNG)
+function triggerGoogleRedirectLogin() {
+    const redirectUri = window.location.origin;
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `client_id=${CLIENT_ID}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `response_type=token&` +
+        `scope=${encodeURIComponent(SCOPES)}&` +
+        `include_granted_scopes=true&` +
+        `prompt=consent`;
+
+    // Chuyển hướng trực tiếp trang web
+    window.location.href = authUrl;
 }
 
-// =========================================================================
-// QUẢN LÝ MỞ / ĐÓNG CỬA SỔ XANH LÁ DỊU (MODAL)
-// =========================================================================
 function openGDriveModal() {
     const modal = document.getElementById('modal-gdrive-auth');
     if (!modal) return;
@@ -87,7 +82,7 @@ function updateGDriveModalUI() {
 }
 
 function disconnectGDrive() {
-    if (confirm("Bạn có chắc chắn muốn ngắt kết nối tài khoản Google Drive trên máy này?")) {
+    if (confirm("Bạn có chắc muốn ngắt kết nối tài khoản Google Drive?")) {
         accessToken = null;
         tokenExpiresAt = 0;
         appFolderId = null;
@@ -100,7 +95,6 @@ function disconnectGDrive() {
     }
 }
 
-// CÁC HÀM XỬ LÝ DRIVE
 async function getOrCreateFolder() {
     if (appFolderId) return appFolderId;
     if (!isGDriveConnected()) return null;
@@ -132,9 +126,7 @@ async function getOrCreateFolder() {
 
         if (appFolderId) localStorage.setItem('gdrive_folder_id', appFolderId);
         return appFolderId;
-    } catch (e) {
-        return null;
-    }
+    } catch (e) { return null; }
 }
 
 async function gdriveListProjects() {
@@ -162,9 +154,7 @@ async function gdriveListProjects() {
                 updatedAt: Number(props.updatedAt) || new Date(f.modifiedTime).getTime()
             };
         });
-    } catch (e) {
-        return null;
-    }
+    } catch (e) { return null; }
 }
 
 async function gdriveSaveProject(projObj) {
@@ -237,9 +227,7 @@ async function gdriveGetProjectContent(fileId) {
         const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
-        if (res.ok) {
-            return await res.json();
-        }
+        if (res.ok) return await res.json();
     } catch (e) {}
     return null;
 }
@@ -252,15 +240,13 @@ async function gdriveDeleteProject(fileId) {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         return res.ok;
-    } catch (e) {
-        return false;
-    }
+    } catch (e) { return false; }
 }
 
-// GẮN SỰ KIỆN NÚT BẤM TRONG CỬA SỔ XANH LÁ
+// LẮNG NGHE SỰ KIỆN
 window.addEventListener('load', () => {
-    initGoogleDriveAuth();
-    document.getElementById('btn-login-gdrive')?.addEventListener('click', triggerGooglePopup);
+    checkUrlForOAuthToken();
+    document.getElementById('btn-login-gdrive')?.addEventListener('click', triggerGoogleRedirectLogin);
     document.getElementById('btn-close-gdrive-modal')?.addEventListener('click', closeGDriveModal);
     document.getElementById('btn-disconnect-gdrive')?.addEventListener('click', disconnectGDrive);
 });

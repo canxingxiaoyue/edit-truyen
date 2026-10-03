@@ -1,5 +1,5 @@
 // =========================================================================
-// GOOGLE DRIVE API V3 - CHẾ ĐỘ CHUYỂN TRANG (REDIRECT MODE - 0% BỊ CHẶN)
+// GOOGLE DRIVE API V3 - QUY CHUẨN XỬ LÝ TRÙNG TÊN & KHÔNG GHI ĐÈ FILE
 // =========================================================================
 
 const CLIENT_ID = '214662773459-nepa84k1u7uhp1j08p250f9v42q0mbk6.apps.googleusercontent.com';
@@ -10,7 +10,45 @@ let accessToken = localStorage.getItem('gdrive_access_token') || null;
 let tokenExpiresAt = Number(localStorage.getItem('gdrive_token_expires')) || 0;
 let appFolderId = localStorage.getItem('gdrive_folder_id') || null;
 
-// TỰ ĐỘNG BẮT TOKEN KHI GOOGLE CHUYỂN HƯỚNG VỀ LẠI WEB
+// =========================================================================
+// HÀM TIỆN ÍCH: PHÂN TÍCH TÊN VÀ TỰ ĐỘNG CẤP STT TÊN (STT).EXT
+// =========================================================================
+function splitFileNameAndExt(fullName) {
+    if (!fullName) return { baseName: 'Chua_dat_ten', ext: '' };
+    const lastDot = fullName.lastIndexOf('.');
+    if (lastDot > 0 && lastDot < fullName.length - 1) {
+        return {
+            baseName: fullName.substring(0, lastDot),
+            ext: fullName.substring(lastDot) // Giữ nguyên phần mở rộng kể cả dấu chấm
+        };
+    }
+    return {
+        baseName: fullName,
+        ext: ''
+    };
+}
+
+// Tìm số thứ tự nhỏ nhất chưa tồn tại theo cú pháp Tên (STT).ext
+function resolveDriveFileNameConflict(desiredFullName, existingNamesList) {
+    const existingSet = new Set(existingNamesList.map(n => n.toLowerCase().trim()));
+    if (!existingSet.has(desiredFullName.toLowerCase().trim())) {
+        return desiredFullName;
+    }
+
+    const { baseName, ext } = splitFileNameAndExt(desiredFullName);
+    // Chuẩn hóa baseName: nếu đã có đuôi dạng " (Số)" thì lấy phần gốc
+    const cleanedBase = baseName.replace(/\s*\(\d+\)$/, '');
+
+    let stt = 1;
+    let candidate = `${cleanedBase} (${stt})${ext}`;
+    while (existingSet.has(candidate.toLowerCase().trim())) {
+        stt++;
+        candidate = `${cleanedBase} (${stt})${ext}`;
+    }
+    return candidate;
+}
+
+// BẮT TOKEN OAUTH TỪ URL HASH (REDIRECT MODE)
 function checkUrlForOAuthToken() {
     if (window.location.hash && window.location.hash.includes('access_token')) {
         const hash = window.location.hash.substring(1);
@@ -24,7 +62,6 @@ function checkUrlForOAuthToken() {
             localStorage.setItem('gdrive_access_token', accessToken);
             localStorage.setItem('gdrive_token_expires', String(tokenExpiresAt));
 
-            // Xóa đoạn hash loằng ngoằng trên thanh URL cho sạch
             history.replaceState(null, null, window.location.pathname + window.location.search);
 
             showToast("🟢 Đã kết nối Google Drive thành công!", "var(--btn-success)");
@@ -38,7 +75,6 @@ function isGDriveConnected() {
     return accessToken && Date.now() < (tokenExpiresAt - 60000);
 }
 
-// CHUYỂN TRANG THẲNG SANG GOOGLE (KHÔNG DÙNG POPUP - 100% THÀNH CÔNG)
 function triggerGoogleRedirectLogin() {
     const redirectUri = window.location.origin;
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
@@ -49,7 +85,6 @@ function triggerGoogleRedirectLogin() {
         `include_granted_scopes=true&` +
         `prompt=consent`;
 
-    // Chuyển hướng trực tiếp trang web
     window.location.href = authUrl;
 }
 
@@ -129,6 +164,24 @@ async function getOrCreateFolder() {
     } catch (e) { return null; }
 }
 
+// =========================================================================
+// 1. TẢI TOÀN BỘ DANH SÁCH FILE HIỆN CÓ TRÊN GOOGLE DRIVE
+// =========================================================================
+async function gdriveFetchAllFileNames(folderId) {
+    try {
+        const q = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1000`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        if (!res.ok) throw new Error("Không thể đọc danh sách file từ Drive");
+        const data = await res.json();
+        return (data.files || []).map(f => f.name);
+    } catch (e) {
+        console.error("Lỗi quét tên file Google Drive:", e);
+        throw e;
+    }
+}
+
 async function gdriveListProjects() {
     if (!isGDriveConnected()) return null;
     const folderId = await getOrCreateFolder();
@@ -136,7 +189,7 @@ async function gdriveListProjects() {
 
     try {
         const query = encodeURIComponent(`'${folderId}' in parents and trashed=false and mimeType='application/json'`);
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,appProperties,modifiedTime)&orderBy=modifiedTime desc`, {
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,appProperties,modifiedTime)&orderBy=modifiedTime desc&pageSize=1000`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         const data = await res.json();
@@ -157,21 +210,44 @@ async function gdriveListProjects() {
     } catch (e) { return null; }
 }
 
+// =========================================================================
+// 2. LƯU DỰ ÁN LÊN GOOGLE DRIVE (TỰ ĐỘNG ĐỔI TÊN STT, TUYỆT ĐỐI KHÔNG GHI ĐÈ)
+// =========================================================================
 async function gdriveSaveProject(projObj) {
     if (!isGDriveConnected()) {
+        alert("⚠️ Không thể kiểm tra trực tiếp Google Drive do chưa có quyền truy cập hoặc phiên đăng nhập đã hết hạn!");
         openGDriveModal();
-        return false;
+        return { success: false };
     }
     const folderId = await getOrCreateFolder();
-    if (!folderId) return false;
+    if (!folderId) {
+        alert("⚠️ Không thể truy cập thư mục Google Drive để kiểm tra tên file!");
+        return { success: false };
+    }
 
-    const fileName = `${projObj.name}.json`;
+    // 1. Quét danh sách file thực tế trên Google Drive
+    let existingFileNames = [];
+    try {
+        existingFileNames = await gdriveFetchAllFileNames(folderId);
+    } catch (err) {
+        alert("⚠️ Không thể kiểm tra danh sách file trên Google Drive! Hệ thống không giả định tên chưa tồn tại để tránh rủi ro dữ liệu.");
+        return { success: false };
+    }
+
+    // 2. Tự động kiểm tra và giải quyết trùng tên theo cú pháp Tên (STT).json
+    const originalFileName = `${projObj.name}.json`;
+    const finalFileName = resolveDriveFileNameConflict(originalFileName, existingFileNames);
+    const finalProjectName = finalFileName.replace(/\.json$/i, '');
+
+    // Cập nhật tên thực tế sau khi đổi vào project object
+    projObj.name = finalProjectName;
+
     const metadata = {
-        name: fileName,
+        name: finalFileName,
         mimeType: 'application/json',
         parents: [folderId],
         appProperties: {
-            name: projObj.name,
+            name: finalProjectName,
             chapterTitle: projObj.chapterTitle || '',
             storyTitle: projObj.storyTitle || '',
             rowCount: String(projObj.rowCount || 0),
@@ -180,18 +256,7 @@ async function gdriveSaveProject(projObj) {
         }
     };
 
-    let existingFileId = null;
-    try {
-        const q = encodeURIComponent(`name='${fileName}' and '${folderId}' in parents and trashed=false`);
-        const checkRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
-        const checkData = await checkRes.json();
-        if (checkData.files && checkData.files.length > 0) {
-            existingFileId = checkData.files[0].id;
-        }
-    } catch (e) {}
-
+    // 3. TẠO FILE MỚI HOÀN TOÀN (POST) - TUYỆT ĐỐI KHÔNG DÙNG PATCH ĐỂ TRÁNH GHI ĐÈ
     const boundary = '-------GDriveProjectUploadBoundary';
     const delimiter = "\r\n--" + boundary + "\r\n";
     const closeDelim = "\r\n--" + boundary + "--";
@@ -205,12 +270,10 @@ async function gdriveSaveProject(projObj) {
         JSON.stringify(projObj) +
         closeDelim;
 
-    const url = existingFileId
-        ? `https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=multipart`
-        : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
+    const url = `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
 
     const res = await fetch(url, {
-        method: existingFileId ? 'PATCH' : 'POST',
+        method: 'POST',
         headers: {
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': `multipart/related; boundary=${boundary}`
@@ -218,7 +281,11 @@ async function gdriveSaveProject(projObj) {
         body: multipartRequestBody
     });
 
-    return res.ok;
+    if (res.ok) {
+        const savedData = await res.json();
+        return { success: true, savedName: finalProjectName, fileId: savedData.id };
+    }
+    return { success: false };
 }
 
 async function gdriveGetProjectContent(fileId) {
@@ -243,61 +310,57 @@ async function gdriveDeleteProject(fileId) {
     } catch (e) { return false; }
 }
 
-// LẮNG NGHE SỰ KIỆN
-window.addEventListener('load', () => {
-    checkUrlForOAuthToken();
-    document.getElementById('btn-login-gdrive')?.addEventListener('click', triggerGoogleRedirectLogin);
-    document.getElementById('btn-close-gdrive-modal')?.addEventListener('click', closeGDriveModal);
-    document.getElementById('btn-disconnect-gdrive')?.addEventListener('click', disconnectGDrive);
-});
 // =========================================================================
-// XỬ LÝ NAME QT TRÊN GOOGLE DRIVE (HỖ TRỢ FILE NẶNG TỚI 100MB)
+// 3. LƯU FILE NAME QT LÊN GOOGLE DRIVE (TỰ ĐỘNG ĐỔI TÊN STT, KHÔNG GHI ĐÈ)
 // =========================================================================
-
-// 1. LƯU FILE NAME QT LÊN GOOGLE DRIVE (DÙNG CHUẨN RESUMABLE CHO FILE LỚN)
 async function gdriveSaveNameQTFile(fileObj) {
     if (!isGDriveConnected()) {
+        alert("⚠️ Không thể kiểm tra trực tiếp Google Drive do chưa có quyền truy cập!");
         openGDriveModal();
-        return false;
+        return { success: false };
     }
     const folderId = await getOrCreateFolder();
-    if (!folderId) return false;
+    if (!folderId) {
+        alert("⚠️ Không thể truy cập thư mục Google Drive để kiểm tra tên file!");
+        return { success: false };
+    }
 
-    const fileName = `[NameQT]_${fileObj.fileName || 'Name.txt'}`;
+    let existingFileNames = [];
+    try {
+        existingFileNames = await gdriveFetchAllFileNames(folderId);
+    } catch (err) {
+        alert("⚠️ Không thể kiểm tra danh sách file trên Google Drive! Hệ thống không giả định tên chưa tồn tại.");
+        return { success: false };
+    }
+
+    const { baseName, ext } = splitFileNameAndExt(fileObj.fileName || 'Name.txt');
+    const safeExt = ext || '.txt';
+    const desiredFullName = `[NameQT]_${baseName}${safeExt}`;
+    
+    // Tự động cấp số thứ tự nếu trùng file Name QT trên Drive
+    const finalFullName = resolveDriveFileNameConflict(desiredFullName, existingFileNames);
+    const finalCleanFileName = finalFullName.replace(/^\[NameQT\]_/, '');
+
     const content = fileObj.content || '';
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
 
     const metadata = {
-        name: fileName,
+        name: finalFullName,
         mimeType: 'text/plain',
         parents: [folderId],
         appProperties: {
             type: 'nameqt',
-            originalName: fileObj.fileName || 'Name.txt',
+            originalName: finalCleanFileName,
             count: String(fileObj.count || 0),
             updatedAt: String(fileObj.updatedAt || Date.now())
         }
     };
 
-    // Kiểm tra xem file đã có trên Drive chưa để cập nhật đè
-    let existingId = null;
-    try {
-        const q = encodeURIComponent(`name='${fileName}' and '${folderId}' in parents and trashed=false`);
-        const checkRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
-        const checkData = await checkRes.json();
-        if (checkData.files && checkData.files.length > 0) existingId = checkData.files[0].id;
-    } catch(e) {}
-
-    // Khởi tạo phiên tải lên Resumable (cho phép tải file 30MB-50MB an toàn tuyệt đối)
-    const initUrl = existingId
-        ? `https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=resumable`
-        : `https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable`;
-    const initMethod = existingId ? 'PATCH' : 'POST';
+    // Luôn tạo file mới qua Resumable Upload (hỗ trợ file nặng lên đến 100MB)
+    const initUrl = `https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable`;
 
     const initRes = await fetch(initUrl, {
-        method: initMethod,
+        method: 'POST',
         headers: {
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json; charset=UTF-8',
@@ -307,21 +370,22 @@ async function gdriveSaveNameQTFile(fileObj) {
         body: JSON.stringify(metadata)
     });
 
-    if (!initRes.ok) return false;
+    if (!initRes.ok) return { success: false };
     const uploadUri = initRes.headers.get('Location');
-    if (!uploadUri) return false;
+    if (!uploadUri) return { success: false };
 
-    // Đẩy toàn bộ nội dung file lên Google Drive
     const uploadRes = await fetch(uploadUri, {
         method: 'PUT',
         headers: { 'Content-Type': 'text/plain' },
         body: blob
     });
 
-    return uploadRes.ok;
+    if (uploadRes.ok) {
+        return { success: true, savedName: finalCleanFileName };
+    }
+    return { success: false };
 }
 
-// 2. LẤY DANH SÁCH FILE NAME QT ĐANG CÓ TRÊN DRIVE
 async function gdriveListNameQTFiles() {
     if (!isGDriveConnected()) return [];
     const folderId = await getOrCreateFolder();
@@ -329,7 +393,7 @@ async function gdriveListNameQTFiles() {
 
     try {
         const q = encodeURIComponent(`'${folderId}' in parents and trashed=false and appProperties has { key='type' and value='nameqt' }`);
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,appProperties,modifiedTime)&orderBy=modifiedTime desc`, {
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,appProperties,modifiedTime)&orderBy=modifiedTime desc&pageSize=1000`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         const data = await res.json();
@@ -337,7 +401,6 @@ async function gdriveListNameQTFiles() {
     } catch (e) { return []; }
 }
 
-// 3. TẢI NỘI DUNG FILE NAME QT TỪ DRIVE VỀ MÁY
 async function gdriveDownloadNameQTContent(fileId) {
     if (!isGDriveConnected()) return null;
     try {
@@ -349,7 +412,6 @@ async function gdriveDownloadNameQTContent(fileId) {
     return null;
 }
 
-// 4. XÓA FILE NAME QT TRÊN DRIVE
 async function gdriveDeleteNameQTFile(originalName) {
     if (!isGDriveConnected()) return;
     const folderId = await getOrCreateFolder();
@@ -363,10 +425,19 @@ async function gdriveDeleteNameQTFile(originalName) {
         });
         const checkData = await checkRes.json();
         if (checkData.files && checkData.files.length > 0) {
-            await fetch(`https://www.googleapis.com/drive/v3/files/${checkData.files[0].id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
+            for (const f of checkData.files) {
+                await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+            }
         }
     } catch(e) {}
 }
+
+window.addEventListener('load', () => {
+    checkUrlForOAuthToken();
+    document.getElementById('btn-login-gdrive')?.addEventListener('click', triggerGoogleRedirectLogin);
+    document.getElementById('btn-close-gdrive-modal')?.addEventListener('click', closeGDriveModal);
+    document.getElementById('btn-disconnect-gdrive')?.addEventListener('click', disconnectGDrive);
+});

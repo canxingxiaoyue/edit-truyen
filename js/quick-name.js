@@ -1,5 +1,5 @@
 // =========================================================================
-// BỘ TRA CỨU HÁN VIỆT CHUẨN & XỬ LÝ QUICK NAME KHÔNG BỊ DÍNH PINYIN
+// BỘ TRA CỨU HÁN VIỆT CHUẨN & XỬ LÝ QUICK NAME (KIỂM TRA TRÙNG NAME QT CHUẨN MỰC)
 // =========================================================================
 
 // Bảng tra Hán Việt mở rộng chuẩn xác
@@ -23,9 +23,6 @@ function getHanVietChar(char) {
     if (HAN_VIET_MAP[char]) {
         return HAN_VIET_MAP[char].split('/')[0].trim();
     }
-
-    // Không dùng pinyin làm fallback để tránh chữ Hán lẫn lộn với pinyin.
-    // Nếu ký tự chưa có trong bảng tra Hán-Việt, giữ nguyên ký tự gốc.
     return char;
 }
 
@@ -148,14 +145,12 @@ function initQuickNameEvents() {
         if (!selectedCNText) return;
         quickBtn.style.display = 'none';
 
-        // Lấy danh sách từ Hán Việt chuẩn
         const hvPhrase = getHanVietPhrase(selectedCNText);
         selectedHVWords = hvPhrase.split(' ').filter(w => w.length > 0);
 
         if (inputCN) inputCN.value = selectedCNText;
         if (inputHV) inputHV.value = hvPhrase;
 
-        // Ưu tiên lấy bản QT/VietPhrase đang dịch làm gợi ý, nếu chưa có thì lấy Hán Việt Viết Hoa
         let defaultNameVI = '';
         if (typeof nameQTEngine !== 'undefined' && nameQTEngine.dict && nameQTEngine.dict.has(selectedCNText)) {
             defaultNameVI = nameQTEngine.dict.get(selectedCNText);
@@ -239,31 +234,86 @@ function initQuickNameEvents() {
         }
     });
 
-    // 4. BẤM NÚT LƯU NAME & THAY THẾ TOÀN BỘ
+    // =========================================================================
+    // 4. BẤM NÚT LƯU NAME - XỬ LÝ TRÙNG LẶP NAME QT ĐẦU VÀO THEO RULE 1, 3, 4, 5
+    // =========================================================================
     document.getElementById('btn-save-quick-name')?.addEventListener('click', async () => {
         const cn = inputCN?.value.trim();
-        const vi = inputVI?.value.trim();
+        let vi = inputVI?.value.trim();
 
         if (!cn || !vi) {
-            showToast('⚠️ Vui lòng nhập Name tiếng Việt!', 'var(--btn-warning)');
+            showToast('⚠️ Vui lòng nhập đầy đủ tiếng Trung và Name tiếng Việt!', 'var(--btn-warning)');
             return;
         }
 
-        const TARGET_FILENAME = "Name_da_thay.txt";
+        // KIỂM TRA TRÙNG LẶP NAME QT ĐẦU VÀO
+        if (typeof nameQTEngine !== 'undefined' && nameQTEngine.dict) {
+            // Thu thập tất cả các Name tiếng Việt hiện có trong từ điển
+            const allExistingVi = new Set();
+            for (let val of nameQTEngine.dict.values()) {
+                if (val) allExistingVi.add(val.toLowerCase().trim());
+            }
 
-        let targetFile = nameQTEngine.files.find(f => f.fileName === TARGET_FILENAME);
+            const isDuplicate = allExistingVi.has(vi.toLowerCase().trim());
+
+            if (isDuplicate) {
+                // Tách tên và tìm STT chưa tồn tại cho trường Name QT (không có phần mở rộng)
+                const cleanedBase = vi.replace(/\s*\(\d+\)$/, '').trim();
+                let stt = 1;
+                let candidate = `${cleanedBase} (${stt})`;
+
+                while (allExistingVi.has(candidate.toLowerCase().trim())) {
+                    stt++;
+                    candidate = `${cleanedBase} (${stt})`;
+                }
+
+                // Cú pháp thông báo bắt buộc theo Rule 3:
+                // Báo lặp rồi! Tên "[Tên gốc]" đã tồn tại. Bạn có muốn thay Name bằng "[Tên gốc] (STT)" không?
+                const confirmMsg = `Báo lặp rồi! Tên "${vi}" đã tồn tại. Bạn có muốn thay Name bằng "${candidate}" không?`;
+                const userAgreed = confirm(confirmMsg);
+
+                if (userAgreed) {
+                    // Người dùng đồng ý: gán tên mới có (STT)
+                    vi = candidate;
+                } else {
+                    // Người dùng không đồng ý: Giữ nguyên dữ liệu hiện tại, không tự ý đổi tên, ghi đè hoặc xóa
+                    showToast(`⚠️ Giữ nguyên dữ liệu hiện tại, không thay đổi Name.`, 'var(--btn-warning)');
+                    return;
+                }
+            }
+        }
+
+        const TARGET_FILENAME = "Name_da_thay.txt";
+        let targetFile = nameQTEngine?.files?.find(f => f.fileName === TARGET_FILENAME);
         let existingContent = targetFile ? targetFile.content : '';
 
-        let newContent = existingContent;
-        if (newContent && !newContent.endsWith('\n')) newContent += '\n';
-        newContent += `${cn}=${vi}`;
+        // ĐỒNG BỘ: Cập nhật dòng tương ứng hoặc thêm mới (không tạo bản ghi trùng lặp - Rule 5)
+        let lines = existingContent ? existingContent.split(/\r?\n/) : [];
+        let found = false;
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line || line.startsWith('#') || !line.includes('=')) continue;
+            const eqIdx = line.indexOf('=');
+            const existingCn = line.slice(0, eqIdx).trim();
+            if (existingCn === cn) {
+                lines[i] = `${cn}=${vi}`;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            lines.push(`${cn}=${vi}`);
+        }
 
+        const newContent = lines.filter(l => l.trim() !== '').join('\n') + '\n';
         const fileId = targetFile ? targetFile.id : null;
+
         await nameQTEngine.addOrUpdateFile(TARGET_FILENAME, newContent, fileId);
 
-        refreshAllQT(true);
+        // Làm mới lại toàn bộ cột QT theo Name mới
+        if (typeof refreshAllQT === 'function') refreshAllQT(true);
 
-        showToast(`✅ Đã thay Name "${cn}" -> "${vi}" & lưu vào file ${TARGET_FILENAME}!`, 'var(--btn-success)');
+        showToast(`🔤 Đã thay Name "${cn}" = "${vi}" và lưu vào file ${TARGET_FILENAME}!`, 'var(--btn-success)');
 
         if (modalAddName) modalAddName.classList.remove('show');
     });

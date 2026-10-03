@@ -1,5 +1,5 @@
 // =========================================================================
-// QUẢN LÝ LỊCH SỬ DỊCH & NAME QT (CÁCH LY DỰ ÁN - TÍCH HỢP GOOGLE DRIVE)
+// QUẢN LÝ LỊCH SỬ DỊCH & NAME QT (CÁCH LY DỰ ÁN - TÍCH HỢP GOOGLE DRIVE & KIỂM TRA TRÙNG TÊN)
 // =========================================================================
 let editingFileId = null;
 
@@ -368,6 +368,9 @@ function openNameQTModal() {
     if (modal) modal.classList.add('show');
 }
 
+// =========================================================================
+// SỰ KIỆN CẬP NHẬT NAME QT - XỬ LÝ TRÙNG TÊN ĐẦU VÀO THEO RULE 3 & 4
+// =========================================================================
 function initNameQTModalEvents() {
     document.getElementById('btn-open-nameqt-modal')?.addEventListener('click', (e) => { e.preventDefault(); openNameQTModal(); });
     document.getElementById('btn-close-nameqt-modal')?.addEventListener('click', () => document.getElementById('modal-nameqt')?.classList.remove('show'));
@@ -377,29 +380,81 @@ function initNameQTModalEvents() {
         const fileInput = document.getElementById('nameqt-file-input');
         const file = fileInput?.files[0];
         const rawText = document.getElementById('nameqt-text-input')?.value.trim() || '';
-        const customFileName = document.getElementById('nameqt-filename-input')?.value.trim();
+        let customFileName = document.getElementById('nameqt-filename-input')?.value.trim();
 
-        if (!file && !rawText) { showToast('⚠️ Vui lòng chọn file .txt hoặc dán nội dung Name!', 'var(--btn-warning)'); return; }
+        if (!file && !rawText) { 
+            showToast('⚠️ Vui lòng chọn file .txt hoặc dán nội dung Name!', 'var(--btn-warning)'); 
+            return; 
+        }
+
+        let nameToUse = customFileName || (file ? file.name : (editingFileId ? 'File_chinh_sua.txt' : 'Name_tu_bo_sung.txt'));
+        
+        // KIỂM TRA TRÙNG TÊN FILE NAME QT TRONG DỮ LIỆU ĐẦU VÀO THEO RULE 1, 3, 4
+        if (typeof nameQTEngine !== 'undefined' && nameQTEngine.files) {
+            const existingFiles = nameQTEngine.files.filter(f => f.id !== editingFileId);
+            const existingFileNames = existingFiles.map(f => f.fileName);
+
+            const isDuplicate = existingFileNames.some(n => n.toLowerCase().trim() === nameToUse.toLowerCase().trim());
+            if (isDuplicate) {
+                // Tách phần tên gốc và phần mở rộng để bảo toàn .txt
+                let base = nameToUse;
+                let ext = '';
+                const lastDot = nameToUse.lastIndexOf('.');
+                if (lastDot > 0 && lastDot < nameToUse.length - 1) {
+                    base = nameToUse.substring(0, lastDot);
+                    ext = nameToUse.substring(lastDot);
+                }
+                const cleanedBase = base.replace(/\s*\(\d+\)$/, '').trim();
+                let stt = 1;
+                let candidateTitle = `${cleanedBase} (${stt})`;
+                let candidateFileName = `${candidateTitle}${ext}`;
+
+                // Tìm số thứ tự nhỏ nhất chưa được sử dụng
+                while (existingFileNames.some(n => n.toLowerCase().trim() === candidateFileName.toLowerCase().trim())) {
+                    stt++;
+                    candidateTitle = `${cleanedBase} (${stt})`;
+                    candidateFileName = `${candidateTitle}${ext}`;
+                }
+
+                // Cú pháp thông báo bắt buộc theo Rule 3:
+                // Báo lặp rồi! Tên "[Tên gốc]" đã tồn tại. Bạn có muốn thay Name bằng "[Tên gốc] (STT)" không?
+                const confirmMsg = `Báo lặp rồi! Tên "${base}" đã tồn tại. Bạn có muốn thay Name bằng "${candidateTitle}" không?`;
+                const userAgreed = confirm(confirmMsg);
+
+                if (userAgreed) {
+                    // Người dùng đồng ý: đổi sang tên đề xuất có STT và giữ nguyên phần mở rộng
+                    nameToUse = candidateFileName;
+                } else {
+                    // Người dùng từ chối: giữ nguyên dữ liệu gốc, không tự ý đổi tên, ghi đè hoặc xóa
+                    showToast(`⚠️ Đã hủy thao tác để giữ nguyên dữ liệu gốc!`, 'var(--btn-warning)');
+                    return; 
+                }
+            }
+        }
 
         let updatedCount = 0;
 
         if (file) {
             const reader = new FileReader();
             reader.onload = async function(e) {
-                if (typeof nameQTEngine !== 'undefined') updatedCount = await nameQTEngine.addOrUpdateFile(customFileName || file.name, e.target.result, editingFileId);
+                if (typeof nameQTEngine !== 'undefined') {
+                    updatedCount = await nameQTEngine.addOrUpdateFile(nameToUse, e.target.result, editingFileId);
+                }
                 finishUpdate();
             };
             reader.readAsText(file, 'UTF-8');
         } else {
-            const nameToUse = customFileName || (editingFileId ? 'File_chinh_sua.txt' : 'Name_tu_bo_sung.txt');
-            const fileIdToUse = editingFileId || nameQTEngine?.files?.find(f => f.fileName === nameToUse)?.id;
-            if (typeof nameQTEngine !== 'undefined') updatedCount = await nameQTEngine.addOrUpdateFile(nameToUse, rawText, fileIdToUse);
+            const fileIdToUse = editingFileId;
+            if (typeof nameQTEngine !== 'undefined') {
+                updatedCount = await nameQTEngine.addOrUpdateFile(nameToUse, rawText, fileIdToUse);
+            }
             finishUpdate();
         }
 
         function finishUpdate() {
-            showToast(`✅ Đã lưu thành công ${updatedCount.toLocaleString('vi-VN')} từ!`, 'var(--btn-success)');
-            cancelEditingFile(); updateNameQTModalUI();
+            showToast(`✅ Đã lưu thành công ${updatedCount.toLocaleString('vi-VN')} từ vào file "${nameToUse}"!`, 'var(--btn-success)');
+            cancelEditingFile(); 
+            updateNameQTModalUI();
             if (typeof refreshAllQT === 'function') refreshAllQT(false);
             document.getElementById('modal-nameqt')?.classList.remove('show');
         }

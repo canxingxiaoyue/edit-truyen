@@ -1,5 +1,5 @@
 // =========================================================================
-// ULTRA-LIGHTWEIGHT NAME QT ENGINE - 0% LAG KHI CHUYỂN TAB & TIẾT KIỆM RAM
+// ULTRA-LIGHTWEIGHT NAME QT ENGINE - GIẢM RAM TỐI ĐA & TÍCH HỢP GOOGLE DRIVE
 // =========================================================================
 const DB_NAME = 'NameQT_Store_DB_v3';
 const FILES_STORE = 'files_store_v3';
@@ -138,8 +138,17 @@ class FastNameQTEngine {
     }
 
     async removeFile(fileId) {
+        const fileObj = this.files.find(f => f.id === fileId);
         this.files = this.files.filter(f => f.id !== fileId);
         await deleteFileFromIndexedDB(fileId);
+        
+        // Kích hoạt xóa trên Google Drive nếu đang kết nối
+        if (fileObj && typeof isGDriveConnected === 'function' && isGDriveConnected()) {
+            if (typeof gdriveDeleteNameQTFile === 'function') {
+                await gdriveDeleteNameQTFile(fileObj.fileName);
+            }
+        }
+        
         this.rebuildCombinedDict();
     }
 
@@ -163,6 +172,66 @@ class FastNameQTEngine {
             if (typeof updateNameQTModalUI === 'function') updateNameQTModalUI();
         }
     }
+
+    // =========================================================================
+    // GOOGLE DRIVE INTEGRATION CHO NAME QT
+    // =========================================================================
+
+    // 1. ĐẨY 1 FILE TỪ MÁY LÊN GOOGLE DRIVE
+    async pushFileToGDrive(fileId) {
+        const fileObj = this.files.find(f => f.id === fileId);
+        if (!fileObj) return;
+
+        if (typeof showToast === 'function') showToast(`⏳ Đang lưu file "${fileObj.fileName}" lên Google Drive...`, 'var(--btn-info)');
+        
+        if (typeof gdriveSaveNameQTFile === 'function') {
+            const ok = await gdriveSaveNameQTFile(fileObj);
+            if (ok) {
+                if (typeof showToast === 'function') showToast(`☁️ Đã lưu file "${fileObj.fileName}" lên Google Drive!`, 'var(--btn-success)');
+            } else {
+                if (typeof showToast === 'function') showToast(`⚠️ Không thể lưu file lên Google Drive!`, 'var(--btn-warning)');
+            }
+        }
+    }
+
+    // 2. KÉO TOÀN BỘ FILE NAME QT TỪ DRIVE VỀ MÁY
+    async pullAllFromGDrive() {
+        if (typeof isGDriveConnected !== 'function' || !isGDriveConnected()) {
+            if (typeof openGDriveModal === 'function') openGDriveModal();
+            return;
+        }
+
+        if (typeof showToast === 'function') showToast("⏳ Đang tải toàn bộ Name QT từ Google Drive về máy...", "var(--btn-info)");
+        
+        if (typeof gdriveListNameQTFiles !== 'function') return;
+        const cloudFiles = await gdriveListNameQTFiles();
+
+        if (!cloudFiles || cloudFiles.length === 0) {
+            if (typeof showToast === 'function') showToast("⚠️ Thư mục Google Drive chưa có file Name QT nào!", "var(--btn-warning)");
+            return;
+        }
+
+        let importedCount = 0;
+        for (const cf of cloudFiles) {
+            if (typeof gdriveDownloadNameQTContent === 'function') {
+                const content = await gdriveDownloadNameQTContent(cf.id);
+                if (content) {
+                    const origName = cf.appProperties?.originalName || cf.name.replace('[NameQT]_', '');
+                    await this.addOrUpdateFile(origName, content);
+                    importedCount++;
+                }
+            }
+        }
+
+        this.rebuildCombinedDict();
+        if (typeof updateNameQTModalUI === 'function') updateNameQTModalUI();
+        if (typeof refreshAllQT === 'function') refreshAllQT(false);
+        if (typeof showToast === 'function') showToast(`✅ Đã nạp thành công ${importedCount} file Name QT từ Drive về máy!`, "var(--btn-success)");
+    }
+
+    // =========================================================================
+    // THUẬT TOÁN XỬ LÝ DỊCH THUẬT CỐT LÕI
+    // =========================================================================
 
     process(rawText) {
         if (!rawText) return { text: '', tokens: [] };

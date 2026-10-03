@@ -1,5 +1,5 @@
 // =========================================================================
-// QUẢN LÝ LỊCH SỬ DỊCH & NAME QT (CÁCH LY HOÀN TOÀN VỚI PROJECT - 0% LỖI UPLOAD)
+// QUẢN LÝ LỊCH SỬ DỊCH & NAME QT (CÁCH LY DỰ ÁN - TÍCH HỢP GOOGLE DRIVE)
 // =========================================================================
 let editingFileId = null;
 
@@ -232,7 +232,7 @@ function renderHistoryList(type) {
 }
 
 // =========================================================================
-// RENDER DANH SÁCH FILE NAME QT TRONG MODAL
+// RENDER DANH SÁCH FILE NAME QT (TÍCH HỢP ĐỒNG BỘ GOOGLE DRIVE)
 // =========================================================================
 function renderNameQTFileList() {
     const listContainer = document.getElementById('nameqt-file-list');
@@ -240,36 +240,68 @@ function renderNameQTFileList() {
     listContainer.innerHTML = '';
 
     const files = (typeof nameQTEngine !== 'undefined' && nameQTEngine.files) ? nameQTEngine.files : [];
+
+    // NÚT KÉO TẤT CẢ FILE NAME QT TỪ GOOGLE DRIVE VỀ MÁY
+    const pullDriveDiv = document.createElement('div');
+    pullDriveDiv.style.marginBottom = '12px';
+    pullDriveDiv.style.textAlign = 'right';
+    pullDriveDiv.innerHTML = `<button id="btn-pull-gdrive-nameqt" class="btn-tool" style="background:#059669; color:white; border-radius:8px; padding:6px 14px; font-weight:600; cursor:pointer; box-shadow:0 2px 6px rgba(5,150,105,0.3);">📥 Tải Name QT từ Google Drive về máy</button>`;
+    listContainer.appendChild(pullDriveDiv);
+
     if (files.length === 0) {
-        listContainer.innerHTML = '<p style="color:gray; font-size:0.85rem; font-style:italic; text-align:center; padding:10px;">Chưa có file Name QT nào trong bộ nhớ máy tính này.</p>';
-        return;
+        const emptyMsg = document.createElement('p');
+        emptyMsg.style = 'color:gray; font-size:0.85rem; font-style:italic; text-align:center; padding:10px;';
+        emptyMsg.innerHTML = 'Chưa có file Name QT nào trong bộ nhớ máy tính này.';
+        listContainer.appendChild(emptyMsg);
+    } else {
+        files.forEach(file => {
+            const item = document.createElement('div');
+            item.className = `nameqt-file-item ${file.id === editingFileId ? 'editing' : ''}`;
+            
+            let ts = file.updatedAt || Date.now();
+            if (typeof ts === 'string' && /^\d+$/.test(ts)) ts = Number(ts);
+            const dateStr = new Date(ts).toLocaleDateString('vi-VN');
+
+            item.innerHTML = `
+                <div class="nameqt-file-info">
+                    <span class="nameqt-file-name">📄 ${escapeHTML(file.fileName || 'Name_QT.txt')}</span>
+                    <span class="nameqt-file-meta">${(file.count || 0).toLocaleString('vi-VN')} từ • Sửa lần cuối: ${dateStr}</span>
+                </div>
+                <div class="nameqt-file-actions">
+                    <button class="btn-tool btn-xs btn-push-gdrive-file" data-id="${file.id}" title="Lưu file này lên Google Drive" style="background:#059669; color:white;">☁️ Lên Drive</button>
+                    <button class="btn-tool btn-xs btn-edit-file" data-id="${file.id}" title="Chỉnh sửa file này">✏️ Sửa</button>
+                    <button class="btn-danger btn-xs btn-del-file" data-id="${file.id}" title="Xóa file này">🗑️ Xóa</button>
+                </div>
+            `;
+            listContainer.appendChild(item);
+        });
     }
 
-    files.forEach(file => {
-        const item = document.createElement('div');
-        item.className = `nameqt-file-item ${file.id === editingFileId ? 'editing' : ''}`;
-        
-        let ts = file.updatedAt || Date.now();
-        if (typeof ts === 'string' && /^\d+$/.test(ts)) ts = Number(ts);
-        const dateStr = new Date(ts).toLocaleDateString('vi-VN');
-
-        item.innerHTML = `
-            <div class="nameqt-file-info">
-                <span class="nameqt-file-name">📄 ${escapeHTML(file.fileName || 'Name_QT.txt')}</span>
-                <span class="nameqt-file-meta">${(file.count || 0).toLocaleString('vi-VN')} từ • Sửa lần cuối: ${dateStr}</span>
-            </div>
-            <div class="nameqt-file-actions">
-                <button class="btn-tool btn-xs btn-edit-file" data-id="${file.id}" title="Chỉnh sửa file này">✏️ Sửa</button>
-                <button class="btn-danger btn-xs btn-del-file" data-id="${file.id}" title="Xóa file này">🗑️ Xóa</button>
-            </div>
-        `;
-        listContainer.appendChild(item);
+    // Sự kiện nút Tải tất cả từ Google Drive
+    document.getElementById('btn-pull-gdrive-nameqt')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        if (typeof nameQTEngine !== 'undefined' && nameQTEngine.pullAllFromGDrive) {
+            await nameQTEngine.pullAllFromGDrive();
+        }
     });
 
+    // Sự kiện nút Đẩy từng file lên Google Drive
+    listContainer.querySelectorAll('.btn-push-gdrive-file').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const id = e.currentTarget.getAttribute('data-id');
+            if (typeof nameQTEngine !== 'undefined' && nameQTEngine.pushFileToGDrive) {
+                await nameQTEngine.pushFileToGDrive(id);
+            }
+        });
+    });
+
+    // Sự kiện Sửa file
     listContainer.querySelectorAll('.btn-edit-file').forEach(btn => {
         btn.addEventListener('click', (e) => startEditingFile(e.currentTarget.getAttribute('data-id')));
     });
 
+    // Sự kiện Xóa file
     listContainer.querySelectorAll('.btn-del-file').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const id = e.currentTarget.getAttribute('data-id');

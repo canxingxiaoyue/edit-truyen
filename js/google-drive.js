@@ -250,3 +250,123 @@ window.addEventListener('load', () => {
     document.getElementById('btn-close-gdrive-modal')?.addEventListener('click', closeGDriveModal);
     document.getElementById('btn-disconnect-gdrive')?.addEventListener('click', disconnectGDrive);
 });
+// =========================================================================
+// XỬ LÝ NAME QT TRÊN GOOGLE DRIVE (HỖ TRỢ FILE NẶNG TỚI 100MB)
+// =========================================================================
+
+// 1. LƯU FILE NAME QT LÊN GOOGLE DRIVE (DÙNG CHUẨN RESUMABLE CHO FILE LỚN)
+async function gdriveSaveNameQTFile(fileObj) {
+    if (!isGDriveConnected()) {
+        openGDriveModal();
+        return false;
+    }
+    const folderId = await getOrCreateFolder();
+    if (!folderId) return false;
+
+    const fileName = `[NameQT]_${fileObj.fileName || 'Name.txt'}`;
+    const content = fileObj.content || '';
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+
+    const metadata = {
+        name: fileName,
+        mimeType: 'text/plain',
+        parents: [folderId],
+        appProperties: {
+            type: 'nameqt',
+            originalName: fileObj.fileName || 'Name.txt',
+            count: String(fileObj.count || 0),
+            updatedAt: String(fileObj.updatedAt || Date.now())
+        }
+    };
+
+    // Kiểm tra xem file đã có trên Drive chưa để cập nhật đè
+    let existingId = null;
+    try {
+        const q = encodeURIComponent(`name='${fileName}' and '${folderId}' in parents and trashed=false`);
+        const checkRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        const checkData = await checkRes.json();
+        if (checkData.files && checkData.files.length > 0) existingId = checkData.files[0].id;
+    } catch(e) {}
+
+    // Khởi tạo phiên tải lên Resumable (cho phép tải file 30MB-50MB an toàn tuyệt đối)
+    const initUrl = existingId
+        ? `https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=resumable`
+        : `https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable`;
+    const initMethod = existingId ? 'PATCH' : 'POST';
+
+    const initRes = await fetch(initUrl, {
+        method: initMethod,
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json; charset=UTF-8',
+            'X-Upload-Content-Type': 'text/plain',
+            'X-Upload-Content-Length': String(blob.size)
+        },
+        body: JSON.stringify(metadata)
+    });
+
+    if (!initRes.ok) return false;
+    const uploadUri = initRes.headers.get('Location');
+    if (!uploadUri) return false;
+
+    // Đẩy toàn bộ nội dung file lên Google Drive
+    const uploadRes = await fetch(uploadUri, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'text/plain' },
+        body: blob
+    });
+
+    return uploadRes.ok;
+}
+
+// 2. LẤY DANH SÁCH FILE NAME QT ĐANG CÓ TRÊN DRIVE
+async function gdriveListNameQTFiles() {
+    if (!isGDriveConnected()) return [];
+    const folderId = await getOrCreateFolder();
+    if (!folderId) return [];
+
+    try {
+        const q = encodeURIComponent(`'${folderId}' in parents and trashed=false and appProperties has { key='type' and value='nameqt' }`);
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,appProperties,modifiedTime)&orderBy=modifiedTime desc`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        const data = await res.json();
+        return data.files || [];
+    } catch (e) { return []; }
+}
+
+// 3. TẢI NỘI DUNG FILE NAME QT TỪ DRIVE VỀ MÁY
+async function gdriveDownloadNameQTContent(fileId) {
+    if (!isGDriveConnected()) return null;
+    try {
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        if (res.ok) return await res.text();
+    } catch (e) {}
+    return null;
+}
+
+// 4. XÓA FILE NAME QT TRÊN DRIVE
+async function gdriveDeleteNameQTFile(originalName) {
+    if (!isGDriveConnected()) return;
+    const folderId = await getOrCreateFolder();
+    if (!folderId) return;
+
+    try {
+        const fileName = `[NameQT]_${originalName}`;
+        const q = encodeURIComponent(`name='${fileName}' and '${folderId}' in parents and trashed=false`);
+        const checkRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        const checkData = await checkRes.json();
+        if (checkData.files && checkData.files.length > 0) {
+            await fetch(`https://www.googleapis.com/drive/v3/files/${checkData.files[0].id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+        }
+    } catch(e) {}
+}

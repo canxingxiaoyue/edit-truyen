@@ -1038,4 +1038,140 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     .app-name {
         font-size: 1.1rem;
     }
+}/* ========================================================================= */
+/* 📱 TỐI ƯU HÓA GIAO DIỆN DI ĐỘNG (MOBILE RESPONSIVE) - CHUẨN 100% */
+/* ========================================================================= */
+
+@media screen and (max-width: 768px) {
+    /* 1. NGĂN CHẶN ZOOM MÀN HÌNH TRÊN IPHONE KHI CHẠM VÀO Ô NHẬP LIỆU */
+    input, textarea, select {
+        font-size: 16px !important; 
+    }
+
+    /* 2. CHỈNH LẠI HEADER (GỌN GÀNG TỪ TRÊN XUỐNG DƯỚI) */
+    .top-nav-bar {
+        flex-direction: column !important;
+        height: auto !important;
+        padding: 10px !important;
+        gap: 12px !important;
+    }
+
+    .nav-brand {
+        justify-content: center !important;
+        width: 100% !important;
+    }
+
+    .main-nav-links {
+        justify-content: center !important;
+        width: 100% !important;
+    }
+
+    .nav-right-controls {
+        flex-direction: column !important;
+        width: 100% !important;
+        align-items: center !important;
+        gap: 10px !important;
+    }
+
+    .font-controls {
+        justify-content: center !important;
+        flex-wrap: wrap !important;
+        width: 100% !important;
+    }
+
+    #clerk-auth-container {
+        display: flex !important;
+        justify-content: center !important;
+        width: 100% !important;
+    }
+
+    /* 3. THANH TÊN CHƯƠNG VÀ FILE - TRẢ LẠI ĐỘ RỘNG HIỂN THỊ ĐỦ CHỮ */
+    .story-title-bar {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+    }
+    .story-title-bar input {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    /* 4. THANH CÔNG CỤ (ÉP BUỘC LƯỚT NGANG, TỰ ĐỘNG GIẤU THANH CUỘN LÊN) */
+    .toolbar, .format-toolbar {
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        justify-content: flex-start !important;
+        padding-bottom: 12px !important;
+    }
+
+    /* Ẩn thanh cuộn cho gọn gàng */
+    .toolbar::-webkit-scrollbar, .format-toolbar::-webkit-scrollbar {
+        height: 4px;
+    }
+    .toolbar::-webkit-scrollbar-thumb, .format-toolbar::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 4px;
+    }
+
+    /* Ép các nút không bị bóp méo khi vuốt ngang */
+    .toolbar button, .format-toolbar button, .format-toolbar select, .color-input-wrapper {
+        flex-shrink: 0 !important; 
+        white-space: nowrap !important; 
+    }
+
+    /* 5. BẢNG DỊCH 6 CỘT - ÉP BUỘC LƯỚT NGANG MƯỢT MÀ */
+    .app-main-container {
+        padding: 5px !important;
+    }
+
+    #table-container {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        width: 100% !important;
+    }
+
+    table {
+        min-width: 1200px !important; /* Cố định độ rộng 6 cột để không bị dồn chữ */
+    }
+
+    th, td {
+        min-width: 180px !important;
+        padding: 8px !important;
+    }
+
+    /* 6. CÁC HỘP THOẠI MODAL (TỰ ĐỘNG THU GỌN VỪA VẶN MÀN HÌNH ĐIỆN THOẠI) */
+    .modal-content, .sage-gdrive-card, .sage-auth-card {
+        width: 95% !important;
+        max-width: 100% !important;
+        margin: 10px auto !important;
+        max-height: 90vh !important;
+    }
+
+    .modal-actions, .sage-gdrive-actions {
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+    }
+    
+    .modal-actions button {
+        flex: 1 1 auto !important;
+        text-align: center !important;
+    }
+
+    /* 7. MỤC 2: THÔNG TIN TRUYỆN (SẮP XẾP LẠI THEO CHIỀU DỌC) */
+    .story-tables-wrapper {
+        display: flex !important;
+        flex-direction: column !important;
+        height: auto !important;
+        overflow-y: visible !important;
+    }
+
+    .table-responsive {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    .info-table {
+        min-width: 600px !important;
+    }
 }

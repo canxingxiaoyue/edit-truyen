@@ -152,7 +152,6 @@ function addEditorHistoryEntry() {
         try {
             localStorage.setItem('translationHistory', JSON.stringify(history));
         } catch (storageErr) {
-            // Kiểm tra và bắt lỗi khi chạm ngưỡng dung lượng vật lý của trình duyệt (~5MB)
             if (storageErr.name === 'QuotaExceededError' || storageErr.code === 22 || storageErr.code === 1014) {
                 console.warn("⚠️ Bộ nhớ trình duyệt (localStorage) đã đầy dung lượng vật lý!");
                 if (typeof showToast === 'function') {
@@ -181,23 +180,124 @@ function initEditorEvents() {
     const tbody = document.getElementById('table-body');
     if (!tbody) return;
 
-    // DÁN (PASTE) THÔNG MINH
+    // =========================================================================
+    // DÁN BẢNG THÔNG MINH (SMART TABLE PASTE - CHỐNG LỆCH HÀNG & GIỮ XUỐNG DÒNG Ô)
+    // =========================================================================
     tbody.addEventListener('paste', (e) => {
         const targetCell = e.target.closest('td');
         if (!targetCell) return;
 
-        const clipboardText = (e.originalEvent || e).clipboardData.getData('text/plain');
-        if (!clipboardText) return;
+        const clipboard = (e.originalEvent || e).clipboardData;
+        if (!clipboard) return;
 
-        const cleanText = clipboardText.replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '').normalize('NFC');
-        let lines = cleanText.split(/\r\n|\r|\n|\u2028|\u2029/).map(line => line.trim()).filter(line => line !== '');
+        const htmlData = clipboard.getData('text/html');
+        const textData = clipboard.getData('text/plain') || '';
 
-        if (lines.length <= 1 && !cleanText.includes('\t')) {
+        let tableMatrix = [];
+
+        // 1. ƯU TIÊN PHÂN TÍCH BẢNG HTML (KHI COPY TỪ BẢNG CHATGPT, WEB, WORD, GOOGLE DOCS)
+        if (htmlData && (htmlData.includes('<tr') || htmlData.includes('<td') || htmlData.includes('<table'))) {
+            try {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlData, 'text/html');
+                const trElements = doc.querySelectorAll('tr');
+
+                if (trElements.length > 0) {
+                    trElements.forEach(tr => {
+                        const cellNodes = tr.querySelectorAll('td, th');
+                        const rowCells = [];
+
+                        cellNodes.forEach(cell => {
+                            // Chuyển các thẻ ngắt dòng bên trong ô thành \n thực tế
+                            let inner = cell.innerHTML
+                                .replace(/<br\s*[\/]?>/gi, '\n')
+                                .replace(/<\/div>\s*<div>/gi, '\n')
+                                .replace(/<div[^>]*>/gi, '\n')
+                                .replace(/<\/div>/gi, '')
+                                .replace(/<p[^>]*>/gi, '\n')
+                                .replace(/<\/p>/gi, '')
+                                .replace(/&nbsp;/gi, ' ');
+
+                            const temp = document.createElement('div');
+                            temp.innerHTML = inner;
+                            let val = (temp.textContent || temp.innerText || '').trim();
+                            val = val.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                            rowCells.push(val);
+                        });
+
+                        // Tự động bỏ qua dòng tiêu đề nếu người dùng copy cả header
+                        const firstCell = (rowCells[0] || '').toLowerCase();
+                        const isHeader = firstCell.includes('raw') || firstCell.includes('giản thể') || firstCell === 'tiếng trung';
+
+                        if (!isHeader && rowCells.length > 0 && rowCells.some(c => c !== '')) {
+                            tableMatrix.push(rowCells);
+                        }
+                    });
+                }
+            } catch (err) {
+                console.warn("Lỗi parse bảng HTML:", err);
+            }
+        }
+
+        // 2. NẾU KHÔNG CÓ BẢNG HTML -> PHÂN TÍCH VĂN BẢN PLAIN TEXT (HỖ TRỢ NGOẶC KÉP EXCEL/TSV)
+        if (tableMatrix.length === 0 && textData) {
+            const clean = textData.replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '').normalize('NFC');
+            const rows = [];
+            let currentRow = [];
+            let currentCell = '';
+            let insideQuotes = false;
+
+            for (let i = 0; i < clean.length; i++) {
+                const char = clean[i];
+                const nextChar = clean[i + 1];
+
+                if (char === '"') {
+                    if (insideQuotes && nextChar === '"') {
+                        currentCell += '"';
+                        i++;
+                    } else {
+                        insideQuotes = !insideQuotes;
+                    }
+                } else if (char === '\t' && !insideQuotes) {
+                    currentRow.push(currentCell.trim());
+                    currentCell = '';
+                } else if ((char === '\r' || char === '\n') && !insideQuotes) {
+                    if (char === '\r' && nextChar === '\n') i++;
+                    currentRow.push(currentCell.trim());
+                    if (currentRow.some(c => c !== '')) {
+                        rows.push(currentRow);
+                    }
+                    currentRow = [];
+                    currentCell = '';
+                } else {
+                    currentCell += char;
+                }
+            }
+            if (currentCell || currentRow.length > 0) {
+                currentRow.push(currentCell.trim());
+                if (currentRow.some(c => c !== '')) {
+                    rows.push(currentRow);
+                }
+            }
+
+            // Bỏ qua dòng tiêu đề nếu có
+            if (rows.length > 0) {
+                const f = (rows[0][0] || '').toLowerCase();
+                if (f.includes('raw') || f.includes('giản thể') || f === 'tiếng trung') {
+                    rows.shift();
+                }
+            }
+            tableMatrix = rows;
+        }
+
+        // 3. NẾU CHỈ LÀ DÁN 1 Ô VĂN BẢN ĐƠN LẺ
+        if (tableMatrix.length <= 1 && (!tableMatrix[0] || tableMatrix[0].length <= 1) && !textData.includes('\t')) {
             e.preventDefault();
             const selection = window.getSelection();
             if (!selection.rangeCount) return;
             selection.deleteFromDocument();
-            const textNode = document.createTextNode(cleanText);
+            const cleanSingle = textData.trim();
+            const textNode = document.createTextNode(cleanSingle);
             selection.getRangeAt(0).insertNode(textNode);
             selection.getRangeAt(0).setStartAfter(textNode);
             selection.getRangeAt(0).setEndAfter(textNode);
@@ -205,53 +305,60 @@ function initEditorEvents() {
             return;
         }
 
-        e.preventDefault();
-        if (typeof clearSyncHighlights === 'function') clearSyncHighlights();
-        
-        saveEditorUndoState();
-        if (typeof addEditorHistoryEntry === 'function') addEditorHistoryEntry();
+        // 4. ÁP DỤNG MA TRẬN BẢNG VÀO CÁC CỘT CHUẨN XÁC
+        if (tableMatrix.length > 0) {
+            e.preventDefault();
+            if (typeof clearSyncHighlights === 'function') clearSyncHighlights();
+            
+            saveEditorUndoState();
+            if (typeof addEditorHistoryEntry === 'function') addEditorHistoryEntry();
 
-        const tr = targetCell.closest('tr');
-        let startRowIndex = Array.from(tbody.children).indexOf(tr);
-        const colIndex = Array.from(tr.children).indexOf(targetCell);
+            const tr = targetCell.closest('tr');
+            let startRowIndex = Array.from(tbody.children).indexOf(tr);
+            const colIndex = Array.from(tr.children).indexOf(targetCell);
 
-        for (let i = 0; i < lines.length; i++) {
-            const textLine = lines[i];
-            const rowIndex = startRowIndex + i;
-            const cells = textLine.split('\t');
+            for (let i = 0; i < tableMatrix.length; i++) {
+                const cells = tableMatrix[i];
+                const rowIndex = startRowIndex + i;
 
-            while (rowIndex >= data.length) {
-                data.push(createEmptyRow());
-            }
-
-            let rawUpdated = false;
-            let pinyinUpdated = false;
-
-            for (let j = 0; j < cells.length; j++) {
-                const targetColIdx = colIndex + j;
-                if (targetColIdx >= 6) break; 
-                const cellValue = normalizeUnicodeText(cells[j].trim());
-                data[rowIndex][columns[targetColIdx]] = cellValue;
-                
-                if (targetColIdx === 0) rawUpdated = true;
-                if (targetColIdx === 1 && cellValue !== '') pinyinUpdated = true;
-            }
-
-            if (rawUpdated) {
-                const rawVal = data[rowIndex]['raw'].replace(/<[^>]+>/g, '').normalize('NFC');
-                if (!pinyinUpdated && typeof safePinyin === 'function') {
-                    data[rowIndex]['pinyin'] = safePinyin(rawVal);
+                while (rowIndex >= data.length) {
+                    data.push(createEmptyRow());
                 }
-                if (!manualQTState[rowIndex] && typeof nameQTEngine !== 'undefined') {
-                    const result = nameQTEngine.process(rawVal);
-                    data[rowIndex]['qt'] = result.text.normalize('NFC');
-                    rowTokensMap[rowIndex] = result.tokens;
+
+                let rawUpdated = false;
+                let pinyinUpdated = false;
+
+                for (let j = 0; j < cells.length; j++) {
+                    const targetColIdx = colIndex + j;
+                    if (targetColIdx >= 6) break;
+
+                    let rawVal = cells[j];
+                    // Chuyển ký tự xuống dòng \n thành thẻ <br> để ô hiển thị đúng nhiều dòng
+                    const displayHtml = normalizeUnicodeText(rawVal).replace(/\n/g, '<br>');
+                    data[rowIndex][columns[targetColIdx]] = displayHtml;
+
+                    if (targetColIdx === 0) rawUpdated = true;
+                    if (targetColIdx === 1 && rawVal.trim() !== '') pinyinUpdated = true;
+                }
+
+                // Tự động phiên âm Pinyin và QT nếu cột Raw có dữ liệu mới
+                if (rawUpdated) {
+                    const rawClean = (data[rowIndex]['raw'] || '').replace(/<[^>]+>/g, '').trim().normalize('NFC');
+                    if (!pinyinUpdated && typeof safePinyin === 'function') {
+                        data[rowIndex]['pinyin'] = safePinyin(rawClean);
+                    }
+                    if (!manualQTState[rowIndex] && typeof nameQTEngine !== 'undefined' && nameQTEngine.process) {
+                        const result = nameQTEngine.process(rawClean);
+                        data[rowIndex]['qt'] = result.text.normalize('NFC');
+                        rowTokensMap[rowIndex] = result.tokens;
+                    }
                 }
             }
+
+            renderTable();
+            debounceSave();
+            showToast(`📋 Đã dán thành công ${tableMatrix.length} hàng khớp chuẩn nội dung!`, 'var(--btn-success)');
         }
-        
-        renderTable();
-        debounceSave();
     });
 
     // NHẬP LIỆU GÕ TAY REAL-TIME
@@ -360,14 +467,13 @@ function initEditorEvents() {
         }
     });
 
-// =========================================================================
+    // =========================================================================
     // HÀM TRÍCH XUẤT NỘI DUNG Ô (GIỮ NGUYÊN XUỐNG DÒNG BÊN TRONG Ô)
     // =========================================================================
     function extractCellContent(html) {
         if (!html) return '';
         let str = String(html);
 
-        // 1. Chuyển đổi các thẻ xuống dòng HTML thành ký tự \n thực tế
         str = str
             .replace(/<br\s*[\/]?>/gi, '\n')
             .replace(/<\/div>\s*<div>/gi, '\n')
@@ -377,12 +483,10 @@ function initEditorEvents() {
             .replace(/<\/p>/gi, '')
             .replace(/&nbsp;/gi, ' ');
 
-        // 2. Decode các ký tự HTML entities
         const temp = document.createElement('div');
         temp.innerHTML = str;
         let plain = temp.textContent || temp.innerText || '';
 
-        // 3. Chuẩn hóa ngắt dòng về \n
         plain = plain.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
         return plain.trim();
@@ -397,11 +501,8 @@ function initEditorEvents() {
             return;
         }
 
-        // 1. Định dạng Text thuần (cho Notepad / khung chat)
         const plainText = textBlocks.join('\r\n\r\n');
 
-        // 2. Định dạng Rich Text HTML chuyên dụng cho Wattpad, Word, Google Docs:
-        // Kẹp thẻ <p><br></p> ở giữa mỗi hàng để ép Wattpad phải hiển thị dòng trắng cách biệt!
         const htmlText = textBlocks.map(block => {
             const safeHtml = block
                 .replace(/&/g, '&amp;')

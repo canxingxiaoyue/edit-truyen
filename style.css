@@ -895,3 +895,147 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     transform: translateY(-1px);
     box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
 }
+/* ========================================================================= */
+/* 📱 TỐI ƯU HÓA GIAO DIỆN DI ĐỘNG (MOBILE RESPONSIVE) - HOÀN CHỈNH 100% CÔNG NĂNG */
+/* ========================================================================= */
+
+@media screen and (max-width: 768px) {
+    /* 1. NGĂN CHẶN ZOOM MÀN HÌNH TRÊN IPHONE (iOS) KHI CHẠM VÀO Ô NHẬP LIỆU */
+    input, textarea, select {
+        font-size: 16px !important; 
+    }
+
+    /* 2. HEADER & THANH ĐIỀU HƯỚNG */
+    .top-nav-bar {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 10px;
+        gap: 10px;
+    }
+
+    .nav-brand {
+        justify-content: center;
+        margin-bottom: 5px;
+    }
+
+    .main-nav-links {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .nav-right-controls {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    /* 3. THANH CÔNG CỤ (TOOLBAR) -> CHUYỂN SANG CHẾ ĐỘ VUỐT NGANG MƯỢT MÀ */
+    .toolbar, .format-toolbar, .story-title-bar {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch; /* Lướt mượt trên iOS */
+        padding-bottom: 8px !important;
+        scrollbar-width: thin;
+        justify-content: flex-start;
+    }
+
+    /* Tùy chỉnh thanh cuộn ngang nhỏ gọn */
+    .toolbar::-webkit-scrollbar, .format-toolbar::-webkit-scrollbar {
+        height: 4px;
+    }
+    .toolbar::-webkit-scrollbar-thumb, .format-toolbar::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 4px;
+    }
+
+    .toolbar button, .format-toolbar button, .format-toolbar select {
+        flex-shrink: 0; /* Không cho nút bị ép nhỏ lại */
+    }
+
+    /* 4. BẢNG DỊCH 6 CỘT -> CHO PHÉP LƯỚT NGANG BẢNG */
+    .app-main-container {
+        padding: 5px;
+        height: calc(100vh - 200px);
+    }
+
+    #table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+    }
+
+    table {
+        min-width: 1200px; /* Ép bảng luôn có độ rộng tối thiểu, bảo toàn 6 cột */
+    }
+
+    th, td {
+        min-width: 180px; /* Chiều rộng tối thiểu mỗi cột để đọc được chữ */
+        padding: 10px 8px;
+        font-size: 0.95rem;
+    }
+
+    /* 5. CÁC HỘP THOẠI MODAL (NAME QT, LỊCH SỬ, DRIVE, TÌM KIẾM) */
+    .modal-content, .sage-gdrive-card, .sage-auth-card {
+        width: 95% !important;
+        max-width: 100% !important;
+        margin: 10px auto;
+        max-height: 90vh; /* Không cho Modal tràn quá màn hình */
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-body-scroll, .sage-gdrive-body, .name-editor-body {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 15px 10px !important;
+    }
+
+    .modal-actions, .sage-gdrive-actions {
+        flex-wrap: wrap; /* Cho phép các nút trong Modal rớt dòng nếu thiếu chỗ */
+        justify-content: center !important;
+        gap: 8px;
+        padding: 15px 10px !important;
+    }
+
+    .modal-actions button {
+        flex: 1 1 auto;
+        text-align: center;
+        padding: 10px !important;
+    }
+
+    /* 6. MỤC 2: THÔNG TIN TRUYỆN */
+    .story-tables-wrapper {
+        flex-direction: column;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .info-table {
+        min-width: 600px; /* Ép lướt ngang cho bảng thông tin */
+    }
+
+    /* 7. NÚT NỔI THÊM NAME NHANH (QUICK NAME) */
+    .quick-name-btn {
+        padding: 10px 16px;
+        font-size: 1rem; /* Phóng to nút để dễ bấm bằng ngón tay */
+    }
+}
+
+/* ========================================================================= */
+/* TỐI ƯU HÓA MÀN HÌNH SIÊU NHỎ (iPhone SE, Galaxy Fold...) */
+/* ========================================================================= */
+@media screen and (max-width: 400px) {
+    .nav-tabs .tab-btn {
+        font-size: 0.85rem;
+        padding: 8px;
+    }
+    
+    .app-name {
+        font-size: 1.1rem;
+    }
+}

@@ -12,23 +12,6 @@
     <!-- Thư viện Pinyin hỗ trợ phiên âm tự động -->
     <script src="https://unpkg.com/pinyin-pro"></script>
 
-    <!-- Thư viện Giao diện UI của Clerk -->
-    <script
-      defer
-      crossorigin="anonymous"
-      src="https://square-oyster-64.clerk.accounts.dev/npm/@clerk/ui@1/dist/clerk.browser.js"
-      type="text/javascript">
-    </script>
-
-    <!-- Thư viện Lõi SDK của Clerk -->
-    <script
-      defer
-      crossorigin="anonymous"
-      data-clerk-publishable-key="pk_test_c3F1YXJlLW95c3Rlci02NC5jbGVyay5hY2NvdW50cy5kZXYk"
-      src="https://square-oyster-64.clerk.accounts.dev/npm/@clerk/clerk-js@1/dist/clerk.browser.js"
-      type="text/javascript">
-    </script>
-
     <!-- Thư viện Google Identity Services & Google Drive -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
@@ -106,8 +89,6 @@
                         </optgroup>
                     </select>
                 </div>
-                <!-- KHU VỰC CLERK AVATAR / ĐĂNG NHẬP -->
-                <div id="clerk-auth-container"></div>
             </div>
         </div>
 
@@ -261,7 +242,7 @@
                     
                     <div class="divider" style="height: 18px; margin: 0 4px;"></div>
                     
-                    <button class="btn-tool btn-sm" id="btn-history-meta-show" title="Xem lịch sử sửa đổi thông tin truyện">📜 Lịch sử thông tin</button>
+                    <button class="btn-tool btn-sm" id="btn-history-meta-show" title="Xem lịch sử sửa đổi thông tin truyện">📜 Lịch sử thông</button>
                     
                     <button class="btn-file btn-sm" id="btn-export-meta">💾 Lưu thông tin (.JSON)</button>
                     <button class="btn-file btn-sm" id="btn-import-meta">📂 Mở file thông tin</button>
@@ -559,116 +540,11 @@
     <!-- Hộp thông báo Toast -->
     <div id="toast"></div>
 
-    <!-- ĐOẠN MÃ KHỞI CHẠY CLERK VÀ AUTHENTICATION -->
     <script>
-        function triggerLoadProjects() {
-            if (typeof loadSavedProjects === 'function') loadSavedProjects();
-        }
-
-        async function handleLoginClick(e) {
-            if (e) e.preventDefault();
-            if (!window.Clerk) {
-                alert("⚠️ Hệ thống Đăng nhập chưa tải xong. Vui lòng thử lại sau vài giây!");
-                return;
-            }
-            try {
-                if (typeof window.Clerk.redirectToSignIn === 'function') {
-                    await window.Clerk.redirectToSignIn({
-                        redirectUrl: window.location.href
-                    });
-                } else {
-                    window.location.href = "https://square-oyster-64.clerk.accounts.dev/sign-in";
-                }
-            } catch (err) {
-                console.error("Lỗi redirect:", err);
-                window.location.href = "https://square-oyster-64.clerk.accounts.dev/sign-in";
-            }
-        }
-
-        function openAccountSettings() {
-            if (!window.Clerk || !window.Clerk.user) return;
-            try {
-                if (typeof window.Clerk.openUserProfile === 'function') {
-                    window.Clerk.openUserProfile();
-                } else if (typeof window.Clerk.redirectToUserProfile === 'function') {
-                    window.Clerk.redirectToUserProfile();
-                } else {
-                    window.location.href = "https://square-oyster-64.clerk.accounts.dev/user";
-                }
-            } catch (err) {
-                if (typeof window.Clerk.redirectToUserProfile === 'function') {
-                    window.Clerk.redirectToUserProfile();
-                } else {
-                    window.location.href = "https://square-oyster-64.clerk.accounts.dev/user";
-                }
-            }
-        }
-
-        function renderUserAvatarUI() {
-            const authContainer = document.getElementById('clerk-auth-container');
-            if (!authContainer || !window.Clerk) return;
-
-            const user = window.Clerk.user;
-
-            if (user) {
-                const avatarUrl = user.imageUrl || 'https://img.clerk.com/preview.png';
-                const displayName = user.fullName || user.username || user.primaryEmailAddress?.emailAddress || 'Tài khoản';
-
-                authContainer.innerHTML = `
-                    <div class="user-avatar-wrapper" id="btn-user-avatar" title="${escapeHTML(displayName)} - Click để Quản lý tài khoản">
-                        <img src="${avatarUrl}" alt="Avatar" class="user-avatar-img" />
-                    </div>
-                `;
-
-                document.getElementById('btn-user-avatar')?.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    openAccountSettings();
-                });
-            } else {
-                authContainer.innerHTML = `<button class="btn-primary" id="btn-clerk-login" style="padding: 5px 12px; cursor: pointer;">👤 Đăng nhập</button>`;
-            }
-        }
-
-        window.addEventListener('load', async () => {
-            if (window.Clerk) {
-                try {
-                    await window.Clerk.load();
-                    renderUserAvatarUI();
-                    
-                    window.Clerk.addListener(({ user }) => {
-                        const authContainer = document.getElementById('clerk-auth-container');
-                        if (!authContainer) return;
-
-                        if (user) {
-                            authContainer.innerHTML = '';
-                            window.Clerk.mountUserButton(authContainer, {
-                                customMenuItems: [
-                                    {
-                                        label: '📂 Dữ liệu của tôi',
-                                        onClick: () => {
-                                            if (typeof calculateStorageMetrics === 'function') calculateStorageMetrics();
-                                            triggerLoadProjects();
-                                            document.getElementById('modal-my-data')?.classList.add('show');
-                                        }
-                                    }
-                                ]
-                            });
-
-                            triggerLoadProjects();
-
-                        } else {
-                            authContainer.innerHTML = `<button class="btn-primary" id="btn-clerk-login" style="padding: 5px 12px; cursor: pointer;">👤 Đăng nhập</button>`;
-                            triggerLoadProjects();
-                        }
-                    });
-
-                } catch (err) { console.error('Lỗi nạp Clerk:', err); }
-            }
-        });
-
-        document.addEventListener('click', (e) => {
-            if (e.target && (e.target.id === 'btn-clerk-login' || e.target.closest('#btn-clerk-login'))) {
-                handleLoginClick(e);
+        // Khởi chạy tải dữ liệu khi mở trang
+        window.addEventListener('load', () => {
+            if (typeof loadSavedProjects === 'function') {
+                loadSavedProjects();
             }
         });
     </script>

@@ -427,3 +427,90 @@ window.addEventListener('load', () => {
     document.getElementById('btn-close-gdrive-modal')?.addEventListener('click', closeGDriveModal);
     document.getElementById('btn-disconnect-gdrive')?.addEventListener('click', disconnectGDrive);
 });
+// =========================================================================
+// 4. LƯU TRỮ LỊCH SỬ ĐA NGÀY TRỰC TIẾP LÊN GOOGLE DRIVE (CLOUD HISTORY)
+// =========================================================================
+
+async function gdriveSaveHistoryCloud(type, historyArray) {
+    if (!isGDriveConnected()) return false;
+    const folderId = await getOrCreateFolder(FOLDER_PROJECTS);
+    if (!folderId) return false;
+
+    const fileName = type === 'editor' ? '[LỊCH SỬ] - BanDich.json' : '[LỊCH SỬ] - ThongTin.json';
+    const content = JSON.stringify(historyArray);
+    const blob = new Blob([content], { type: 'application/json;charset=utf-8' });
+
+    const metadata = {
+        name: fileName,
+        mimeType: 'application/json',
+        parents: [folderId],
+        appProperties: { type: 'cloud_history', historyType: type }
+    };
+
+    let existingId = null;
+    try {
+        const q = encodeURIComponent(`name='${fileName}' and '${folderId}' in parents and trashed=false`);
+        const checkRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        const checkData = await checkRes.json();
+        if (checkData.files && checkData.files.length > 0) existingId = checkData.files[0].id;
+    } catch(e) {}
+
+    // Dùng Resumable Upload để tải mảng lịch sử siêu nặng an toàn
+    const initUrl = existingId
+        ? `https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=resumable`
+        : `https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable`;
+    const initMethod = existingId ? 'PATCH' : 'POST';
+
+    const initRes = await fetch(initUrl, {
+        method: initMethod,
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json; charset=UTF-8',
+            'X-Upload-Content-Type': 'application/json',
+            'X-Upload-Content-Length': String(blob.size)
+        },
+        body: JSON.stringify(metadata)
+    });
+
+    if (!initRes.ok) return false;
+    const uploadUri = initRes.headers.get('Location');
+    if (!uploadUri) return false;
+
+    const uploadRes = await fetch(uploadUri, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: blob
+    });
+
+    return uploadRes.ok;
+}
+
+async function gdriveLoadHistoryCloud(type) {
+    if (!isGDriveConnected()) return null;
+    const folderId = await getOrCreateFolder(FOLDER_PROJECTS);
+    if (!folderId) return null;
+
+    try {
+        const fileName = type === 'editor' ? '[LỊCH SỬ] - BanDich.json' : '[LỊCH SỬ] - ThongTin.json';
+        const q = encodeURIComponent(`name='${fileName}' and '${folderId}' in parents and trashed=false`);
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        const data = await res.json();
+        
+        if (data.files && data.files.length > 0) {
+            const fileId = data.files[0].id;
+            const dlRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            if (dlRes.ok) {
+                return await dlRes.json();
+            }
+        }
+    } catch (e) {
+        console.error("Lỗi tải lịch sử từ Drive:", e);
+    }
+    return null;
+}

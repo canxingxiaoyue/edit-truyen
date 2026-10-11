@@ -1,89 +1,146 @@
 // =========================================================================
-// QUẢN LÝ LỊCH SỬ DỊCH & NAME QT (CÁCH LY DỰ ÁN - TÍCH HỢP GOOGLE DRIVE & KIỂM TRA TRÙNG TÊN)
+// QUẢN LÝ LỊCH SỬ CLOUD (LIVE SYNC & ĐỒNG BỘ XÓA VỚI GOOGLE DRIVE)
 // =========================================================================
 let editingFileId = null;
 
-// HÀM BẢO VỆ CHỐNG LỖI KHI RENDER TÊN FILE
+window.appCloudHistory = { editor: [], meta: [] };
+let historySyncTimer = null;
+
 function escapeHTML(str) {
     if (!str) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
+
+// HÀM TỰ ĐỘNG ĐẨY LỊCH SỬ LÊN GOOGLE DRIVE (CHẠY NGẦM)
+function pushToCloudHistory(type, currentData) {
+    const histArray = window.appCloudHistory[type] || [];
+    const currentDataCopy = JSON.parse(JSON.stringify(currentData));
+
+    // Bỏ qua nếu dữ liệu không thay đổi
+    if (histArray.length > 0 && JSON.stringify(histArray[histArray.length - 1].data) === JSON.stringify(currentDataCopy)) {
+        return;
+    }
+
+    let rowCount = 0;
+    if (type === 'editor') rowCount = currentData.length || 0;
+    else rowCount = (currentData.characters?.length || 0) + (currentData.pronouns?.length || 0) + (currentData.terms?.length || 0);
+
+    // Lưu vào RAM
+    histArray.push({ timestamp: Date.now(), rowCount: rowCount, data: currentDataCopy });
+    window.appCloudHistory[type] = histArray;
+
+    // CHỜ 10 GIÂY SAU KHI DỪNG GÕ CHỮ SẼ TỰ ĐỘNG ĐẨY LÊN GOOGLE DRIVE
+    clearTimeout(historySyncTimer);
+    historySyncTimer = setTimeout(async () => {
+        if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
+            await gdriveSaveHistoryCloud(type, window.appCloudHistory[type]);
+            // Giải phóng bộ nhớ máy tính
+            localStorage.removeItem(type === 'editor' ? 'translationHistory' : 'metadataHistory');
+        } else {
+            try {
+                localStorage.setItem(type === 'editor' ? 'translationHistory' : 'metadataHistory', JSON.stringify(histArray));
+            } catch(e) {}
+        }
+    }, 10000);
+}
+
+// HÀM KÉO LỊCH SỬ TỪ GOOGLE DRIVE XUỐNG
+async function syncHistoryFromDrive() {
+    if (typeof isGDriveConnected !== 'function' || !isGDriveConnected()) {
+        window.appCloudHistory.editor = JSON.parse(localStorage.getItem('translationHistory')) || [];
+        window.appCloudHistory.meta = JSON.parse(localStorage.getItem('metadataHistory')) || [];
+        return;
+    }
+    
+    showToast("⏳ Đang đồng bộ Lịch sử từ Google Drive...", "var(--btn-info)");
+    
+    const ed = await gdriveLoadHistoryCloud('editor');
+    const mt = await gdriveLoadHistoryCloud('meta');
+    
+    if (ed) window.appCloudHistory.editor = ed;
+    if (mt) window.appCloudHistory.meta = mt;
+    
+    showToast("✅ Đã nạp xong Lịch sử từ Google Drive!", "var(--btn-success)");
+    
+    const modal = document.getElementById('modal-history');
+    if (modal && modal.classList.contains('show')) {
+        renderHistoryList(modal.getAttribute('data-type') || 'editor');
+    }
+}
+
+// Lắng nghe sự kiện đăng nhập Drive thành công để tự động kéo Lịch sử
+document.addEventListener('click', (e) => {
+    if (e.target && e.target.id === 'btn-login-gdrive') {
+        setTimeout(() => { if (isGDriveConnected()) syncHistoryFromDrive(); }, 5000);
+    }
+});
+window.addEventListener('load', () => { setTimeout(() => { syncHistoryFromDrive(); }, 3000); });
 
 function openHistoryModal(type) {
     const modal = document.getElementById('modal-history');
     if (!modal) return;
+    modal.setAttribute('data-type', type);
     renderHistoryList(type);
     modal.classList.add('show');
 }
 
-// 1. XÓA MỘT BẢN GHI THEO TIMESTAMP (CHỈ XÓA LỊCH SỬ, TUYỆT ĐỐI KHÔNG LƯU DỰ ÁN)
-function deleteHistoryEntry(type, timestamp) {
-    const storageKey = type === 'editor' ? 'translationHistory' : 'metadataHistory';
-    let history = [];
-    try {
-        history = JSON.parse(localStorage.getItem(storageKey)) || [];
-    } catch (e) { history = []; }
-    
+// =========================================================================
+// CÁC HÀM XÓA LỊCH SỬ: ĐỒNG BỘ TRỰC TIẾP LÊN GOOGLE DRIVE
+// =========================================================================
+
+// 1. XÓA MỘT BẢN GHI
+async function deleteHistoryEntry(type, timestamp) {
     if (confirm("🗑️ Bạn có chắc chắn muốn xóa bản sao lưu này không?")) {
-        history = history.filter(item => item.timestamp !== timestamp);
-        try {
-            localStorage.setItem(storageKey, JSON.stringify(history));
-        } catch (err) {
-            console.error("Lỗi cập nhật localStorage:", err);
-        }
-        
-        // CHỈ CẬP NHẬT LẠI GIAO DIỆN MODAL - KHÔNG KÍCH HOẠT LƯU DỰ ÁN
+        window.appCloudHistory[type] = window.appCloudHistory[type].filter(item => item.timestamp !== timestamp);
         renderHistoryList(type); 
-        showToast("Đã xóa bản sao lưu!", "var(--btn-danger)");
+        
+        if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
+            showToast("⏳ Đang đồng bộ xóa lên Google Drive...", "var(--btn-info)");
+            await gdriveSaveHistoryCloud(type, window.appCloudHistory[type]);
+            showToast("☁️ Đã xóa và đồng bộ với Google Drive!", "var(--btn-success)");
+        } else {
+            localStorage.setItem(type === 'editor' ? 'translationHistory' : 'metadataHistory', JSON.stringify(window.appCloudHistory[type]));
+            showToast("🗑️ Đã xóa bản sao lưu ở máy!", "var(--btn-danger)");
+        }
     }
 }
 
-// 2. XÓA TOÀN BỘ LỊCH SỬ CỦA 1 NGÀY (CHỈ XÓA LỊCH SỬ, TUYỆT ĐỐI KHÔNG LƯU DỰ ÁN)
-function deleteHistoryByDate(type, dateStr, entriesToDelete) {
+// 2. XÓA NGUYÊN MỘT NGÀY
+async function deleteHistoryByDate(type, dateStr, entriesToDelete) {
     if (confirm(`🗑️ Bạn có muốn XÓA SẠCH toàn bộ lịch sử của ngày "${dateStr}" không?`)) {
-        const storageKey = type === 'editor' ? 'translationHistory' : 'metadataHistory';
-        let history = [];
-        try {
-            history = JSON.parse(localStorage.getItem(storageKey)) || [];
-        } catch (e) { history = []; }
-        
         const timestampsToDelete = new Set(entriesToDelete.map(e => e.timestamp));
-        history = history.filter(entry => !timestampsToDelete.has(entry.timestamp));
-        
-        try {
-            localStorage.setItem(storageKey, JSON.stringify(history));
-        } catch (err) {
-            console.error("Lỗi cập nhật localStorage:", err);
-        }
-        
-        // CHỈ CẬP NHẬT LẠI GIAO DIỆN MODAL - KHÔNG KÍCH HOẠT LƯU DỰ ÁN
+        window.appCloudHistory[type] = window.appCloudHistory[type].filter(entry => !timestampsToDelete.has(entry.timestamp));
         renderHistoryList(type); 
-        showToast(`🗑️ Đã xóa sạch lịch sử ngày ${dateStr}!`, "var(--btn-danger)");
+        
+        if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
+            showToast("⏳ Đang đồng bộ xóa lên Google Drive...", "var(--btn-info)");
+            await gdriveSaveHistoryCloud(type, window.appCloudHistory[type]);
+            showToast(`☁️ Đã xóa sạch lịch sử ngày ${dateStr} trên Drive!`, "var(--btn-success)");
+        } else {
+            localStorage.setItem(type === 'editor' ? 'translationHistory' : 'metadataHistory', JSON.stringify(window.appCloudHistory[type]));
+            showToast(`🗑️ Đã xóa sạch lịch sử ngày ${dateStr}!`, "var(--btn-danger)");
+        }
     }
 }
 
-// 3. XÓA TẤT CẢ LỊCH SỬ (CHỈ LÀM RỖNG LỊCH SỬ, TUYỆT ĐỐI KHÔNG LƯU DỰ ÁN)
-function deleteAllHistory(type) {
+// 3. XÓA TẤT CẢ LỊCH SỬ
+async function deleteAllHistory(type) {
     if (confirm("⚠️ NGUY HIỂM: Xóa SẠCH TOÀN BỘ lịch sử hiện có? Hành động này không thể hoàn tác!")) {
-        const storageKey = type === 'editor' ? 'translationHistory' : 'metadataHistory';
-        try {
-            localStorage.setItem(storageKey, "[]");
-        } catch (err) {
-            console.error("Lỗi cập nhật localStorage:", err);
-        }
-        
-        // CHỈ CẬP NHẬT LẠI GIAO DIỆN MODAL - KHÔNG KÍCH HOẠT LƯU DỰ ÁN
+        window.appCloudHistory[type] = [];
         renderHistoryList(type); 
-        showToast("🗑️ Đã dọn sạch toàn bộ lịch sử!", "var(--btn-danger)");
+        
+        if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
+            showToast("⏳ Đang dọn sạch lịch sử trên Google Drive...", "var(--btn-info)");
+            await gdriveSaveHistoryCloud(type, []);
+            showToast("☁️ Đã dọn sạch toàn bộ lịch sử trên Drive!", "var(--btn-success)");
+        } else {
+            localStorage.setItem(type === 'editor' ? 'translationHistory' : 'metadataHistory', "[]");
+            showToast("🗑️ Đã dọn sạch toàn bộ lịch sử ở máy!", "var(--btn-danger)");
+        }
     }
 }
 
-// 4. VẼ GIAO DIỆN LỊCH SỬ THEO TỪNG NGÀY (LƯU VĨNH VIỄN, KHÔNG GIỚI HẠN NHÂN TẠO)
+// VẼ GIAO DIỆN LỊCH SỬ
 function renderHistoryList(type) {
     const historyListDiv = document.getElementById('history-list');
     const modalTitle = document.querySelector('#modal-history h3');
@@ -91,44 +148,54 @@ function renderHistoryList(type) {
     const modalActions = document.querySelector('#modal-history .modal-actions');
     if (!historyListDiv) return;
     
-    let history = [];
-    try {
-        if (type === 'editor') {
-            if (modalTitle) modalTitle.innerHTML = '🕒 Lịch sử sửa đổi (Dịch thuật)';
-            if (modalDesc) modalDesc.innerHTML = 'Lịch sử được lưu trữ theo từng ngày vĩnh viễn đến khi bạn chủ động xóa.';
-            history = JSON.parse(localStorage.getItem('translationHistory')) || [];
-        } else {
-            if (modalTitle) modalTitle.innerHTML = '🕒 Lịch sử sửa đổi (Thông tin truyện)';
-            if (modalDesc) modalDesc.innerHTML = 'Bản sao lưu thông tin nhân vật, xưng hô, từ ngữ theo từng ngày.';
-            history = JSON.parse(localStorage.getItem('metadataHistory')) || [];
-        }
-    } catch (e) { history = []; }
+    let history = window.appCloudHistory[type] || [];
+    const isDrive = (typeof isGDriveConnected === 'function' && isGDriveConnected());
+    
+    if (type === 'editor') {
+        if (modalTitle) modalTitle.innerHTML = '🕒 Lịch sử sửa đổi (Dịch thuật)';
+        if (modalDesc) modalDesc.innerHTML = isDrive 
+            ? '☁️ <strong>Lịch sử đang được lưu trữ an toàn trên Google Drive. Mọi thao tác xóa đều đồng bộ ngay lập tức!</strong>' 
+            : '🟡 <strong>Đang lưu tạm ở máy.</strong> Hãy kết nối Google Drive để giải phóng bộ nhớ.';
+    } else {
+        if (modalTitle) modalTitle.innerHTML = '🕒 Lịch sử sửa đổi (Thông tin truyện)';
+        if (modalDesc) modalDesc.innerHTML = isDrive 
+            ? '☁️ <strong>Lịch sử đang được lưu trữ an toàn trên Google Drive. Mọi thao tác xóa đều đồng bộ ngay lập tức!</strong>' 
+            : '🟡 <strong>Đang lưu tạm ở máy.</strong> Hãy kết nối Google Drive để giải phóng bộ nhớ.';
+    }
 
-    // Quản lý nút Xóa Tất Cả
+    // Quản lý các nút
     if (modalActions) {
-        const oldDelAllBtn = document.getElementById('btn-delete-all-history');
-        if (oldDelAllBtn) oldDelAllBtn.remove();
+        document.getElementById('btn-delete-all-history')?.remove();
+        document.getElementById('btn-sync-history-gdrive')?.remove();
+
+        if (isDrive) {
+            const btnSync = document.createElement('button');
+            btnSync.id = 'btn-sync-history-gdrive';
+            btnSync.className = 'btn-tool';
+            btnSync.innerHTML = '🔄 Đồng bộ ngay từ Drive';
+            btnSync.style.marginRight = 'auto';
+            btnSync.style.background = '#10b981';
+            btnSync.onclick = () => syncHistoryFromDrive();
+            modalActions.insertBefore(btnSync, modalActions.firstChild);
+        }
 
         if (history.length > 0) {
             const btnDelAll = document.createElement('button');
             btnDelAll.id = 'btn-delete-all-history';
             btnDelAll.className = 'btn-danger';
             btnDelAll.innerHTML = '🗑️ Xóa tất cả lịch sử';
-            btnDelAll.style.marginRight = 'auto';
+            if (!isDrive) btnDelAll.style.marginRight = 'auto';
             btnDelAll.onclick = () => deleteAllHistory(type);
             modalActions.insertBefore(btnDelAll, modalActions.firstChild);
         }
     }
 
-    if (!Array.isArray(history) || history.length === 0) {
+    if (history.length === 0) {
         historyListDiv.innerHTML = '<p style="text-align:center; color:gray; padding: 20px 0; font-style:italic;">Chưa có lịch sử sửa đổi nào được lưu.</p>';
         return;
     }
 
-    // Sắp xếp mới nhất lên đầu để tiện tra cứu
     let processedHistory = [...history].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
-    // GOM NHÓM THEO TỪNG NGÀY CHUẨN XÁC
     const groups = {};
     const todayLocaleStr = new Date().toLocaleDateString('vi-VN');
 
@@ -136,11 +203,7 @@ function renderHistoryList(type) {
         const ts = Number(entry.timestamp) || Date.now();
         const dateObj = new Date(ts);
         let dateStr = dateObj.toLocaleDateString('vi-VN');
-        
-        if (dateStr === todayLocaleStr) {
-            dateStr = "Hôm nay (" + dateStr + ")";
-        }
-
+        if (dateStr === todayLocaleStr) dateStr = "Hôm nay (" + dateStr + ")";
         if (!groups[dateStr]) groups[dateStr] = [];
         groups[dateStr].push(entry);
     });
@@ -157,17 +220,12 @@ function renderHistoryList(type) {
         summaryEl.className = 'history-date-header';
         summaryEl.innerHTML = `📅 ${dateStr} <span style="font-size:0.8rem; font-weight:normal; color:gray; flex-grow:1;">(${entries.length} bản lưu)</span>`;
         
-        // NÚT XÓA NGÀY NÀY
         const delDateBtn = document.createElement('button');
         delDateBtn.className = 'btn-danger';
         delDateBtn.innerHTML = '🗑️ Xóa ngày này';
         delDateBtn.style.padding = '3px 8px';
         delDateBtn.style.fontSize = '0.75rem';
-        delDateBtn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            deleteHistoryByDate(type, dateStr, entries);
-        };
+        delDateBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); deleteHistoryByDate(type, dateStr, entries); };
         summaryEl.appendChild(delDateBtn);
         detailsEl.appendChild(summaryEl);
 
@@ -195,20 +253,17 @@ function renderHistoryList(type) {
             restoreBtn.onclick = () => {
                 if (confirm(`Khôi phục lại phiên bản lúc ${timeStr}?`)) {
                     if (type === 'editor') {
-                        if (typeof addEditorHistoryEntry === 'function') addEditorHistoryEntry();
                         data = JSON.parse(JSON.stringify(entry.data));
                         if (typeof renderTable === 'function') renderTable();
-                        localStorage.setItem('translationData', JSON.stringify(data));
+                        pushToCloudHistory('editor', data);
                         showToast('🕒 Khôi phục bản dịch thành công!', 'var(--btn-success)');
                     } else {
-                        if (typeof addMetaHistoryEntry === 'function') addMetaHistoryEntry();
                         metadata = JSON.parse(JSON.stringify(entry.data));
                         if (typeof renderMetadata === 'function') renderMetadata();
-                        if (typeof saveMetadata === 'function') saveMetadata();
+                        pushToCloudHistory('meta', metadata);
                         showToast('🕒 Khôi phục thông tin truyện thành công!', 'var(--btn-success)');
                     }
-                    const modal = document.getElementById('modal-history');
-                    if (modal) modal.classList.remove('show');
+                    document.getElementById('modal-history')?.classList.remove('show');
                 }
             };
 
@@ -220,19 +275,17 @@ function renderHistoryList(type) {
 
             actionDiv.appendChild(restoreBtn);
             actionDiv.appendChild(delBtn);
-
             item.appendChild(info);
             item.appendChild(actionDiv); 
             itemsWrapper.appendChild(item);
         });
-
         detailsEl.appendChild(itemsWrapper);
         historyListDiv.appendChild(detailsEl);
     }
 }
 
 // =========================================================================
-// RENDER DANH SÁCH FILE NAME QT (TÍCH HỢP ĐỒNG BỘ GOOGLE DRIVE)
+// RENDER DANH SÁCH FILE NAME QT (GIỮ NGUYÊN)
 // =========================================================================
 function renderNameQTFileList() {
     const listContainer = document.getElementById('nameqt-file-list');
@@ -241,7 +294,6 @@ function renderNameQTFileList() {
 
     const files = (typeof nameQTEngine !== 'undefined' && nameQTEngine.files) ? nameQTEngine.files : [];
 
-    // NÚT KÉO TẤT CẢ FILE NAME QT TỪ GOOGLE DRIVE VỀ MÁY
     const pullDriveDiv = document.createElement('div');
     pullDriveDiv.style.marginBottom = '12px';
     pullDriveDiv.style.textAlign = 'right';
@@ -277,7 +329,6 @@ function renderNameQTFileList() {
         });
     }
 
-    // Sự kiện nút Tải tất cả từ Google Drive
     document.getElementById('btn-pull-gdrive-nameqt')?.addEventListener('click', async (e) => {
         e.preventDefault();
         if (typeof nameQTEngine !== 'undefined' && nameQTEngine.pullAllFromGDrive) {
@@ -285,7 +336,6 @@ function renderNameQTFileList() {
         }
     });
 
-    // Sự kiện nút Đẩy từng file lên Google Drive
     listContainer.querySelectorAll('.btn-push-gdrive-file').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.preventDefault();
@@ -296,12 +346,10 @@ function renderNameQTFileList() {
         });
     });
 
-    // Sự kiện Sửa file
     listContainer.querySelectorAll('.btn-edit-file').forEach(btn => {
         btn.addEventListener('click', (e) => startEditingFile(e.currentTarget.getAttribute('data-id')));
     });
 
-    // Sự kiện Xóa file
     listContainer.querySelectorAll('.btn-del-file').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const id = e.currentTarget.getAttribute('data-id');
@@ -368,9 +416,6 @@ function openNameQTModal() {
     if (modal) modal.classList.add('show');
 }
 
-// =========================================================================
-// SỰ KIỆN CẬP NHẬT NAME QT - XỬ LÝ TRÙNG TÊN ĐẦU VÀO THEO RULE 3 & 4
-// =========================================================================
 function initNameQTModalEvents() {
     document.getElementById('btn-open-nameqt-modal')?.addEventListener('click', (e) => { e.preventDefault(); openNameQTModal(); });
     document.getElementById('btn-close-nameqt-modal')?.addEventListener('click', () => document.getElementById('modal-nameqt')?.classList.remove('show'));
@@ -389,14 +434,12 @@ function initNameQTModalEvents() {
 
         let nameToUse = customFileName || (file ? file.name : (editingFileId ? 'File_chinh_sua.txt' : 'Name_tu_bo_sung.txt'));
         
-        // KIỂM TRA TRÙNG TÊN FILE NAME QT TRONG DỮ LIỆU ĐẦU VÀO THEO RULE 1, 3, 4
         if (typeof nameQTEngine !== 'undefined' && nameQTEngine.files) {
             const existingFiles = nameQTEngine.files.filter(f => f.id !== editingFileId);
             const existingFileNames = existingFiles.map(f => f.fileName);
 
             const isDuplicate = existingFileNames.some(n => n.toLowerCase().trim() === nameToUse.toLowerCase().trim());
             if (isDuplicate) {
-                // Tách phần tên gốc và phần mở rộng để bảo toàn .txt
                 let base = nameToUse;
                 let ext = '';
                 const lastDot = nameToUse.lastIndexOf('.');
@@ -409,23 +452,18 @@ function initNameQTModalEvents() {
                 let candidateTitle = `${cleanedBase} (${stt})`;
                 let candidateFileName = `${candidateTitle}${ext}`;
 
-                // Tìm số thứ tự nhỏ nhất chưa được sử dụng
                 while (existingFileNames.some(n => n.toLowerCase().trim() === candidateFileName.toLowerCase().trim())) {
                     stt++;
                     candidateTitle = `${cleanedBase} (${stt})`;
                     candidateFileName = `${candidateTitle}${ext}`;
                 }
 
-                // Cú pháp thông báo bắt buộc theo Rule 3:
-                // Báo lặp rồi! Tên "[Tên gốc]" đã tồn tại. Bạn có muốn thay Name bằng "[Tên gốc] (STT)" không?
                 const confirmMsg = `Báo lặp rồi! Tên "${base}" đã tồn tại. Bạn có muốn thay Name bằng "${candidateTitle}" không?`;
                 const userAgreed = confirm(confirmMsg);
 
                 if (userAgreed) {
-                    // Người dùng đồng ý: đổi sang tên đề xuất có STT và giữ nguyên phần mở rộng
                     nameToUse = candidateFileName;
                 } else {
-                    // Người dùng từ chối: giữ nguyên dữ liệu gốc, không tự ý đổi tên, ghi đè hoặc xóa
                     showToast(`⚠️ Đã hủy thao tác để giữ nguyên dữ liệu gốc!`, 'var(--btn-warning)');
                     return; 
                 }

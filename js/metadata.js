@@ -1,5 +1,5 @@
 // =========================================================================
-// QUẢN LÝ THÔNG TIN TRUYỆN (MỤC 2) - TƯƠNG THÍCH CHUẨN ĐỊNH DẠNG JSON
+// QUẢN LÝ THÔNG TIN TRUYỆN (MỤC 2) - TƯƠNG THÍCH CHUẨN JSON & GOOGLE DRIVE
 // =========================================================================
 
 function updateUndoRedoButtonsState() {
@@ -119,41 +119,11 @@ function metaRedo() {
 }
 
 // =========================================================================
-// QUẢN LÝ LỊCH SỬ THÔNG TIN TRUYỆN: KHÔNG GIỚI HẠN BẢN GHI / NGÀY - GIỮ VĨNH VIỄN
+// QUẢN LÝ LỊCH SỬ THÔNG TIN TRUYỆN: TỰ ĐỘNG ĐẨY LÊN GOOGLE DRIVE (CLOUD HISTORY)
 // =========================================================================
 function addMetaHistoryEntry() {
-    try {
-        let history = JSON.parse(localStorage.getItem('metadataHistory')) || [];
-        const currentMetaCopy = JSON.parse(JSON.stringify(metadata));
-
-        // Tránh tạo bản ghi trùng lặp liên tiếp nếu dữ liệu chưa có thay đổi
-        if (history.length > 0 && JSON.stringify(history[history.length - 1].data) === JSON.stringify(currentMetaCopy)) {
-            return;
-        }
-
-        // Tạo record mới độc lập, không ghi đè record cũ, không giới hạn số lượng hay số ngày
-        history.push({ 
-            timestamp: Date.now(), 
-            rowCount: (metadata.characters?.length || 0) + (metadata.pronouns?.length || 0) + (metadata.terms?.length || 0), 
-            data: currentMetaCopy 
-        });
-
-        // Không dùng shift(), slice(), splice(), prune() - Dữ liệu giữ vĩnh viễn đến khi chủ động xóa
-        try {
-            localStorage.setItem('metadataHistory', JSON.stringify(history));
-        } catch (storageErr) {
-            // Kiểm tra và bắt lỗi khi chạm ngưỡng dung lượng vật lý của trình duyệt (~5MB)
-            if (storageErr.name === 'QuotaExceededError' || storageErr.code === 22 || storageErr.code === 1014) {
-                console.warn("⚠️ Bộ nhớ trình duyệt (localStorage) đã đầy dung lượng vật lý!");
-                if (typeof showToast === 'function') {
-                    showToast("⚠️ Dung lượng bộ nhớ đã đầy, hãy chủ động xóa bớt lịch sử cũ!", "var(--btn-warning)");
-                }
-            } else {
-                console.error("Lỗi khi lưu lịch sử thông tin vào localStorage:", storageErr);
-            }
-        }
-    } catch (e) {
-        console.error("Lỗi addMetaHistoryEntry:", e);
+    if (typeof pushToCloudHistory === 'function') {
+        pushToCloudHistory('meta', metadata);
     }
 }
 
@@ -410,12 +380,13 @@ function handleMetadataImport(event) {
             const imported = JSON.parse(evt.target.result);
             if (imported && (imported.characters || imported.pronouns || imported.terms)) {
                 saveMetaUndoState();
-                addMetaHistoryEntry();
                 
                 metadata = normalizeMetadata(imported);
                 
                 debounceMetaSave();
                 renderMetadata();
+                // Kích hoạt lưu lịch sử lên Cloud sau khi nhập file
+                if (typeof addMetaHistoryEntry === 'function') addMetaHistoryEntry();
                 showToast('📂 Nhập thông tin truyện thành công!', 'var(--btn-success)');
             } else {
                 alert("Định dạng file không khớp!");

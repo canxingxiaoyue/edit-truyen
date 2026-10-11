@@ -129,37 +129,12 @@ function editorRedo() {
 }
 
 // =========================================================================
-// QUẢN LÝ LỊCH SỬ DỊCH: KHÔNG GIỚI HẠN BẢN GHI / NGÀY - GIỮ NGUYÊN VĨNH VIỄN
+// QUẢN LÝ LỊCH SỬ DỊCH: TỰ ĐỘNG ĐẨY LÊN GOOGLE DRIVE (CLOUD HISTORY)
 // =========================================================================
 function addEditorHistoryEntry() {
-    try {
-        let history = JSON.parse(localStorage.getItem('translationHistory')) || [];
-        const currentDataCopy = JSON.parse(JSON.stringify(data));
-
-        if (history.length > 0 && JSON.stringify(history[history.length - 1].data) === JSON.stringify(currentDataCopy)) {
-            return;
-        }
-
-        history.push({ 
-            timestamp: Date.now(), 
-            rowCount: data.length, 
-            data: currentDataCopy 
-        });
-
-        try {
-            localStorage.setItem('translationHistory', JSON.stringify(history));
-        } catch (storageErr) {
-            if (storageErr.name === 'QuotaExceededError' || storageErr.code === 22 || storageErr.code === 1014) {
-                console.warn("⚠️ Bộ nhớ trình duyệt (localStorage) đã đầy dung lượng vật lý!");
-                if (typeof showToast === 'function') {
-                    showToast("⚠️ Dung lượng lưu trữ của trình duyệt đã đầy, hãy chủ động xóa bớt lịch sử cũ!", "var(--btn-warning)");
-                }
-            } else {
-                console.error("Lỗi khi lưu lịch sử dịch vào localStorage:", storageErr);
-            }
-        }
-    } catch (e) {
-        console.error("Lỗi addEditorHistoryEntry:", e);
+    // Gọi thẳng hàm pushToCloudHistory bên file modals-history.js
+    if (typeof pushToCloudHistory === 'function') {
+        pushToCloudHistory('editor', data);
     }
 }
 
@@ -208,7 +183,6 @@ function parseClipboardToSmartMatrix(clipboard) {
                     }
                 });
 
-                // Chỉ xem là bảng nếu có ít nhất 1 hàng có từ 2 cột trở lên
                 if (matrix.length > 0 && matrix.some(r => r.length >= 2)) {
                     return matrix;
                 }
@@ -311,7 +285,6 @@ function initEditorEvents() {
 
         // =====================================================================
         // TRƯỜNG HỢP 1: DÁN CHƯƠNG TRUYỆN (VĂN BẢN NHIỀU ĐOẠN KHÔNG CÓ CỘT TAB)
-        // -> TỰ ĐỘNG CHIA MỖI ĐOẠN THÀNH 1 HÀNG DỌC THEO CỘT ĐANG CHỌN!
         // =====================================================================
         if (tableMatrix.length === 0 && /[\r\n]/.test(textData)) {
             e.preventDefault();
@@ -321,13 +294,11 @@ function initEditorEvents() {
             if (typeof addEditorHistoryEntry === 'function') addEditorHistoryEntry();
 
             const cleanText = textData.replace(/[\u200B-\u200F\uFEFF\u202A-\u202E]/g, '').normalize('NFC');
-            // Tách các đoạn văn bản (bỏ qua dòng trống cách đoạn)
             const rawParagraphs = cleanText.split(/\r\n|\r|\n/);
             const paragraphs = rawParagraphs.map(p => p.trim()).filter(p => p !== '');
 
             if (paragraphs.length === 0) return;
 
-            // Chèn từng đoạn văn bản vào từng hàng theo cột hiện tại
             for (let i = 0; i < paragraphs.length; i++) {
                 const rowIndex = startRowIndex + i;
 
@@ -338,7 +309,6 @@ function initEditorEvents() {
                 const paraText = normalizeUnicodeText(paragraphs[i]);
                 data[rowIndex][columns[colIndex]] = paraText;
 
-                // Nếu dán vào Cột 0 (Raw) -> Tự động phiên âm Pinyin và QT cho từng hàng
                 if (colIndex === 0) {
                     if (typeof safePinyin === 'function') {
                         data[rowIndex]['pinyin'] = safePinyin(paraText);
@@ -358,8 +328,7 @@ function initEditorEvents() {
         }
 
         // =====================================================================
-        // TRƯỜNG HỢP 2: DÁN BẢNG NHIỀU CỘT (CÓ TAB HOẶC CẤU TRÚC TABLE)
-        // -> KHỚP CHUẨN CỘT VÀ HÀNG, KHÔNG LÀM NHẢY HÀNG CỦA Ô NGHĨA
+        // TRƯỜNG HỢP 2: DÁN BẢNG NHIỀU CỘT
         // =====================================================================
         if (tableMatrix.length > 0) {
             e.preventDefault();
@@ -411,7 +380,7 @@ function initEditorEvents() {
         }
 
         // =====================================================================
-        // TRƯỜNG HỢP 3: DÁN 1 CÂU HOẶC TỪ ĐƠN LẺ VÀO CON TRỎ CHUỘT
+        // TRƯỜNG HỢP 3: DÁN 1 CÂU HOẶC TỪ ĐƠN LẺ
         // =====================================================================
         if (!textData.includes('\n') && !textData.includes('\t')) {
             e.preventDefault();
@@ -534,7 +503,7 @@ function initEditorEvents() {
     });
 
     // =========================================================================
-    // HÀM TRÍCH XUẤT NỘI DUNG Ô
+    // HÀM TRÍCH XUẤT NỘI DUNG Ô (GIỮ NGUYÊN XUỐNG DÒNG BÊN TRONG Ô)
     // =========================================================================
     function extractCellContent(html) {
         if (!html) return '';
@@ -559,7 +528,7 @@ function initEditorEvents() {
     }
 
     // =========================================================================
-    // HÀM SAO CHÉP KÉP CHO WATTPAD & WORD
+    // HÀM SAO CHÉP KÉP (XUẤT ĐỒNG THỜI HTML VÀ PLAIN TEXT CHO WATTPAD & WORD)
     // =========================================================================
     async function copyAdvancedToClipboard(textBlocks, successMsg) {
         if (!textBlocks || textBlocks.length === 0) {

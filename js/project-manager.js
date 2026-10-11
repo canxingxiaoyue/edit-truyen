@@ -1,5 +1,5 @@
 // =========================================================================
-// QUẢN LÝ DỰ ÁN DỮ LIỆU - XỬ LÝ TRÙNG TÊN ĐẦU VÀO VÀ GOOGLE DRIVE CHUẨN MỰC
+// QUẢN LÝ DỰ ÁN DỮ LIỆU - XỬ LÝ TRÙNG TÊN VÀ ĐỒNG BỘ LỊCH SỬ CLOUD TỨC THÌ
 // =========================================================================
 
 let localSavedProjectsCache = []; 
@@ -75,14 +75,11 @@ async function saveProjectToCloudAndLocal(projObj) {
             const actualName = result.savedName || projObj.name;
             projObj.name = actualName;
             
-            // Cập nhật bản tóm tắt vào bộ đệm hiển thị
             const summaryObj = toProjectSummary(projObj);
             summaryObj.id = result.fileId || projObj.id;
             localSavedProjectsCache.unshift(summaryObj);
 
-            try {
-                localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache));
-            } catch (e) {}
+            try { localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache)); } catch (e) {}
 
             renderMyProjectsListUI();
             calculateStorageMetrics();
@@ -98,9 +95,7 @@ async function saveProjectToCloudAndLocal(projObj) {
     const summaryObj = toProjectSummary(projObj);
     localSavedProjectsCache.unshift(summaryObj);
 
-    try {
-        localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache));
-    } catch (e) {}
+    try { localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache)); } catch (e) {}
 
     renderMyProjectsListUI();
     calculateStorageMetrics();
@@ -111,9 +106,7 @@ async function saveProjectToCloudAndLocal(projObj) {
 // 3. XÓA DỰ ÁN
 async function deleteProjectFromCloudAndLocal(projId) {
     localSavedProjectsCache = localSavedProjectsCache.filter(p => p.id !== projId);
-    try {
-        localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache));
-    } catch (e) {}
+    try { localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache)); } catch (e) {}
 
     renderMyProjectsListUI();
     calculateStorageMetrics();
@@ -225,13 +218,27 @@ function renderMyProjectsListUI() {
                     if (typeof renderMetadata === 'function') renderMetadata();
                 }
 
+                // KHÔI PHỤC VÀ ÉP ĐỒNG BỘ LỊCH SỬ NGƯỢC LÊN CLOUD
                 if (proj.history) {
                     let parsedHist = proj.history;
                     if (typeof parsedHist === 'string') {
                         try { parsedHist = JSON.parse(parsedHist); } catch (e) {}
                     }
+
+                    // Nạp Lịch sử vào RAM
+                    if (typeof window.appCloudHistory !== 'undefined') {
+                        window.appCloudHistory.editor = parsedHist.translation || [];
+                        window.appCloudHistory.meta = parsedHist.metadata || [];
+                    }
+
+                    // Nạp dự phòng xuống LocalStorage
                     if (parsedHist.translation) localStorage.setItem('translationHistory', JSON.stringify(parsedHist.translation));
                     if (parsedHist.metadata) localStorage.setItem('metadataHistory', JSON.stringify(parsedHist.metadata));
+                    
+                    // Kích hoạt đồng bộ Lịch sử của file vừa tải lên Drive
+                    if (typeof forceSyncHistoryToCloud === 'function') {
+                        forceSyncHistoryToCloud();
+                    }
                 }
 
                 showToast(`📂 Đã mở dự án "${proj.name}" từ Google Drive!`, 'var(--btn-success)');
@@ -253,7 +260,7 @@ function renderMyProjectsListUI() {
     });
 }
 
-// 4. LƯU THÀNH BẢN MỚI - KIỂM TRA TRÙNG TÊN ĐẦU VÀO VÀ HỎI XÁC NHẬN CHUẨN CÚ PHÁP
+// 4. LƯU THÀNH BẢN MỚI - KÈM ÉP ĐỒNG BỘ LỊCH SỬ LÊN GOOGLE DRIVE
 async function saveCurrentAsProject() {
     const titleVal = (typeof chapterTitle !== 'undefined' && chapterTitle) ? chapterTitle.trim() : 'Chương_Mới';
     const storyTitleVal = (typeof metadata !== 'undefined' && metadata.title) ? metadata.title.trim() : '';
@@ -262,30 +269,41 @@ async function saveCurrentAsProject() {
     if (!namePrompt || !namePrompt.trim()) return;
     namePrompt = namePrompt.trim();
 
-    // 1. Kiểm tra trong danh sách dữ liệu hiện có
+    // Kiểm tra trùng tên dữ liệu đầu vào
     const existingNames = localSavedProjectsCache.map(p => p.name);
     const isDuplicate = existingNames.some(n => n.toLowerCase().trim() === namePrompt.toLowerCase().trim());
 
     if (isDuplicate) {
-        const { candidate, stt, cleanedBase } = getNextInputProjectName(namePrompt, existingNames);
-        
-        // Cú pháp thông báo bắt buộc theo Rule 3:
+        const { candidate } = getNextInputProjectName(namePrompt, existingNames);
         const userAgreed = confirm(`Báo lặp rồi! Tên "${namePrompt}" đã tồn tại. Bạn có muốn thay Name bằng "${candidate}" không?`);
         
         if (userAgreed) {
             namePrompt = candidate;
         } else {
-            // Không đồng ý: giữ nguyên dữ liệu, không tự ý đổi tên, ghi đè hoặc xóa dữ liệu
             showToast(`⚠️ Đã giữ nguyên tên gốc "${namePrompt}". Vui lòng chọn thời điểm hoặc tên khác để lưu.`, 'var(--btn-warning)');
             return;
         }
     }
 
+    // ÉP ĐẨY LỊCH SỬ LÊN GOOGLE DRIVE NGAY LẬP TỨC TRƯỚC KHI ĐÓNG GÓI DỰ ÁN
+    if (typeof forceSyncHistoryToCloud === 'function') {
+        showToast("⏳ Đang đồng bộ Lịch sử...", "var(--btn-info)");
+        await forceSyncHistoryToCloud();
+    }
+
     const dataStr = JSON.stringify(data);
     const newProjectId = 'proj_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
 
-    const transHist = JSON.parse(localStorage.getItem('translationHistory') || "[]");
-    const metaHist = JSON.parse(localStorage.getItem('metadataHistory') || "[]");
+    // Lấy lịch sử trực tiếp từ hệ thống RAM Cloud History mới nhất
+    let transHist = [];
+    let metaHist = [];
+    if (typeof window.appCloudHistory !== 'undefined') {
+        transHist = window.appCloudHistory.editor || [];
+        metaHist = window.appCloudHistory.meta || [];
+    } else {
+        transHist = JSON.parse(localStorage.getItem('translationHistory') || "[]");
+        metaHist = JSON.parse(localStorage.getItem('metadataHistory') || "[]");
+    }
 
     const projObj = {
         id: newProjectId,

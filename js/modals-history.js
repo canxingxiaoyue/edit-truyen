@@ -11,12 +11,11 @@ function escapeHTML(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
-// HÀM TỰ ĐỘNG ĐẨY LỊCH SỬ LÊN GOOGLE DRIVE (CHẠY NGẦM)
+// HÀM TỰ ĐỘNG ĐẨY LỊCH SỬ LÊN GOOGLE DRIVE (CHẠY NGẦM SAU 10S)
 function pushToCloudHistory(type, currentData) {
     const histArray = window.appCloudHistory[type] || [];
     const currentDataCopy = JSON.parse(JSON.stringify(currentData));
 
-    // Bỏ qua nếu dữ liệu không thay đổi
     if (histArray.length > 0 && JSON.stringify(histArray[histArray.length - 1].data) === JSON.stringify(currentDataCopy)) {
         return;
     }
@@ -25,26 +24,41 @@ function pushToCloudHistory(type, currentData) {
     if (type === 'editor') rowCount = currentData.length || 0;
     else rowCount = (currentData.characters?.length || 0) + (currentData.pronouns?.length || 0) + (currentData.terms?.length || 0);
 
-    // Lưu vào RAM
     histArray.push({ timestamp: Date.now(), rowCount: rowCount, data: currentDataCopy });
     window.appCloudHistory[type] = histArray;
 
-    // CHỜ 10 GIÂY SAU KHI DỪNG GÕ CHỮ SẼ TỰ ĐỘNG ĐẨY LÊN GOOGLE DRIVE
     clearTimeout(historySyncTimer);
     historySyncTimer = setTimeout(async () => {
         if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
             await gdriveSaveHistoryCloud(type, window.appCloudHistory[type]);
-            // Giải phóng bộ nhớ máy tính
             localStorage.removeItem(type === 'editor' ? 'translationHistory' : 'metadataHistory');
         } else {
-            try {
-                localStorage.setItem(type === 'editor' ? 'translationHistory' : 'metadataHistory', JSON.stringify(histArray));
-            } catch(e) {}
+            try { localStorage.setItem(type === 'editor' ? 'translationHistory' : 'metadataHistory', JSON.stringify(histArray)); } catch(e) {}
         }
     }, 10000);
 }
 
-// HÀM KÉO LỊCH SỬ TỪ GOOGLE DRIVE XUỐNG
+// MỚI: HÀM ÉP ĐẨY LỊCH SỬ LÊN DRIVE NGAY LẬP TỨC (DÙNG KHI BẤM LƯU DỰ ÁN)
+async function forceSyncHistoryToCloud() {
+    clearTimeout(historySyncTimer); // Hủy bộ đếm 10 giây, ép chạy ngay
+    if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
+        if (window.appCloudHistory.editor.length > 0) {
+            await gdriveSaveHistoryCloud('editor', window.appCloudHistory.editor);
+            localStorage.removeItem('translationHistory');
+        }
+        if (window.appCloudHistory.meta.length > 0) {
+            await gdriveSaveHistoryCloud('meta', window.appCloudHistory.meta);
+            localStorage.removeItem('metadataHistory');
+        }
+    } else {
+        try {
+            if (window.appCloudHistory.editor.length > 0) localStorage.setItem('translationHistory', JSON.stringify(window.appCloudHistory.editor));
+            if (window.appCloudHistory.meta.length > 0) localStorage.setItem('metadataHistory', JSON.stringify(window.appCloudHistory.meta));
+        } catch(e) {}
+    }
+}
+
+// HÀM KÉO LỊCH SỬ TỪ GOOGLE DRIVE XUỐNG MÁY
 async function syncHistoryFromDrive() {
     if (typeof isGDriveConnected !== 'function' || !isGDriveConnected()) {
         window.appCloudHistory.editor = JSON.parse(localStorage.getItem('translationHistory')) || [];
@@ -68,12 +82,6 @@ async function syncHistoryFromDrive() {
     }
 }
 
-// Lắng nghe sự kiện đăng nhập Drive thành công để tự động kéo Lịch sử
-document.addEventListener('click', (e) => {
-    if (e.target && e.target.id === 'btn-login-gdrive') {
-        setTimeout(() => { if (isGDriveConnected()) syncHistoryFromDrive(); }, 5000);
-    }
-});
 window.addEventListener('load', () => { setTimeout(() => { syncHistoryFromDrive(); }, 3000); });
 
 function openHistoryModal(type) {
@@ -84,11 +92,7 @@ function openHistoryModal(type) {
     modal.classList.add('show');
 }
 
-// =========================================================================
-// CÁC HÀM XÓA LỊCH SỬ: ĐỒNG BỘ TRỰC TIẾP LÊN GOOGLE DRIVE
-// =========================================================================
-
-// 1. XÓA MỘT BẢN GHI
+// CÁC HÀM XÓA LỊCH SỬ
 async function deleteHistoryEntry(type, timestamp) {
     if (confirm("🗑️ Bạn có chắc chắn muốn xóa bản sao lưu này không?")) {
         window.appCloudHistory[type] = window.appCloudHistory[type].filter(item => item.timestamp !== timestamp);
@@ -105,7 +109,6 @@ async function deleteHistoryEntry(type, timestamp) {
     }
 }
 
-// 2. XÓA NGUYÊN MỘT NGÀY
 async function deleteHistoryByDate(type, dateStr, entriesToDelete) {
     if (confirm(`🗑️ Bạn có muốn XÓA SẠCH toàn bộ lịch sử của ngày "${dateStr}" không?`)) {
         const timestampsToDelete = new Set(entriesToDelete.map(e => e.timestamp));
@@ -123,7 +126,6 @@ async function deleteHistoryByDate(type, dateStr, entriesToDelete) {
     }
 }
 
-// 3. XÓA TẤT CẢ LỊCH SỬ
 async function deleteAllHistory(type) {
     if (confirm("⚠️ NGUY HIỂM: Xóa SẠCH TOÀN BỘ lịch sử hiện có? Hành động này không thể hoàn tác!")) {
         window.appCloudHistory[type] = [];
@@ -140,7 +142,6 @@ async function deleteAllHistory(type) {
     }
 }
 
-// VẼ GIAO DIỆN LỊCH SỬ
 function renderHistoryList(type) {
     const historyListDiv = document.getElementById('history-list');
     const modalTitle = document.querySelector('#modal-history h3');
@@ -163,7 +164,6 @@ function renderHistoryList(type) {
             : '🟡 <strong>Đang lưu tạm ở máy.</strong> Hãy kết nối Google Drive để giải phóng bộ nhớ.';
     }
 
-    // Quản lý các nút
     if (modalActions) {
         document.getElementById('btn-delete-all-history')?.remove();
         document.getElementById('btn-sync-history-gdrive')?.remove();
@@ -285,7 +285,7 @@ function renderHistoryList(type) {
 }
 
 // =========================================================================
-// RENDER DANH SÁCH FILE NAME QT (GIỮ NGUYÊN)
+// RENDER DANH SÁCH FILE NAME QT (TÍCH HỢP ĐỒNG BỘ GOOGLE DRIVE)
 // =========================================================================
 function renderNameQTFileList() {
     const listContainer = document.getElementById('nameqt-file-list');

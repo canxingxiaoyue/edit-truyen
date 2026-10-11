@@ -28,7 +28,6 @@ function toProjectSummary(proj) {
     };
 }
 
-// Tìm tên STT tiếp theo cho dữ liệu đầu vào
 function getNextInputProjectName(desiredName, existingList) {
     const existingSet = new Set(existingList.map(n => n.toLowerCase().trim()));
     const cleanedBase = desiredName.replace(/\s*\(\d+\)$/, '').trim();
@@ -55,7 +54,9 @@ async function loadSavedProjects() {
 
     try {
         let localData = JSON.parse(localStorage.getItem('mySavedProjects')) || [];
-        localSavedProjectsCache = localData.map(toProjectSummary);
+        // Xóa tận gốc file [LỊCH SỬ] nếu lỡ lưu vào cache máy tính
+        localSavedProjectsCache = localData.filter(p => p.name && !p.name.startsWith('[LỊCH SỬ]')).map(toProjectSummary);
+        localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache));
     } catch (e) {
         localSavedProjectsCache = [];
     }
@@ -64,9 +65,8 @@ async function loadSavedProjects() {
     calculateStorageMetrics();
 }
 
-// 2. LƯU DỰ ÁN (TUÂN THỦ QUY TẮC BẢO TOÀN DỮ LIỆU & ĐỔI TÊN)
+// 2. LƯU DỰ ÁN
 async function saveProjectToCloudAndLocal(projObj) {
-    // NẾU ĐÃ KẾT NỐI DRIVE -> LƯU VÀO GOOGLE DRIVE
     if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
         showToast(`⏳ Đang lưu "${projObj.name}" vào Google Drive...`, 'var(--btn-info)');
         const result = await gdriveSaveProject(projObj);
@@ -91,7 +91,6 @@ async function saveProjectToCloudAndLocal(projObj) {
         return;
     }
 
-    // NẾU CHƯA KẾT NỐI DRIVE -> LƯU TẠM VÀO MÁY
     const summaryObj = toProjectSummary(projObj);
     localSavedProjectsCache.unshift(summaryObj);
 
@@ -175,7 +174,6 @@ function renderMyProjectsListUI() {
         listBody.appendChild(tr);
     });
 
-    // MỞ DỰ ÁN
     listBody.querySelectorAll('.btn-open-proj').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const id = e.currentTarget.getAttribute('data-id');
@@ -218,24 +216,20 @@ function renderMyProjectsListUI() {
                     if (typeof renderMetadata === 'function') renderMetadata();
                 }
 
-                // KHÔI PHỤC VÀ ÉP ĐỒNG BỘ LỊCH SỬ NGƯỢC LÊN CLOUD
                 if (proj.history) {
                     let parsedHist = proj.history;
                     if (typeof parsedHist === 'string') {
                         try { parsedHist = JSON.parse(parsedHist); } catch (e) {}
                     }
 
-                    // Nạp Lịch sử vào RAM
                     if (typeof window.appCloudHistory !== 'undefined') {
                         window.appCloudHistory.editor = parsedHist.translation || [];
                         window.appCloudHistory.meta = parsedHist.metadata || [];
                     }
 
-                    // Nạp dự phòng xuống LocalStorage
                     if (parsedHist.translation) localStorage.setItem('translationHistory', JSON.stringify(parsedHist.translation));
                     if (parsedHist.metadata) localStorage.setItem('metadataHistory', JSON.stringify(parsedHist.metadata));
                     
-                    // Kích hoạt đồng bộ Lịch sử của file vừa tải lên Drive
                     if (typeof forceSyncHistoryToCloud === 'function') {
                         forceSyncHistoryToCloud();
                     }
@@ -247,7 +241,6 @@ function renderMyProjectsListUI() {
         });
     });
 
-    // XÓA
     listBody.querySelectorAll('.btn-del-proj').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const id = e.currentTarget.getAttribute('data-id');
@@ -260,7 +253,7 @@ function renderMyProjectsListUI() {
     });
 }
 
-// 4. LƯU THÀNH BẢN MỚI - KÈM ÉP ĐỒNG BỘ LỊCH SỬ LÊN GOOGLE DRIVE
+// 4. LƯU THÀNH BẢN MỚI
 async function saveCurrentAsProject() {
     const titleVal = (typeof chapterTitle !== 'undefined' && chapterTitle) ? chapterTitle.trim() : 'Chương_Mới';
     const storyTitleVal = (typeof metadata !== 'undefined' && metadata.title) ? metadata.title.trim() : '';
@@ -269,7 +262,6 @@ async function saveCurrentAsProject() {
     if (!namePrompt || !namePrompt.trim()) return;
     namePrompt = namePrompt.trim();
 
-    // Kiểm tra trùng tên dữ liệu đầu vào
     const existingNames = localSavedProjectsCache.map(p => p.name);
     const isDuplicate = existingNames.some(n => n.toLowerCase().trim() === namePrompt.toLowerCase().trim());
 
@@ -285,7 +277,6 @@ async function saveCurrentAsProject() {
         }
     }
 
-    // ÉP ĐẨY LỊCH SỬ LÊN GOOGLE DRIVE NGAY LẬP TỨC TRƯỚC KHI ĐÓNG GÓI DỰ ÁN
     if (typeof forceSyncHistoryToCloud === 'function') {
         showToast("⏳ Đang đồng bộ Lịch sử...", "var(--btn-info)");
         await forceSyncHistoryToCloud();
@@ -294,7 +285,6 @@ async function saveCurrentAsProject() {
     const dataStr = JSON.stringify(data);
     const newProjectId = 'proj_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
 
-    // Lấy lịch sử trực tiếp từ hệ thống RAM Cloud History mới nhất
     let transHist = [];
     let metaHist = [];
     if (typeof window.appCloudHistory !== 'undefined') {
@@ -338,7 +328,11 @@ function initProjectManagerEvents() {
     document.addEventListener('click', (e) => {
         if (e.target && (e.target.id === 'btn-open-gdrive-auth' || e.target.closest('#btn-open-gdrive-auth'))) {
             e.preventDefault();
-            if (typeof openGDriveModal === 'function') openGDriveModal();
+            if (typeof openGDriveModal === 'function') {
+                openGDriveModal();
+            } else if (typeof triggerGoogleRedirectLogin === 'function') {
+                triggerGoogleRedirectLogin();
+            }
         }
     });
 }

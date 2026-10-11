@@ -1,5 +1,5 @@
 // =========================================================================
-// GOOGLE DRIVE API V3 - ĐĂNG NHẬP VĨNH VIỄN (TỰ ĐỘNG GIA HẠN TOKEN)
+// GOOGLE DRIVE API V3 - ĐĂNG NHẬP VĨNH VIỄN & PHỤC HỒI CỬA SỔ XANH LÁ
 // =========================================================================
 
 const CLIENT_ID = '214662773459-nepa84k1u7uhp1j08p250f9v42q0mbk6.apps.googleusercontent.com';
@@ -13,36 +13,25 @@ let accessToken = localStorage.getItem('gdrive_access_token') || null;
 let tokenExpiresAt = Number(localStorage.getItem('gdrive_token_expires')) || 0;
 
 // =========================================================================
-// 1. CƠ CHẾ ĐĂNG NHẬP VĨNH VIỄN VÀ TỰ ĐỘNG GIA HẠN
+// 1. CƠ CHẾ ĐĂNG NHẬP VĨNH VIỄN VÀ QUẢN LÝ CỬA SỔ XANH (MODAL)
 // =========================================================================
 function isGDriveConnected() {
-    // Chỉ cần có cờ này là giao diện luôn báo Đã Kết Nối, không bị văng sau 1 tiếng
     return localStorage.getItem('gdrive_auto_login') === 'true';
 }
 
-// Bắt tự động gia hạn token âm thầm
 async function getValidToken() {
     if (!isGDriveConnected()) return null;
+    if (accessToken && Date.now() < (tokenExpiresAt - 60000)) return accessToken;
 
-    // Nếu token còn hạn > 1 phút thì dùng luôn
-    if (accessToken && Date.now() < (tokenExpiresAt - 60000)) {
-        return accessToken;
-    }
-
-    // Hết hạn -> Xin cấp lại âm thầm không hiện cửa sổ
     return new Promise((resolve) => {
-        if (typeof google === 'undefined' || !google.accounts) {
-            resolve(null);
-            return;
-        }
+        if (typeof google === 'undefined' || !google.accounts) { resolve(null); return; }
         try {
             const tc = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
                 scope: SCOPES,
                 callback: (resp) => {
                     if (resp.error) {
-                        console.warn("Gia hạn token bị chặn:", resp.error);
-                        resolve(null); // Fallback offline
+                        resolve(null); 
                     } else {
                         accessToken = resp.access_token;
                         tokenExpiresAt = Date.now() + (Number(resp.expires_in) * 1000);
@@ -54,9 +43,7 @@ async function getValidToken() {
                 }
             });
             tc.requestAccessToken({ prompt: '' });
-        } catch (e) {
-            resolve(null);
-        }
+        } catch (e) { resolve(null); }
     });
 }
 
@@ -72,7 +59,7 @@ function checkUrlForOAuthToken() {
             tokenExpiresAt = Date.now() + (Number(expiresIn) * 1000);
             localStorage.setItem('gdrive_access_token', accessToken);
             localStorage.setItem('gdrive_token_expires', String(tokenExpiresAt));
-            localStorage.setItem('gdrive_auto_login', 'true'); // Cắm cờ Vĩnh viễn
+            localStorage.setItem('gdrive_auto_login', 'true'); 
 
             history.replaceState(null, null, window.location.pathname + window.location.search);
             showToast("🟢 Đã kết nối Google Drive vĩnh viễn!", "var(--btn-success)");
@@ -102,10 +89,39 @@ function disconnectGDrive() {
         tokenExpiresAt = 0;
         localStorage.removeItem('gdrive_access_token');
         localStorage.removeItem('gdrive_token_expires');
-        localStorage.removeItem('gdrive_auto_login'); // Gỡ cờ Vĩnh viễn
+        localStorage.removeItem('gdrive_auto_login'); 
         showToast("Đã ngắt kết nối Google Drive!", "var(--btn-info)");
-        if (typeof updateGDriveModalUI === 'function') updateGDriveModalUI();
+        updateGDriveModalUI();
         if (typeof calculateStorageMetrics === 'function') calculateStorageMetrics();
+    }
+}
+
+// HÀM PHỤC HỒI: QUẢN LÝ CỬA SỔ XANH LÁ
+function openGDriveModal() {
+    const modal = document.getElementById('modal-gdrive-auth');
+    if (!modal) return;
+    updateGDriveModalUI();
+    modal.classList.add('show');
+}
+
+function closeGDriveModal() {
+    document.getElementById('modal-gdrive-auth')?.classList.remove('show');
+}
+
+function updateGDriveModalUI() {
+    const statusBox = document.getElementById('gdrive-status-box');
+    const loginBtn = document.getElementById('btn-login-gdrive');
+    const logoutBtn = document.getElementById('btn-disconnect-gdrive');
+    const connected = isGDriveConnected();
+
+    if (connected) {
+        if (statusBox) statusBox.innerHTML = `Trạng thái: <strong><span style="color:#059669;">🟢 Đã kết nối Google Drive (15 GB Miễn phí)</span></strong>`;
+        if (loginBtn) loginBtn.innerHTML = '🌿 Đổi tài khoản khác';
+        if (logoutBtn) logoutBtn.style.display = 'inline-block';
+    } else {
+        if (statusBox) statusBox.innerHTML = `Trạng thái: <strong><span style="color:#d97706;">🟡 Chưa kết nối Google Drive</span></strong>`;
+        if (loginBtn) loginBtn.innerHTML = '🌿 Đăng nhập Google Drive';
+        if (logoutBtn) logoutBtn.style.display = 'none';
     }
 }
 
@@ -203,7 +219,12 @@ async function gdriveListProjects() {
 
         if (res.ok) {
             const data = await res.json();
-            return (data.files || []).map(f => {
+            const files = data.files || [];
+            
+            // ĐÃ LỌC BỎ CÁC FILE BẮT ĐẦU BẰNG [LỊCH SỬ] RA KHỎI DANH SÁCH DỰ ÁN
+            const validProjects = files.filter(f => !f.name.startsWith('[LỊCH SỬ]'));
+
+            return validProjects.map(f => {
                 const props = f.appProperties || {};
                 return {
                     id: f.id,
@@ -489,11 +510,12 @@ async function gdriveLoadHistoryCloud(type) {
     return null;
 }
 
+// =========================================================================
+// LẮNG NGHE SỰ KIỆN GIAO DIỆN
+// =========================================================================
 window.addEventListener('load', () => {
     checkUrlForOAuthToken();
     document.getElementById('btn-login-gdrive')?.addEventListener('click', triggerGoogleRedirectLogin);
-    document.getElementById('btn-close-gdrive-modal')?.addEventListener('click', () => {
-        document.getElementById('modal-gdrive-auth')?.classList.remove('show');
-    });
+    document.getElementById('btn-close-gdrive-modal')?.addEventListener('click', closeGDriveModal);
     document.getElementById('btn-disconnect-gdrive')?.addEventListener('click', disconnectGDrive);
 });

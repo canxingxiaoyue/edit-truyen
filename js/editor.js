@@ -1,5 +1,5 @@
 // =========================================================================
-// QUẢN LÝ BẢNG DỊCH CHÍNH (MỤC 1) - TỐI ƯU SIÊU TỐC & ĐẦY ĐỦ PHÍM TẮT
+// QUẢN LÝ BẢNG DỊCH CHÍNH (MỤC 1) - TỐI ƯU SIÊU TỐC & ĐỒNG BỘ LỊCH SỬ CLOUD
 // =========================================================================
 let saveTimeout;
 let countTimeout;
@@ -132,9 +132,25 @@ function editorRedo() {
 // QUẢN LÝ LỊCH SỬ DỊCH: TỰ ĐỘNG ĐẨY LÊN GOOGLE DRIVE (CLOUD HISTORY)
 // =========================================================================
 function addEditorHistoryEntry() {
-    // Gọi thẳng hàm pushToCloudHistory bên file modals-history.js
-    if (typeof pushToCloudHistory === 'function') {
-        pushToCloudHistory('editor', data);
+    try {
+        // Nối dây trực tiếp vào hệ thống Cloud History trên Drive
+        if (typeof pushToCloudHistory === 'function') {
+            pushToCloudHistory('editor', data);
+            return;
+        }
+
+        // Chạy dự phòng khi chưa kết nối Drive
+        let history = JSON.parse(localStorage.getItem('translationHistory')) || [];
+        const currentDataCopy = JSON.parse(JSON.stringify(data));
+
+        if (history.length > 0 && JSON.stringify(history[history.length - 1].data) === JSON.stringify(currentDataCopy)) {
+            return;
+        }
+
+        history.push({ timestamp: Date.now(), rowCount: data.length, data: currentDataCopy });
+        try { localStorage.setItem('translationHistory', JSON.stringify(history)); } catch (e) {}
+    } catch (e) {
+        console.error("Lỗi addEditorHistoryEntry:", e);
     }
 }
 

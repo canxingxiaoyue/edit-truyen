@@ -1,5 +1,5 @@
 // =========================================================================
-// GOOGLE DRIVE API V3 - ĐĂNG NHẬP VĨNH VIỄN & PHỤC HỒI CỬA SỔ XANH LÁ
+// GOOGLE DRIVE API V3 - ĐĂNG NHẬP VĨNH VIỄN & FIX LỖI 403 LỊCH SỬ
 // =========================================================================
 
 const CLIENT_ID = '214662773459-nepa84k1u7uhp1j08p250f9v42q0mbk6.apps.googleusercontent.com';
@@ -24,13 +24,25 @@ async function getValidToken() {
     if (accessToken && Date.now() < (tokenExpiresAt - 60000)) return accessToken;
 
     return new Promise((resolve) => {
-        if (typeof google === 'undefined' || !google.accounts) { resolve(null); return; }
+        if (typeof google === 'undefined' || !google.accounts) { 
+            localStorage.removeItem('gdrive_auto_login');
+            resolve(null); 
+            return; 
+        }
+
+        const timeoutId = setTimeout(() => {
+            localStorage.removeItem('gdrive_auto_login');
+            resolve(null);
+        }, 2500);
+
         try {
             const tc = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
                 scope: SCOPES,
                 callback: (resp) => {
+                    clearTimeout(timeoutId);
                     if (resp.error) {
+                        localStorage.removeItem('gdrive_auto_login');
                         resolve(null); 
                     } else {
                         accessToken = resp.access_token;
@@ -43,7 +55,11 @@ async function getValidToken() {
                 }
             });
             tc.requestAccessToken({ prompt: '' });
-        } catch (e) { resolve(null); }
+        } catch (e) { 
+            clearTimeout(timeoutId);
+            localStorage.removeItem('gdrive_auto_login');
+            resolve(null); 
+        }
     });
 }
 
@@ -96,7 +112,6 @@ function disconnectGDrive() {
     }
 }
 
-// HÀM PHỤC HỒI: QUẢN LÝ CỬA SỔ XANH LÁ
 function openGDriveModal() {
     const modal = document.getElementById('modal-gdrive-auth');
     if (!modal) return;
@@ -221,7 +236,6 @@ async function gdriveListProjects() {
             const data = await res.json();
             const files = data.files || [];
             
-            // ĐÃ LỌC BỎ CÁC FILE BẮT ĐẦU BẰNG [LỊCH SỬ] RA KHỎI DANH SÁCH DỰ ÁN
             const validProjects = files.filter(f => !f.name.startsWith('[LỊCH SỬ]'));
 
             return validProjects.map(f => {
@@ -427,7 +441,7 @@ async function gdriveDeleteNameQTFile(fileName) {
 }
 
 // =========================================================================
-// CLOUD HISTORY
+// CLOUD HISTORY - ĐÃ FIX LỖI 403 (SỬ DỤNG MULTIPART ĐỂ GHI ĐÈ / XÓA)
 // =========================================================================
 async function gdriveSaveHistoryCloud(type, historyArray) {
     const token = await getValidToken();
@@ -437,14 +451,6 @@ async function gdriveSaveHistoryCloud(type, historyArray) {
 
     const fileName = type === 'editor' ? '[LỊCH SỬ] - BanDich.json' : '[LỊCH SỬ] - ThongTin.json';
     const content = JSON.stringify(historyArray);
-    const blob = new Blob([content], { type: 'application/json;charset=utf-8' });
-
-    const metadata = {
-        name: fileName,
-        mimeType: 'application/json',
-        parents: [folderId],
-        appProperties: { type: 'cloud_history', historyType: type }
-    };
 
     let existingId = null;
     try {
@@ -456,33 +462,42 @@ async function gdriveSaveHistoryCloud(type, historyArray) {
         if (checkData.files && checkData.files.length > 0) existingId = checkData.files[0].id;
     } catch(e) {}
 
-    const initUrl = existingId
-        ? `https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=resumable`
-        : `https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable`;
-    const initMethod = existingId ? 'PATCH' : 'POST';
+    const metadata = {
+        name: fileName,
+        mimeType: 'application/json',
+        appProperties: { type: 'cloud_history', historyType: type }
+    };
+    
+    // Google Drive cấm gửi 'parents' khi cập nhật file (PATCH) nên ta chỉ gán khi tạo mới
+    if (!existingId && folderId) {
+        metadata.parents = [folderId];
+    }
 
-    const initRes = await fetch(initUrl, {
-        method: initMethod,
+    const boundary = '-------GDriveHistoryBoundary' + Date.now();
+    const multipartRequestBody =
+        `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
+        JSON.stringify(metadata) +
+        `\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n` +
+        content +
+        `\r\n--${boundary}--`;
+
+    const url = existingId
+        ? `https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=multipart`
+        : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
+
+    const res = await fetch(url, {
+        method: existingId ? 'PATCH' : 'POST',
         headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json; charset=UTF-8',
-            'X-Upload-Content-Type': 'application/json',
-            'X-Upload-Content-Length': String(blob.size)
+            'Content-Type': `multipart/related; boundary=${boundary}`
         },
-        body: JSON.stringify(metadata)
+        body: multipartRequestBody
     });
 
-    if (!initRes.ok) return false;
-    const uploadUri = initRes.headers.get('Location');
-    if (!uploadUri) return false;
-
-    const uploadRes = await fetch(uploadUri, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: blob
-    });
-
-    return uploadRes.ok;
+    if (!res.ok) {
+        console.error("Lỗi đồng bộ lịch sử:", await res.text());
+    }
+    return res.ok;
 }
 
 async function gdriveLoadHistoryCloud(type) {

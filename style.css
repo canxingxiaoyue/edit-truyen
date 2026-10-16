@@ -352,6 +352,93 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
     color: #000000 !important;
 }
 
+/* ========================================================= */
+/* CHẾ ĐỘ CHỌN VÀ XÓA HÀNG LOẠT (BATCH SELECT & DELETE) */
+/* ========================================================= */
+
+/* Nút Bật/Tắt chế độ khi đang Active */
+#btn-toggle-batch.active {
+    background-color: var(--btn-danger) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.4);
+}
+
+/* Thanh điều khiển tác vụ xóa hàng loạt */
+#batch-action-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(239, 68, 68, 0.08);
+    padding: 3px 10px;
+    border-radius: 6px;
+    border: 1.5px dashed var(--btn-danger);
+    margin-left: 5px;
+}
+
+#batch-count-summary {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--btn-danger);
+    white-space: nowrap;
+}
+
+/* Checkbox ở tiêu đề cột */
+.batch-col-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--btn-primary);
+    background: rgba(59, 130, 246, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    user-select: none;
+}
+
+.batch-col-toggle input {
+    cursor: pointer;
+}
+
+/* Ô Checkbox ở đầu mỗi hàng */
+.batch-select-cell {
+    width: 45px !important;
+    min-width: 45px !important;
+    text-align: center;
+    vertical-align: middle;
+    padding: 6px !important;
+    background-color: var(--th-bg);
+    border: 1px solid var(--border-color);
+    user-select: none;
+}
+
+.batch-select-cell input[type="checkbox"] {
+    cursor: pointer;
+    transform: scale(1.15);
+}
+
+/* ================= TÔ MÀU PHÂN BIỆT RÕ RÀNG (RULE IV) ================= */
+
+/* 1. Hàng được chọn */
+tr.batch-row-selected td:not(.batch-select-cell) {
+    background-color: rgba(59, 130, 246, 0.08) !important;
+}
+
+/* 2. Cột được chọn */
+td.batch-col-selected {
+    background-color: rgba(59, 130, 246, 0.08) !important;
+}
+
+/* 3. Ô TẠI GIAO ĐIỂM (ƯU TIÊN NỔI BẬT CAO NHẤT) */
+td.batch-intersection-selected {
+    background-color: rgba(239, 68, 68, 0.2) !important;
+    box-shadow: inset 0 0 0 2px var(--btn-danger) !important;
+    font-weight: 600;
+}
+
 /* ================= MỤC 2: THÔNG TIN TRUYỆN (GIAO DIỆN KHỐI DỌC & TÌM KIẾM) ================= */
 .story-title-bar {
     background-color: var(--info-blue-bg);
@@ -1065,6 +1152,11 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
         white-space: nowrap !important; 
     }
 
+    /* Thanh tác vụ chọn hàng loạt trên mobile không bị co ép */
+    #batch-action-bar {
+        flex-shrink: 0 !important;
+    }
+
     /* 5. CỐ ĐỊNH CHIỀU RỘNG BẢNG ĐỂ KHÔNG BỊ BÓP CHỮ */
     table {
         min-width: 1200px !important; 
@@ -1073,6 +1165,13 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     th, td {
         min-width: 180px !important;
         padding: 8px !important;
+    }
+
+    /* Giữ nguyên độ rộng 45px của ô checkbox đầu hàng trên mobile */
+    th.batch-select-cell, td.batch-select-cell {
+        min-width: 45px !important;
+        width: 45px !important;
+        padding: 4px !important;
     }
 
     /* 6. CÁC HỘP THOẠI MODAL */

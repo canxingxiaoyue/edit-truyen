@@ -116,6 +116,17 @@
                 <button class="btn-add" id="btn-add">➕ Thêm hàng</button>
                 <button class="btn-delete" id="btn-delete" title="Xóa hàng đang chọn">🗑️ Xóa hàng</button>
                 
+                <!-- NÚT BẬT/TẮT CHẾ ĐỘ CHỌN ĐỂ XÓA HÀNG LOẠT -->
+                <button type="button" class="btn-tool" id="btn-toggle-batch" title="Bật/Tắt chế độ chọn và xóa hàng loạt">☑️ Chọn để xóa</button>
+                
+                <!-- THANH ĐIỀU KHIỂN XÓA HÀNG LOẠT (HIỆN KHI BẬT CHẾ ĐỘ) -->
+                <div id="batch-action-bar" style="display: none;">
+                    <span id="batch-count-summary">Đã chọn: 0 hàng, 0 cột (0 ô)</span>
+                    <button type="button" class="btn-danger btn-sm" id="btn-batch-confirm-delete" disabled>🗑️ Xóa mục đã chọn</button>
+                    <button type="button" class="btn-file btn-sm" id="btn-batch-deselect">Bỏ chọn</button>
+                    <button type="button" class="btn-secondary btn-sm" id="btn-batch-cancel">✕ Hủy chọn</button>
+                </div>
+
                 <div class="divider"></div>
                 
                 <button class="btn-tool" id="btn-replace-show">🔍 Tìm & Thay thế</button>
@@ -179,43 +190,77 @@
                 <table>
                     <thead>
                         <tr>
+                            <!-- CỘT CHECKBOX HÀNG (ẨN MẶC ĐỊNH, CHỈ HIỆN KHI BẬT CHẾ ĐỘ) -->
+                            <th class="batch-select-cell batch-toggle-el" style="display: none; width: 45px; text-align: center; vertical-align: middle;">
+                                <input type="checkbox" id="batch-check-all-rows" title="Chọn tất cả các hàng">
+                            </th>
+
+                            <!-- 1. CỘT RAW -->
                             <th>
                                 <div class="th-wrapper">
+                                    <label class="batch-col-toggle batch-toggle-el" style="display: none;">
+                                        <input type="checkbox" class="batch-col-checkbox" data-col="raw"> Chọn cột
+                                    </label>
                                     <span class="th-title">Raw</span>
                                     <span class="col-count" id="count-raw" title="0 từ • 0 ký tự">0 từ</span>
                                     <button class="col-copy-btn" data-col="raw" data-format="single">📋 Copy</button>
                                 </div>
                             </th>
+
+                            <!-- 2. CỘT PINYIN -->
                             <th>
                                 <div class="th-wrapper">
+                                    <label class="batch-col-toggle batch-toggle-el" style="display: none;">
+                                        <input type="checkbox" class="batch-col-checkbox" data-col="pinyin"> Chọn cột
+                                    </label>
                                     <span class="th-title">Pinyin</span>
                                     <span class="col-count" id="count-pinyin" title="0 từ • 0 ký tự">0 từ</span>
                                     <button class="col-copy-btn" data-col="pinyin" data-format="single">📋 Copy</button>
                                 </div>
                             </th>
+
+                            <!-- 3. CỘT CHÚ THÍCH -->
                             <th>
                                 <div class="th-wrapper">
-                                    <span class="th-title">Nghĩa của từ</span>
+                                    <label class="batch-col-toggle batch-toggle-el" style="display: none;">
+                                        <input type="checkbox" class="batch-col-checkbox" data-col="meaning"> Chọn cột
+                                    </label>
+                                    <span class="th-title">Chú thích</span>
                                     <span class="col-count" id="count-meaning" title="0 từ • 0 ký tự">0 từ</span>
                                     <button class="col-copy-btn" data-col="meaning" data-format="single">📋 Copy</button>
                                 </div>
                             </th>
+
+                            <!-- 4. CỘT BẢN Ê ĐÍT -->
                             <th>
                                 <div class="th-wrapper">
+                                    <label class="batch-col-toggle batch-toggle-el" style="display: none;">
+                                        <input type="checkbox" class="batch-col-checkbox" data-col="translation"> Chọn cột
+                                    </label>
                                     <span class="th-title">Bản ê đít</span>
                                     <span class="col-count" id="count-translation" title="0 từ • 0 ký tự">0 từ</span>
                                     <button class="col-copy-btn" data-col="translation" data-format="story">📋 Copy</button>
                                 </div>
                             </th>
+
+                            <!-- 5. CỘT BẢN QT -->
                             <th>
                                 <div class="th-wrapper">
+                                    <label class="batch-col-toggle batch-toggle-el" style="display: none;">
+                                        <input type="checkbox" class="batch-col-checkbox" data-col="qt"> Chọn cột
+                                    </label>
                                     <span class="th-title">Bản QT</span>
                                     <span class="col-count" id="count-qt" title="0 từ • 0 ký tự">0 từ</span>
                                     <button class="col-copy-btn" data-col="qt" data-format="story">📋 Copy</button>
                                 </div>
                             </th>
+
+                            <!-- 6. CỘT BẢN BÊ TA -->
                             <th>
                                 <div class="th-wrapper">
+                                    <label class="batch-col-toggle batch-toggle-el" style="display: none;">
+                                        <input type="checkbox" class="batch-col-checkbox" data-col="edit"> Chọn cột
+                                    </label>
                                     <span class="th-title">Bản bê ta</span>
                                     <span class="col-count" id="count-edit" title="0 từ • 0 ký tự">0 từ</span>
                                     <button class="col-copy-btn" data-col="edit" data-format="story">📋 Copy</button>
@@ -356,7 +401,7 @@
                         <option value="translation">Bản ê đít</option>
                         <option value="qt">Bản QT</option>
                         <option value="edit">Bản bê ta</option>
-                        <option value="meaning">Nghĩa của từ</option>
+                        <option value="meaning">Chú thích</option>
                     </select>
                 </div>
                 

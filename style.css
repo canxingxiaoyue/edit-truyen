@@ -129,56 +129,10 @@ header {
     flex-wrap: nowrap !important;
 }
 
-.btn-icon-nav {
-    position: relative;
-    min-width: 42px;
-    min-height: 42px;
-    padding: 10px 12px;
-    background: var(--border-color);
-    color: var(--text-color);
-    border-radius: 12px;
-    font-size: 1rem;
-}
-
-.badge-count {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 20px;
-    height: 20px;
-    background-color: var(--btn-danger);
-    color: white;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    position: absolute;
-    top: 6px;
-    right: 6px;
-}
-
-.top-bar {
-    padding: 10px 20px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.top-bar h1 { font-size: 1.3rem; margin: 0; text-transform: lowercase; }
-
 .font-controls {
     display: flex; gap: 5px; align-items: center; flex-wrap: wrap; font-weight: bold;
 }
-.clerk-auth-container {
-    display: inline-flex;
-    align-items: center;
-    margin-left: 4px;
-}
-#btn-clerk-login {
-    padding: 4px 10px;
-}
+
 .font-controls button {
     padding: 4px 10px;
     background: var(--border-color);
@@ -371,7 +325,7 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
 
 /* ================= HIỆU ỨNG BÔI ĐEN ĐỒNG THỜI REAL-TIME (RAW ↔ QT) ================= */
 .sync-highlight {
-    background-color: #fde047 !important; /* Màu vàng tươi nổi bật */
+    background-color: #fde047 !important;
     color: #000000 !important;
     font-weight: bold;
     border-radius: 3px;
@@ -398,17 +352,7 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
     color: #000000 !important;
 }
 
-/* ĐỊNH DẠNG KHUNG CHỨA AVATAR USER CLERK */
-#clerk-auth-container {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-width: 35px;
-    min-height: 35px;
-    margin-left: 10px;
-}
-
-/* ================= BẢNG EXCEL ĐỘC LẬP (TAB 2) ================= */
+/* ================= MỤC 2: THÔNG TIN TRUYỆN (GIAO DIỆN KHỐI DỌC & TÌM KIẾM) ================= */
 .story-title-bar {
     background-color: var(--info-blue-bg);
     color: var(--info-header-text);
@@ -429,16 +373,66 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
 }
 .story-header-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
 
-/* CSS GRID HIỆN ĐẠI CHO MỤC 2 */
+/* Thanh tìm kiếm thời gian thực */
+.meta-search-container {
+    padding: 8px 20px;
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.meta-search-wrapper {
+    display: flex;
+    align-items: center;
+    max-width: 550px;
+    background: var(--bg-color);
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    padding: 5px 12px;
+    transition: all 0.2s ease;
+}
+
+.meta-search-wrapper:focus-within {
+    border-color: var(--btn-primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.meta-search-icon {
+    margin-right: 8px;
+    font-size: 0.95rem;
+    color: gray;
+}
+
+.meta-search-wrapper input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--text-color);
+    outline: none;
+    font-size: 0.9rem;
+    font-family: inherit;
+}
+
+.btn-clear-search {
+    background: transparent;
+    border: none;
+    color: gray;
+    cursor: pointer;
+    font-size: 0.95rem;
+    padding: 0 4px;
+}
+.btn-clear-search:hover { color: var(--btn-danger); }
+
+/* Khung lưới 3 mục thông tin truyện */
 .story-tables-wrapper {
     display: grid;
     grid-template-columns: 1.25fr 1fr;
     grid-template-rows: 1fr 1fr;
     gap: 15px;
     padding: 15px;
-    height: calc(100vh - 160px);
+    height: calc(100vh - 200px);
     overflow: hidden;
 }
+
 .story-section-box {
     display: flex; flex-direction: column;
     border: 1px solid var(--border-color); border-radius: 6px;
@@ -467,10 +461,6 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
     min-width: 0 !important;
 }
 
-.table-divider {
-    display: none !important;
-}
-
 .section-toolbar {
     display: flex; justify-content: space-between; align-items: center;
     padding: 10px 12px; font-weight: bold; font-size: 1rem; color: var(--info-header-text);
@@ -482,17 +472,168 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
 .section-actions { display: flex; gap: 5px; }
 .btn-sm { padding: 4px 8px !important; font-size: 0.75rem !important; border-radius: 4px !important; }
 
-.table-responsive { overflow-y: auto; flex-grow: 1; }
-
-.info-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; table-layout: fixed; }
-.info-table th {
-    position: sticky; top: 0; background-color: var(--th-bg); color: var(--text-color);
-    border: 1px solid var(--border-color); padding: 8px; font-size: 0.85rem;
-    z-index: 5; text-align: center; text-transform: none; width: auto;
+/* Vùng cuộn danh sách khối thẻ dọc */
+.info-cards-scroll {
+    overflow-y: auto;
+    flex-grow: 1;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
-.info-table td { border: 1px solid var(--border-color); padding: 6px 8px; outline: none; word-break: break-word; vertical-align: top; }
-.info-table tr:hover td { background-color: var(--row-hover); }
-.info-table tr.active-info-row td { background-color: var(--row-active) !important; }
+
+/* Thẻ khối nhân vật & xưng hô */
+.meta-card-block {
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px 14px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.meta-card-block:hover {
+    border-color: var(--btn-primary);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.06);
+}
+
+.meta-card-block.active-info-card {
+    border-color: var(--btn-primary) !important;
+    background: rgba(59, 130, 246, 0.05) !important;
+    box-shadow: 0 0 0 2px var(--btn-primary) !important;
+}
+
+.meta-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed var(--border-color);
+    color: var(--info-header-text);
+}
+
+.meta-field-row {
+    display: flex;
+    align-items: baseline;
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+    gap: 8px;
+}
+
+.meta-field-label {
+    font-weight: 700;
+    color: var(--text-color);
+    min-width: 150px;
+    flex-shrink: 0;
+    opacity: 0.85;
+}
+
+.pink-section .meta-field-label { min-width: 60px; }
+
+.meta-field-value {
+    flex: 1;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid transparent;
+    outline: none;
+    min-height: 26px;
+    word-break: break-word;
+    white-space: pre-wrap;
+    transition: all 0.2s;
+}
+
+[data-theme="dark"] .meta-field-value {
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.meta-field-value:focus {
+    border-color: var(--btn-primary);
+    background: var(--header-bg);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Định dạng Mục 3: Thống nhất từ ngữ (Dạng dòng Hán = Tên đổi) */
+.term-line-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.term-line-item:hover {
+    border-color: var(--btn-warning);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.term-line-item.active-info-card {
+    border-color: var(--btn-warning) !important;
+    background: rgba(245, 158, 11, 0.08) !important;
+    box-shadow: 0 0 0 2px var(--btn-warning) !important;
+}
+
+.term-part-cn, .term-part-vi {
+    flex: 1;
+    padding: 5px 10px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid transparent;
+    outline: none;
+    min-height: 28px;
+    font-family: inherit;
+    transition: all 0.2s;
+}
+
+[data-theme="dark"] .term-part-cn, [data-theme="dark"] .term-part-vi {
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.term-part-cn:focus, .term-part-vi:focus {
+    border-color: var(--btn-warning);
+    background: var(--header-bg);
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
+
+.term-equal-sign {
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: var(--btn-warning);
+    padding: 0 4px;
+    user-select: none;
+}
+
+.meta-no-result {
+    text-align: center;
+    color: gray;
+    font-style: italic;
+    padding: 24px 10px;
+    font-size: 0.9rem;
+}
+
+.btn-card-del {
+    background: transparent;
+    border: none;
+    color: var(--btn-danger);
+    font-size: 0.85rem;
+    cursor: pointer;
+    opacity: 0.6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.15s;
+}
+.btn-card-del:hover {
+    opacity: 1;
+    background: rgba(239, 68, 68, 0.1);
+}
 
 /* ================= MODAL & HỘP THOẠI PHỤ ================= */
 .modal-overlay {
@@ -510,45 +651,12 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
 .modal-body-scroll { flex-grow: 1; overflow-y: auto; padding-right: 5px; }
 
 .modal-group { margin-bottom: 12px; }
-
-.project-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    margin-bottom: 10px;
-    background: var(--bg-color);
-}
-
-.project-item strong {
-    display: block;
-    margin-bottom: 4px;
-}
-
-.project-item .project-meta {
-    font-size: 0.85rem;
-    color: #475569;
-}
-
-.project-actions {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-}
-
-.project-actions button {
-    padding: 6px 10px;
-    font-size: 0.75rem;
-}
 .modal-group label { display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: bold; }
 .modal-group input, .modal-group select {
     width: 100%; padding: 8px; border: 1px solid var(--border-color);
     border-radius: 4px; background: var(--bg-color); color: var(--text-color);
 }
 
-/* Định dạng riêng cho ô dán Name QT trong Modal */
 #nameqt-text-input {
     width: 100%;
     padding: 8px;
@@ -558,29 +666,6 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
     color: var(--text-color);
     font-family: monospace;
     resize: vertical;
-}
-
-/* TRANG TRÍ AVATAR USER TRÒN NỔI BẬT */
-.user-avatar-wrapper {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    cursor: pointer !important;
-    margin-left: 8px;
-    transition: transform 0.2s ease;
-}
-
-.user-avatar-wrapper:hover {
-    transform: scale(1.1);
-}
-
-.user-avatar-img {
-    width: 34px !important;
-    height: 34px !important;
-    border-radius: 50% !important;
-    object-fit: cover !important;
-    border: 2px solid var(--btn-primary) !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
 }
 
 .modal-sub-title { margin: 15px 0 8px 0; font-size: 0.95rem; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; font-weight: bold; }
@@ -638,7 +723,6 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
     margin-bottom: 15px;
 }
 
-/* Lưới bọc các nút trợ giúp */
 .name-helpers {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -770,7 +854,7 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
     border-radius: 6px;
     cursor: pointer;
     font-size: 0.95rem;
-    list-style: none; /* Ẩn mũi tên mặc định */
+    list-style: none;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -949,12 +1033,6 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
         width: 100% !important;
     }
 
-    #clerk-auth-container {
-        display: flex !important;
-        justify-content: center !important;
-        width: 100% !important;
-    }
-
     /* 4. THANH CÔNG CỤ (ÉP BUỘC LƯỚT NGANG) */
     .story-title-bar {
         flex-direction: column !important;
@@ -1019,7 +1097,7 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
         text-align: center !important;
     }
 
-    /* 7. MỤC 2: THÔNG TIN TRUYỆN */
+    /* 7. MỤC 2: THÔNG TIN TRUYỆN TRÊN ĐIỆN THOẠI */
     .story-tables-wrapper {
         display: flex !important;
         flex-direction: column !important;
@@ -1027,12 +1105,17 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
         overflow-y: visible !important;
     }
 
-    .table-responsive {
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch !important;
+    .info-cards-scroll {
+        max-height: 480px;
     }
 
-    .info-table {
-        min-width: 600px !important;
+    .meta-field-row {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 4px !important;
+    }
+
+    .meta-field-label {
+        min-width: unset !important;
     }
 }

@@ -228,13 +228,14 @@
             </div>
         </div>
 
-        <!-- MỤC 2: THÔNG TIN TRUYỆN -->
+        <!-- MỤC 2: THÔNG TIN TRUYỆN (DANH SÁCH KHỐI DỌC & TÌM KIẾM THỜI GIAN THỰC) -->
         <div id="story-info-section" class="tab-section-content">
             <div class="story-title-bar">
                 <span class="title-label">Tên truyện:</span>
                 <input type="text" id="story-title-input" placeholder="Nhập tên truyện cần lưu...">
                 
                 <div class="story-header-actions">
+                    <button class="btn-copy btn-sm" id="btn-copy-all-meta" title="Sao chép toàn bộ thông tin truyện">📋 Copy toàn bộ thông tin</button>
                     <button class="btn-file btn-sm" id="btn-meta-undo" title="Hoàn tác thông tin (Ctrl+Z)" disabled>↩️ Undo</button>
                     <button class="btn-file btn-sm" id="btn-meta-redo" title="Làm lại thông tin (Ctrl+Y)" disabled>🔁 Redo</button>
                     
@@ -242,7 +243,7 @@
                     
                     <div class="divider" style="height: 18px; margin: 0 4px;"></div>
                     
-                    <button class="btn-tool btn-sm" id="btn-history-meta-show" title="Xem lịch sử sửa đổi thông tin truyện">📜 Lịch sử thông</button>
+                    <button class="btn-tool btn-sm" id="btn-history-meta-show" title="Xem lịch sử sửa đổi thông tin truyện">📜 Lịch sử thông tin</button>
                     
                     <button class="btn-file btn-sm" id="btn-export-meta">💾 Lưu thông tin (.JSON)</button>
                     <button class="btn-file btn-sm" id="btn-import-meta">📂 Mở file thông tin</button>
@@ -250,77 +251,53 @@
                 </div>
             </div>
 
+            <!-- THANH TÌM KIẾM THÔNG TIN TRUYỆN THỜI GIAN THỰC -->
+            <div class="meta-search-container">
+                <div class="meta-search-wrapper">
+                    <span class="meta-search-icon">🔍</span>
+                    <input type="text" id="meta-search-input" placeholder="Tìm nhân vật, cách xưng hô, thuật ngữ...">
+                    <button type="button" id="btn-clear-meta-search" class="btn-clear-search" style="display: none;" title="Xóa từ khóa">✕</button>
+                </div>
+            </div>
+
             <div class="story-tables-wrapper">
-                <!-- 1. BẢNG NHÂN VẬT -->
+                <!-- 1. BẢNG NHÂN VẬT (DANH SÁCH KHỐI DỌC) -->
                 <div class="story-section-box green-section">
                     <div class="section-toolbar">
                         <span>1. Nhân vật trong truyện</span>
                         <div class="section-actions">
-                            <button class="btn-add btn-sm" id="btn-add-char">➕ Thêm hàng</button>
-                            <button class="btn-delete btn-sm" id="btn-delete-char">🗑️ Xóa hàng</button>
+                            <button class="btn-copy btn-sm" id="btn-copy-chars" title="Copy danh sách nhân vật">📋 Copy mục này</button>
+                            <button class="btn-add btn-sm" id="btn-add-char">➕ Thêm nhân vật</button>
+                            <button class="btn-delete btn-sm" id="btn-delete-char" title="Xóa nhân vật đang chọn">🗑️ Xóa</button>
                         </div>
                     </div>
-                    <div class="table-responsive">
-                        <table class="info-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 20%;">Tên tiếng Trung</th>
-                                    <th style="width: 20%;">Tên tiếng Việt</th>
-                                    <th style="width: 20%;">Ngôi thứ 3 người khác gọi</th>
-                                    <th style="width: 25%;">Miêu tả nhân vật</th>
-                                    <th style="width: 15%;">Ngôi thứ ba</th>
-                                </tr>
-                            </thead>
-                            <tbody id="body-characters"></tbody>
-                        </table>
-                    </div>
+                    <div class="info-cards-scroll" id="body-characters"></div>
                 </div>
 
-                <!-- 2. BẢNG XƯNG HÔ -->
+                <!-- 2. BẢNG XƯNG HÔ (DANH SÁCH KHỐI DỌC) -->
                 <div class="story-section-box pink-section">
                     <div class="section-toolbar">
                         <span>2. Xưng hô</span>
                         <div class="section-actions">
-                            <button class="btn-add btn-sm" id="btn-add-pro">➕ Thêm hàng</button>
-                            <button class="btn-delete btn-sm" id="btn-delete-pro">🗑️ Xóa hàng</button>
+                            <button class="btn-copy btn-sm" id="btn-copy-pros" title="Copy danh sách xưng hô">📋 Copy mục này</button>
+                            <button class="btn-add btn-sm" id="btn-add-pro">➕ Thêm xưng hô</button>
+                            <button class="btn-delete btn-sm" id="btn-delete-pro" title="Xóa xưng hô đang chọn">🗑️ Xóa</button>
                         </div>
                     </div>
-                    <div class="table-responsive">
-                        <table class="info-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 15%;">A</th>
-                                    <th style="width: 15%;">B</th>
-                                    <th style="width: 25%;">A-B</th>
-                                    <th style="width: 25%;">B-A</th>
-                                    <th style="width: 20%;">Ghi chú</th>
-                                </tr>
-                            </thead>
-                            <tbody id="body-pronouns"></tbody>
-                        </table>
-                    </div>
+                    <div class="info-cards-scroll" id="body-pronouns"></div>
                 </div>
 
-                <!-- 3. BẢNG THỐNG NHẤT TỪ NGỮ -->
+                <!-- 3. BẢNG THỐNG NHẤT TỪ NGỮ (DẠNG DÒNG HÁN = TÊN ĐỔI) -->
                 <div class="story-section-box yellow-section">
                     <div class="section-toolbar">
-                        <span>Thống nhất từ ngữ</span>
+                        <span>3. Thống nhất từ ngữ</span>
                         <div class="section-actions">
-                            <button class="btn-add btn-sm" id="btn-add-term">➕ Thêm hàng</button>
-                            <button class="btn-delete btn-sm" id="btn-delete-term">🗑️ Xóa hàng</button>
+                            <button class="btn-copy btn-sm" id="btn-copy-terms" title="Copy danh sách thuật ngữ">📋 Copy mục này</button>
+                            <button class="btn-add btn-sm" id="btn-add-term">➕ Thêm từ ngữ</button>
+                            <button class="btn-delete btn-sm" id="btn-delete-term" title="Xóa từ ngữ đang chọn">🗑️ Xóa</button>
                         </div>
                     </div>
-                    <div class="table-responsive">
-                        <table class="info-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 50%;">Tên Trung + Tên Hán</th>
-                                    <th style="width: 50%;">Tên đổi</th>
-                                </tr>
-                            </thead>
-                            <tbody id="body-terms"></tbody>
-                        </table>
-                    </div>
+                    <div class="info-cards-scroll" id="body-terms"></div>
                 </div>
             </div>
         </div>

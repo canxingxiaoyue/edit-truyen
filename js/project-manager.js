@@ -1,5 +1,5 @@
 // =========================================================================
-// QUẢN LÝ DỰ ÁN DỮ LIỆU - TẢI TỨC THÌ & HỖ TRỢ THAY THẾ / GHI ĐÈ CHƯƠNG
+// QUẢN LÝ DỰ ÁN DỮ LIỆU - TẢI TỨC THÌ & NÚT THAO TÁC TỐI GIẢN, THANH LỊCH
 // =========================================================================
 
 let localSavedProjectsCache = []; 
@@ -127,7 +127,7 @@ function calculateStorageMetrics() {
     }
 }
 
-// 4. HIỂN THỊ DANH SÁCH DỰ ÁN (CÓ 3 NÚT: MỞ, THAY THẾ, XÓA)
+// 4. HIỂN THỊ DANH SÁCH DỰ ÁN (BỘ NÚT BẤM TỐI GIẢN, THANH LỊCH)
 function renderMyProjectsListUI() {
     const listBody = document.getElementById('my-projects-list-body');
     if (!listBody) return;
@@ -165,10 +165,12 @@ function renderMyProjectsListUI() {
             <td style="text-align:center;">${proj.rowCount || 0} hàng</td>
             <td style="text-align:center; font-size:0.85rem;">${dateStr}</td>
             <td style="text-align:center;">${sizeKB} KB</td>
-            <td style="text-align:center; white-space:nowrap;">
-                <button class="btn-add btn-xs btn-open-proj" data-id="${proj.id}" title="Mở dự án này ra màn hình">📂 Mở</button>
-                <button class="btn-tool btn-xs btn-replace-proj" data-id="${proj.id}" title="Ghi đè chương hiện tại vào dự án này" style="background:#0284c7; color:#fff;">🔄 Thay thế</button>
-                <button class="btn-danger btn-xs btn-del-proj" data-id="${proj.id}" title="Xóa">🗑️ Xóa</button>
+            <td style="text-align:center;">
+                <div class="proj-actions-cell">
+                    <button class="btn-proj-action action-open btn-open-proj" data-id="${proj.id}" title="Mở dự án này ra màn hình">Mở</button>
+                    <button class="btn-proj-action action-replace btn-replace-proj" data-id="${proj.id}" title="Ghi đè chương hiện tại vào dự án này">Thay thế</button>
+                    <button class="btn-proj-action action-delete btn-del-proj" data-id="${proj.id}" title="Xóa dự án này">Xóa</button>
+                </div>
             </td>
         `;
         listBody.appendChild(tr);

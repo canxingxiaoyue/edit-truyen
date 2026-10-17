@@ -964,83 +964,137 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
 .history-actions { display: flex; gap: 6px; }
 
 /* ========================================================= */
-/* TỐI ƯU KÍCH THƯỚC BẢNG DỰ ÁN CỦA TÔI (CÓ THANH KÉO CUỘN NGANG DỄ NHÌN) */
+/* TỐI ƯU BẢNG DỰ ÁN: GỌN GÀNG, THANH LỊCH & ĐỒNG BỘ THEME */
 /* ========================================================= */
 .modal-projects-box {
     width: 780px !important;
     max-width: 95vw !important;
     max-height: 85vh !important;
-    padding: 18px 22px !important;
-    border-radius: 14px !important;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28) !important;
+    padding: 20px 24px !important;
+    border-radius: 16px !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2) !important;
 }
 
 .modal-projects-box h3 {
-    font-size: 1.2rem !important;
+    font-size: 1.25rem !important;
     margin-bottom: 4px !important;
 }
 
 .modal-projects-box .modal-desc {
-    font-size: 0.82rem !important;
-    margin-bottom: 6px !important;
-    opacity: 0.9;
+    font-size: 0.85rem !important;
+    margin-bottom: 8px !important;
+    opacity: 0.85;
 }
 
-/* Khung cuộn danh sách dự án: Bật thanh kéo cuộn ngang mượt mà */
+/* KHUNG CUỘN DANH SÁCH DỰ ÁN */
 .projects-scroll-box {
     max-height: 50vh !important;
-    overflow-x: auto !important; /* MỞ THANH KÉO NGANG */
+    overflow-x: auto !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 10px;
+    scrollbar-width: thin !important;
+    scrollbar-color: var(--border-color) transparent !important;
 }
 
-/* Tùy chỉnh thanh kéo cuộn ngang to rõ, dễ bấm trên máy tính & điện thoại */
+/* THANH KÉO CUỘN: TỰ ĐỘNG ĐỒNG BỘ THEO MÀU NỀN THEME ĐANG CHỌN */
 .projects-scroll-box::-webkit-scrollbar {
-    height: 8px !important;
+    height: 6px !important;
     width: 6px !important;
 }
+
 .projects-scroll-box::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: 4px;
-}
-.projects-scroll-box::-webkit-scrollbar-thumb {
-    background: var(--btn-primary);
-    border-radius: 4px;
-}
-.projects-scroll-box::-webkit-scrollbar-thumb:hover {
-    background: var(--btn-primary-hover);
+    background: transparent !important;
 }
 
+.projects-scroll-box::-webkit-scrollbar-thumb {
+    background-color: var(--border-color) !important; /* Lấy trực tiếp màu viền theme */
+    border-radius: 10px !important;
+    transition: background-color 0.2s ease !important;
+}
+
+.projects-scroll-box::-webkit-scrollbar-thumb:hover {
+    background-color: var(--btn-secondary) !important;
+}
+
+/* ĐỊNH DẠNG BẢNG DỰ ÁN */
 .projects-table {
-    min-width: 640px !important; /* Đảm bảo đủ chỗ hiển thị cho tất cả các cột và nút bấm */
+    min-width: 640px !important;
     width: 100% !important;
     table-layout: fixed !important;
     border-collapse: collapse !important;
 }
 
 .projects-table th {
-    padding: 8px 6px !important;
-    font-size: 0.82rem !important;
+    padding: 10px 8px !important;
+    font-size: 0.85rem !important;
+    font-weight: 700 !important;
+    color: var(--text-color) !important;
     background-color: var(--th-bg) !important;
+    border-bottom: 1.5px solid var(--border-color) !important;
     white-space: nowrap !important;
 }
 
 .projects-table td {
-    padding: 8px 6px !important;
-    font-size: 0.85rem !important;
+    padding: 10px 8px !important;
+    font-size: 0.88rem !important;
     vertical-align: middle !important;
+    border-bottom: 1px solid var(--border-color) !important;
     word-break: break-word !important;
 }
 
-.projects-table td button {
+/* ========================================================= */
+/* BỘ NÚT THAO TÁC TỐI GIẢN - ĐƠN GIẢN MÀ ĐẸP (CLEAN PILL) */
+/* ========================================================= */
+.proj-actions-cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.btn-proj-action {
+    padding: 4px 10px !important;
+    font-size: 0.78rem !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
+    border: 1px solid var(--border-color) !important;
+    background: var(--bg-color) !important;
+    color: var(--text-color) !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
     display: inline-flex !important;
-    padding: 3px 6px !important;
-    font-size: 0.72rem !important;
-    margin: 0 1px !important;
-    border-radius: 4px !important;
-    white-space: nowrap !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+.btn-proj-action:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Nút Mở: Ửng xanh dương nhẹ nhàng */
+.btn-proj-action.action-open:hover {
+    background: rgba(59, 130, 246, 0.12) !important;
+    border-color: var(--btn-primary) !important;
+    color: var(--btn-primary) !important;
+}
+
+/* Nút Thay thế: Ửng xanh ngọc trang nhã */
+.btn-proj-action.action-replace:hover {
+    background: rgba(16, 185, 129, 0.12) !important;
+    border-color: var(--btn-success) !important;
+    color: var(--btn-success) !important;
+}
+
+/* Nút Xóa: Ửng đỏ hồng tinh tế */
+.btn-proj-action.action-delete:hover {
+    background: rgba(239, 68, 68, 0.12) !important;
+    border-color: var(--btn-danger) !important;
+    color: var(--btn-danger) !important;
 }
 
 /* ========================================================= */

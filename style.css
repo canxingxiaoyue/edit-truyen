@@ -325,7 +325,7 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
 
 /* ================= HIỆU ỨNG BÔI ĐEN ĐỒNG THỜI REAL-TIME (RAW ↔ QT) ================= */
 .sync-highlight {
-    background-color: #fde047 !important; /* Màu vàng tươi nổi bật */
+    background-color: #fde047 !important;
     color: #000000 !important;
     font-weight: bold;
     border-radius: 3px;
@@ -964,12 +964,12 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
 .history-actions { display: flex; gap: 6px; }
 
 /* ========================================================= */
-/* TỐI ƯU KÍCH THƯỚC BẢNG DỰ ÁN CỦA TÔI (GỌN GÀNG, VỪA MÀN HÌNH) */
+/* TỐI ƯU KÍCH THƯỚC BẢNG DỰ ÁN CỦA TÔI (CÓ THANH KÉO CUỘN NGANG DỄ NHÌN) */
 /* ========================================================= */
 .modal-projects-box {
-    width: 720px !important;
-    max-width: 90vw !important;
-    max-height: 82vh !important;
+    width: 780px !important;
+    max-width: 95vw !important;
+    max-height: 85vh !important;
     padding: 18px 22px !important;
     border-radius: 14px !important;
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28) !important;
@@ -986,15 +986,35 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     opacity: 0.9;
 }
 
-/* Khung cuộn danh sách dự án: không bị thanh cuộn ngang đè */
+/* Khung cuộn danh sách dự án: Bật thanh kéo cuộn ngang mượt mà */
 .projects-scroll-box {
-    max-height: 48vh !important;
-    overflow-x: hidden !important; 
+    max-height: 50vh !important;
+    overflow-x: auto !important; /* MỞ THANH KÉO NGANG */
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
     border: 1px solid var(--border-color);
     border-radius: 8px;
 }
 
+/* Tùy chỉnh thanh kéo cuộn ngang to rõ, dễ bấm trên máy tính & điện thoại */
+.projects-scroll-box::-webkit-scrollbar {
+    height: 8px !important;
+    width: 6px !important;
+}
+.projects-scroll-box::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+}
+.projects-scroll-box::-webkit-scrollbar-thumb {
+    background: var(--btn-primary);
+    border-radius: 4px;
+}
+.projects-scroll-box::-webkit-scrollbar-thumb:hover {
+    background: var(--btn-primary-hover);
+}
+
 .projects-table {
+    min-width: 640px !important; /* Đảm bảo đủ chỗ hiển thị cho tất cả các cột và nút bấm */
     width: 100% !important;
     table-layout: fixed !important;
     border-collapse: collapse !important;
@@ -1004,6 +1024,7 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     padding: 8px 6px !important;
     font-size: 0.82rem !important;
     background-color: var(--th-bg) !important;
+    white-space: nowrap !important;
 }
 
 .projects-table td {
@@ -1019,6 +1040,7 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     font-size: 0.72rem !important;
     margin: 0 1px !important;
     border-radius: 4px !important;
+    white-space: nowrap !important;
 }
 
 /* ========================================================= */

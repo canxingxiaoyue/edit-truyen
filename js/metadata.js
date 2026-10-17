@@ -695,4 +695,17 @@ function initMetadataEvents() {
     document.getElementById('btn-copy-all-meta')?.addEventListener('click', () => {
         copyTextSafely(getFormattedAllMetadataText(), 'Đã sao chép toàn bộ thông tin truyện!');
     });
+
+    // =========================================================================
+    // SỰ KIỆN CLICK ĐỂ ĐÓNG/MỞ TỪNG MỤC (SỬ DỤNG EVENT DELEGATION CHỐNG LỖI 100%)
+    // =========================================================================
+    document.addEventListener('click', (e) => {
+        const toggleBtn = e.target.closest('.section-collapse-toggle');
+        if (toggleBtn) {
+            const sectionBox = toggleBtn.closest('.story-section-box');
+            if (sectionBox) {
+                sectionBox.classList.toggle('collapsed');
+            }
+        }
+    });
 }

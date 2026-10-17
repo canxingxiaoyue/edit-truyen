@@ -1,5 +1,5 @@
 // =========================================================================
-// GOOGLE DRIVE API V3 - ĐĂNG NHẬP VĨNH VIỄN & FIX LỖI 403 LỊCH SỬ
+// GOOGLE DRIVE API V3 - ĐĂNG NHẬP VĨNH VIỄN, FIX 403 & HỖ TRỢ THAY THẾ DỰ ÁN
 // =========================================================================
 
 const CLIENT_ID = '214662773459-nepa84k1u7uhp1j08p250f9v42q0mbk6.apps.googleusercontent.com';
@@ -218,7 +218,7 @@ async function gdriveFetchAllFileNames(folderId) {
 }
 
 // =========================================================================
-// Ổ CHƯƠNG TRUYỆN
+// Ổ CHƯƠNG TRUYỆN (LƯU MỚI, THAY THẾ/GHI ĐÈ, MỞ, XÓA)
 // =========================================================================
 async function gdriveListProjects() {
     const token = await getValidToken();
@@ -301,6 +301,46 @@ async function gdriveSaveProject(projObj) {
         return { success: true, savedName: finalProjectName, fileId: savedData.id };
     }
     return { success: false };
+}
+
+// 🟢 HÀM MỚI BỔ SUNG: GHI ĐÈ / THAY THẾ CHƯƠNG VÀO DỰ ÁN CŨ TRÊN GOOGLE DRIVE
+async function gdriveUpdateProject(fileId, projObj) {
+    const token = await getValidToken();
+    if (!token) return { success: false };
+
+    const originalFileName = `${projObj.name}.json`;
+    const metadata = {
+        name: originalFileName,
+        mimeType: 'application/json',
+        appProperties: {
+            name: projObj.name,
+            chapterTitle: projObj.chapterTitle || '',
+            storyTitle: projObj.storyTitle || '',
+            rowCount: String(projObj.rowCount || 0),
+            size: String(projObj.size || 0),
+            updatedAt: String(projObj.updatedAt || Date.now())
+        }
+    };
+
+    const boundary = '-------GDriveBoundary' + Date.now();
+    const multipartRequestBody =
+        `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
+        JSON.stringify(metadata) +
+        `\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n` +
+        JSON.stringify(projObj) +
+        `\r\n--${boundary}--`;
+
+    // Dùng PATCH để cập nhật trực tiếp nội dung và thông tin file cũ, không tạo trùng file
+    const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': `multipart/related; boundary=${boundary}`
+        },
+        body: multipartRequestBody
+    });
+
+    return { success: res.ok };
 }
 
 async function gdriveGetProjectContent(fileId) {
@@ -468,7 +508,6 @@ async function gdriveSaveHistoryCloud(type, historyArray) {
         appProperties: { type: 'cloud_history', historyType: type }
     };
     
-    // Google Drive cấm gửi 'parents' khi cập nhật file (PATCH) nên ta chỉ gán khi tạo mới
     if (!existingId && folderId) {
         metadata.parents = [folderId];
     }

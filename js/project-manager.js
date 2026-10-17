@@ -173,7 +173,7 @@ function renderMyProjectsListUI() {
 
         tr.innerHTML = `
             ${isProjectBatchMode ? `
-            <td class="proj-batch-td" style="text-align:center; width:36px;">
+            <td class="proj-batch-td" style="text-align:center; width:38px;">
                 <input type="checkbox" class="check-project-item" data-id="${proj.id}" ${isChecked ? 'checked' : ''}>
             </td>` : ''}
             <td><strong>📄 ${escapeHTML(proj.name)}</strong>${proj.storyTitle ? `<br><small style="color:gray;">📚 ${escapeHTML(proj.storyTitle)}</small>` : ''}</td>
@@ -246,7 +246,6 @@ function toggleProjectDropdownMenu(buttonEl, projId) {
     menu.style.display = 'flex';
     menu.dataset.projId = projId;
 
-    // Tự động tính toán toạ độ nổi và lật hướng nếu gần mép dưới màn hình
     const rect = buttonEl.getBoundingClientRect();
     const menuWidth = 190;
     const menuHeight = 180;
@@ -255,7 +254,7 @@ function toggleProjectDropdownMenu(buttonEl, projId) {
     let left = rect.right - menuWidth;
 
     if (top + menuHeight > window.innerHeight - 12) {
-        top = rect.top - menuHeight - 4; // Lật ngược lên trên
+        top = rect.top - menuHeight - 4; // Lật ngược lên trên nếu gần đáy
     }
     if (left < 10) left = 10;
 
@@ -341,7 +340,7 @@ async function handleRenameProject(projId) {
     if (!proj) return;
 
     let newName = prompt("Nhập tên mới cho dự án:", proj.name);
-    if (newName === null) return; // Người dùng ấn Hủy
+    if (newName === null) return;
     newName = newName.trim();
 
     if (!newName) {
@@ -350,7 +349,6 @@ async function handleRenameProject(projId) {
     }
     if (newName === proj.name) return;
 
-    // Kiểm tra trùng tên
     const existingNames = localSavedProjectsCache.filter(p => p.id !== projId).map(p => p.name);
     if (existingNames.some(n => n.toLowerCase().trim() === newName.toLowerCase().trim())) {
         const { candidate } = getNextInputProjectName(newName, existingNames);
@@ -363,7 +361,6 @@ async function handleRenameProject(projId) {
 
     showToast(`⏳ Đang đổi tên dự án thành "${newName}"...`, "var(--btn-info)");
 
-    // Đổi tên trên Google Drive
     if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
         if (typeof gdriveRenameProject === 'function') {
             const res = await gdriveRenameProject(projId, newName);
@@ -396,7 +393,6 @@ async function handleDuplicateProject(projId) {
         if (remoteData) fullData = remoteData;
     }
 
-    // Tạo tên bản sao không trùng lặp
     const existingNames = localSavedProjectsCache.map(p => p.name);
     let baseCopyName = `${summary.name} (Bản sao)`;
     let candidateName = baseCopyName;
@@ -509,14 +505,25 @@ function toggleProjectBatchMode(forceState = null) {
     const batchTh = document.querySelector('.proj-batch-th');
 
     if (batchBtn) {
-        if (isProjectBatchMode) batchBtn.classList.add('active');
-        else batchBtn.classList.remove('active');
+        if (isProjectBatchMode) {
+            batchBtn.classList.add('active');
+            batchBtn.innerHTML = '✕ Đang chọn';
+        } else {
+            batchBtn.classList.remove('active');
+            batchBtn.innerHTML = '☑️ Chọn nhiều';
+        }
     }
 
     if (batchBar) batchBar.style.display = isProjectBatchMode ? 'flex' : 'none';
     if (batchTh) batchTh.style.display = isProjectBatchMode ? 'table-cell' : 'none';
 
     renderMyProjectsListUI();
+}
+
+function deselectAllProjectBatch() {
+    selectedProjectIds.clear();
+    document.querySelectorAll('.check-project-item').forEach(cb => cb.checked = false);
+    updateProjectBatchUI();
 }
 
 function updateProjectBatchUI() {
@@ -570,6 +577,11 @@ async function executeProjectBatchDelete() {
         showToast(`⚠️ Đã xóa ${successCount}/${count} dự án. ${failCount} dự án chưa xóa được.`, "var(--btn-warning)");
     }
 }
+
+// XUẤT HÀM TOÀN CỤC CHO ONCLICK GỌI TRỰC TIẾP TỪ HTML
+window.toggleProjectBatchMode = toggleProjectBatchMode;
+window.deselectAllProjectBatch = deselectAllProjectBatch;
+window.executeProjectBatchDelete = executeProjectBatchDelete;
 
 // =========================================================================
 // 8. LƯU CHƯƠNG HIỆN TẠI THÀNH BẢN MỚI
@@ -643,23 +655,7 @@ function initProjectManagerEvents() {
         }
     });
 
-    // SỰ KIỆN CHỌN NHIỀU DỰ ÁN
-    document.getElementById('btn-toggle-project-batch')?.addEventListener('click', () => {
-        toggleProjectBatchMode();
-    });
-
-    document.getElementById('btn-project-batch-deselect')?.addEventListener('click', () => {
-        selectedProjectIds.clear();
-        document.querySelectorAll('.check-project-item').forEach(cb => cb.checked = false);
-        updateProjectBatchUI();
-    });
-
-    document.getElementById('btn-project-batch-exit')?.addEventListener('click', () => {
-        toggleProjectBatchMode(false);
-    });
-
-    document.getElementById('btn-project-batch-delete')?.addEventListener('click', executeProjectBatchDelete);
-
+    // MASTER CHECKBOX CHỌN TẤT CẢ DỰ ÁN
     document.getElementById('check-all-projects')?.addEventListener('change', (e) => {
         const isChecked = e.target.checked;
         selectedProjectIds.clear();
@@ -682,7 +678,6 @@ function initProjectManagerEvents() {
 
             if (!projId) return;
 
-            // Chờ menu đóng xong mới thực thi hành động để tránh xung đột UI
             setTimeout(async () => {
                 switch (action) {
                     case 'rename':

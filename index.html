@@ -497,24 +497,24 @@
             <h3>📂 Dự án của tôi</h3>
             <p class="modal-desc" id="storage-summary-info">Đang tính toán dung lượng...</p>
 
-            <!-- THANH TÌM KIẾM, SẮP XẾP & NÚT CHỌN NHIỀU -->
+            <!-- THANH TÌM KIẾM, SẮP XẾP & NÚT CHỌN NHIỀU (GẮN TRỰC TIẾP ONCLICK) -->
             <div class="project-toolbar-bar" style="display:flex; gap:8px; align-items:center; margin: 8px 0; flex-wrap:wrap;">
-                <input type="text" id="project-search-input" placeholder="🔍 Tìm kiếm dự án / chương truyện..." style="flex:1; min-width:200px; padding:6px 10px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-color); color:var(--text-color); font-size:0.88rem;">
+                <input type="text" id="project-search-input" placeholder="🔍 Tìm kiếm dự án / chương truyện..." style="flex:1; min-width:180px; padding:6px 10px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-color); color:var(--text-color); font-size:0.88rem;">
                 <select id="project-sort-select" class="font-select" style="margin:0; padding:6px 8px; font-size:0.85rem;">
                     <option value="updated-desc">Mới nhất trước</option>
                     <option value="updated-asc">Cũ nhất trước</option>
                     <option value="name-asc">Tên A-Z</option>
                     <option value="size-desc">Dung lượng lớn</option>
                 </select>
-                <button type="button" class="btn-tool btn-sm" id="btn-toggle-project-batch" title="Bật/Tắt chế độ chọn nhiều dự án">☑️ Chọn nhiều</button>
+                <button type="button" class="btn-tool btn-sm" id="btn-toggle-project-batch" onclick="toggleProjectBatchMode()" title="Bật/Tắt chế độ chọn nhiều dự án">☑️ Chọn nhiều</button>
             </div>
 
             <!-- THANH THAO TÁC HÀNG LOẠT (HIỆN KHI BẬT CHỌN NHIỀU) -->
             <div id="project-batch-bar" class="project-batch-bar" style="display: none;">
                 <span id="project-batch-summary">Đã chọn: 0 dự án</span>
-                <button type="button" class="btn-danger btn-xs" id="btn-project-batch-delete" disabled>🗑️ Xóa dự án đã chọn</button>
-                <button type="button" class="btn-file btn-xs" id="btn-project-batch-deselect">Bỏ chọn</button>
-                <button type="button" class="btn-secondary btn-xs" id="btn-project-batch-exit">✕ Thoát</button>
+                <button type="button" class="btn-danger btn-xs" id="btn-project-batch-delete" onclick="executeProjectBatchDelete()" disabled>🗑️ Xóa dự án đã chọn</button>
+                <button type="button" class="btn-file btn-xs" id="btn-project-batch-deselect" onclick="deselectAllProjectBatch()">Bỏ chọn</button>
+                <button type="button" class="btn-secondary btn-xs" id="btn-project-batch-exit" onclick="toggleProjectBatchMode(false)">✕ Thoát</button>
             </div>
 
             <div class="modal-body-scroll projects-scroll-box">
@@ -522,14 +522,14 @@
                     <thead>
                         <tr>
                             <!-- CỘT CHECKBOX CHỌN NHIỀU (ẨN MẶC ĐỊNH) -->
-                            <th class="proj-batch-th" style="display: none; width: 36px; text-align: center;">
+                            <th class="proj-batch-th" style="display: none; width: 38px; text-align: center;">
                                 <input type="checkbox" id="check-all-projects" title="Chọn tất cả dự án">
                             </th>
-                            <th style="width: 38%;">Tên Chương / Dự án</th>
-                            <th style="width: 14%;">Số hàng</th>
+                            <th style="width: 32%;">Tên Chương / Dự án</th>
+                            <th style="width: 12%;">Số hàng</th>
                             <th style="width: 20%;">Lần sửa cuối</th>
                             <th style="width: 12%;">Dung lượng</th>
-                            <th style="width: 16%; text-align: center;">Thao tác</th>
+                            <th style="width: 24%; text-align: center;">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody id="my-projects-list-body"></tbody>

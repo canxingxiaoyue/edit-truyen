@@ -43,7 +43,7 @@
 
             <nav class="main-nav-links">
                 <button class="nav-link active" id="nav-home">Trang chủ</button>
-                <button class="nav-link" id="nav-my-projects">📂 Dữ liệu của tôi</button>
+                <button class="nav-link" id="nav-my-projects">📂 Dự án của tôi</button>
             </nav>
 
             <div class="nav-right-controls">
@@ -489,40 +489,40 @@
         </div>
     </div>
 
-    <!-- HỘP THOẠI MODAL: QUẢN LÝ DỰ ÁN DỮ LIỆU CỦA TÔI -->
+    <!-- HỘP THOẠI MODAL: QUẢN LÝ DỰ ÁN CỦA TÔI (GỌN GÀNG, VỪA KHÍT MÀN HÌNH) -->
     <div class="modal-overlay" id="modal-my-data">
-        <div class="modal-content" style="width: 850px; max-width: 95vw;">
-            <h3>📂 Dữ liệu & Dự án của tôi</h3>
+        <div class="modal-content modal-projects-box">
+            <h3>📂 Dự án của tôi</h3>
             <p class="modal-desc" id="storage-summary-info">Đang tính toán dung lượng...</p>
 
-            <div class="project-toolbar-bar" style="display:flex; gap:10px; align-items:center; margin-top:12px;">
-                <input type="text" id="project-search-input" placeholder="🔍 Tìm kiếm dự án / chương truyện..." style="flex:1; padding:7px 10px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-color); color:var(--text-color);">
-                <select id="project-sort-select" class="font-select" style="margin:0;">
+            <div class="project-toolbar-bar" style="display:flex; gap:8px; align-items:center; margin: 8px 0;">
+                <input type="text" id="project-search-input" placeholder="🔍 Tìm kiếm dự án / chương truyện..." style="flex:1; padding:6px 10px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-color); color:var(--text-color); font-size:0.88rem;">
+                <select id="project-sort-select" class="font-select" style="margin:0; padding:6px 8px; font-size:0.85rem;">
                     <option value="updated-desc">Mới nhất trước</option>
                     <option value="updated-asc">Cũ nhất trước</option>
                     <option value="name-asc">Tên A-Z</option>
-                    <option value="size-desc">Dung lượng lớn nhất</option>
+                    <option value="size-desc">Dung lượng lớn</option>
                 </select>
             </div>
 
-            <div class="modal-body-scroll" style="max-height: 50vh; margin-top: 10px;">
-                <table class="info-table" style="width: 100%;">
+            <div class="modal-body-scroll projects-scroll-box">
+                <table class="info-table projects-table">
                     <thead>
                         <tr>
-                            <th style="width: 30%;">Tên Chương / Dự án</th>
-                            <th style="width: 15%;">Số hàng</th>
-                            <th style="width: 20%;">Lần sửa cuối</th>
-                            <th style="width: 15%;">Dung lượng</th>
-                            <th style="width: 20%;">Thao tác</th>
+                            <th style="width: 38%;">Tên Chương / Dự án</th>
+                            <th style="width: 14%;">Số hàng</th>
+                            <th style="width: 22%;">Lần sửa cuối</th>
+                            <th style="width: 12%;">Dung lượng</th>
+                            <th style="width: 14%;">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody id="my-projects-list-body"></tbody>
                 </table>
             </div>
 
-            <div class="modal-actions">
-                <button class="btn-file" id="btn-close-my-data" style="margin-right: auto;">Đóng</button>
-                <button class="btn-add" id="btn-save-current-as-project">💾 Lưu chương hiện tại thành dự án</button>
+            <div class="modal-actions" style="margin-top: 12px;">
+                <button class="btn-file btn-sm" id="btn-close-my-data" style="margin-right: auto;">Đóng</button>
+                <button class="btn-add btn-sm" id="btn-save-current-as-project">💾 Lưu chương hiện tại thành dự án</button>
             </div>
         </div>
     </div>

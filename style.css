@@ -325,7 +325,7 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
 
 /* ================= HIỆU ỨNG BÔI ĐEN ĐỒNG THỜI REAL-TIME (RAW ↔ QT) ================= */
 .sync-highlight {
-    background-color: #fde047 !important;
+    background-color: #fde047 !important; /* Màu vàng tươi nổi bật */
     color: #000000 !important;
     font-weight: bold;
     border-radius: 3px;
@@ -420,19 +420,15 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
     transform: scale(1.15);
 }
 
-/* ================= TÔ MÀU PHÂN BIỆT RÕ RÀNG (RULE IV) ================= */
-
-/* 1. Hàng được chọn */
+/* ================= TÔ MÀU PHÂN BIỆT RÕ RÀNG ================= */
 tr.batch-row-selected td:not(.batch-select-cell) {
     background-color: rgba(59, 130, 246, 0.08) !important;
 }
 
-/* 2. Cột được chọn */
 td.batch-col-selected {
     background-color: rgba(59, 130, 246, 0.08) !important;
 }
 
-/* 3. Ô TẠI GIAO ĐIỂM (ƯU TIÊN NỔI BẬT CAO NHẤT) */
 td.batch-intersection-selected {
     background-color: rgba(239, 68, 68, 0.2) !important;
     box-shadow: inset 0 0 0 2px var(--btn-danger) !important;
@@ -968,6 +964,64 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
 .history-actions { display: flex; gap: 6px; }
 
 /* ========================================================= */
+/* TỐI ƯU KÍCH THƯỚC BẢNG DỰ ÁN CỦA TÔI (GỌN GÀNG, VỪA MÀN HÌNH) */
+/* ========================================================= */
+.modal-projects-box {
+    width: 720px !important;
+    max-width: 90vw !important;
+    max-height: 82vh !important;
+    padding: 18px 22px !important;
+    border-radius: 14px !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28) !important;
+}
+
+.modal-projects-box h3 {
+    font-size: 1.2rem !important;
+    margin-bottom: 4px !important;
+}
+
+.modal-projects-box .modal-desc {
+    font-size: 0.82rem !important;
+    margin-bottom: 6px !important;
+    opacity: 0.9;
+}
+
+/* Khung cuộn danh sách dự án: không bị thanh cuộn ngang đè */
+.projects-scroll-box {
+    max-height: 48vh !important;
+    overflow-x: hidden !important; 
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.projects-table {
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+}
+
+.projects-table th {
+    padding: 8px 6px !important;
+    font-size: 0.82rem !important;
+    background-color: var(--th-bg) !important;
+}
+
+.projects-table td {
+    padding: 8px 6px !important;
+    font-size: 0.85rem !important;
+    vertical-align: middle !important;
+    word-break: break-word !important;
+}
+
+.projects-table td button {
+    display: inline-flex !important;
+    padding: 3px 6px !important;
+    font-size: 0.72rem !important;
+    margin: 0 1px !important;
+    border-radius: 4px !important;
+}
+
+/* ========================================================= */
 /* THIẾT KẾ CỬA SỔ GOOGLE DRIVE VIBE XANH LÁ DỊU (SAGE GREEN) */
 /* ========================================================= */
 .sage-gdrive-card {
@@ -1065,6 +1119,10 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
 /* 📱 TỐI ƯU HÓA DI ĐỘNG - MỞ KHÓA CUỘN DỌC & LƯỚT NGANG MƯỢT MÀ */
 /* ========================================================================= */
 
+/* ========================================================================= */
+/* 📱 TỐI ƯU HÓA DI ĐỘNG - MỞ KHÓA CUỘN DỌC & SỬA LỖI DÍNH TAB */
+/* ========================================================================= */
+
 @media screen and (max-width: 768px) {
     /* 1. MỞ KHÓA CUỘN DỌC TOÀN TRANG */
     body {
@@ -1073,10 +1131,20 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
         overflow-x: hidden !important; 
     }
 
-    .app-main-container, .tab-section-content {
+    .app-main-container {
         height: auto !important;
         overflow: visible !important;
         display: block !important;
+    }
+
+    /* KHẮC PHỤC LỖI DÍNH 2 BẢNG (CHỈ HIỂN THỊ TAB ĐANG CHỌN) */
+    .tab-section-content {
+        display: none !important;
+    }
+    .tab-section-content.active {
+        display: block !important;
+        height: auto !important;
+        overflow: visible !important;
     }
 
     /* Bảng dịch: Dọc bung hết cỡ, Ngang giữ thanh cuộn */
@@ -1152,7 +1220,6 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
         white-space: nowrap !important; 
     }
 
-    /* Thanh tác vụ chọn hàng loạt trên mobile không bị co ép */
     #batch-action-bar {
         flex-shrink: 0 !important;
     }
@@ -1167,7 +1234,6 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
         padding: 8px !important;
     }
 
-    /* Giữ nguyên độ rộng 45px của ô checkbox đầu hàng trên mobile */
     th.batch-select-cell, td.batch-select-cell {
         min-width: 45px !important;
         width: 45px !important;
@@ -1175,7 +1241,7 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     }
 
     /* 6. CÁC HỘP THOẠI MODAL */
-    .modal-content, .sage-gdrive-card, .sage-auth-card, .modal-name-editor {
+    .modal-content, .sage-gdrive-card, .sage-auth-card, .modal-name-editor, .modal-projects-box {
         width: 95% !important;
         max-width: 100% !important;
         margin: 10px auto !important;

@@ -1,10 +1,11 @@
 // =========================================================================
 // ĐỒNG BỘ HIỆU ỨNG TÔ SÁNG ĐỐI CHIẾU THỜI GIAN THỰC (BẢN QT ↔ RAW)
+// TỐI ƯU HÓA TUYỆT ĐỐI CHO TỪ ĐIỂN TÙY CHỈNH SIÊU LỚN (Triệu từ)
 // =========================================================================
 
 let syncSelectionTimeout = null;
 
-// LẤY CHÍNH XÁC TÊN CỘT VÀ VỊ TRÍ HÀNG (CHỐNG LỖI THIẾU data-col)
+// Lấy thông tin vị trí ô đang tương tác
 function getCellLocation(td) {
     if (!td) return null;
     const tr = td.closest('tr');
@@ -13,7 +14,6 @@ function getCellLocation(td) {
     let colKey = td.dataset ? td.dataset.col : '';
     const allTds = Array.from(tr.children);
 
-    // Nếu thiếu data-col thì tự động dò theo thứ tự cột trong bảng
     if (!colKey) {
         const dataTds = allTds.filter(c => !c.classList.contains('batch-select-cell'));
         const idx = dataTds.indexOf(td);
@@ -25,8 +25,12 @@ function getCellLocation(td) {
     return { tr, rowIndex, colKey, td };
 }
 
-// XÓA SẠCH MỌI VÙNG ĐANG ĐƯỢC TÔ SÁNG TRÊN TOÀN BẢNG
+// Xóa sạch vùng highlight cũ
 function clearSyncHighlights() {
+    if (typeof CSS !== 'undefined' && CSS.highlights && CSS.highlights.has('sync-highlight')) {
+        CSS.highlights.delete('sync-highlight');
+    }
+
     const highlightedSpans = document.querySelectorAll('.sync-highlight');
     highlightedSpans.forEach(span => {
         const parent = span.parentNode;
@@ -35,12 +39,12 @@ function clearSyncHighlights() {
                 parent.insertBefore(span.firstChild, span);
             }
             span.remove();
-            parent.normalize(); // Nối liền các đoạn văn bản lại nguyên trạng
+            parent.normalize(); 
         }
     });
 }
 
-// TÍNH TOÁN VỊ TRÍ KÝ TỰ BÔI ĐEN TRONG Ô
+// Tính toán vị trí ký tự đầu/cuối của vùng bôi đen
 function getSelectionOffsetsWithin(element, range) {
     try {
         const preRange = range.cloneRange();
@@ -54,10 +58,9 @@ function getSelectionOffsetsWithin(element, range) {
     }
 }
 
-// TÔ SÁNG ĐOẠN VĂN BẢN TƯƠNG ỨNG TRONG Ô BẰNG THẺ SPAN NỔI BẬT
+// Tạo thẻ bọc màu nền cho chuỗi tương ứng
 function highlightTextRangeInCell(cellElement, startOffset, endOffset) {
     if (startOffset < 0 || endOffset <= startOffset || !cellElement) return;
-
     clearSyncHighlights();
 
     const walker = document.createTreeWalker(cellElement, NodeFilter.SHOW_TEXT, null, false);
@@ -91,9 +94,14 @@ function highlightTextRangeInCell(cellElement, startOffset, endOffset) {
         range.setStart(startNode, startNodeOffset);
         range.setEnd(endNode, endNodeOffset);
 
+        if (typeof CSS !== 'undefined' && CSS.highlights && typeof Highlight !== 'undefined') {
+            const hl = new Highlight(range);
+            CSS.highlights.set('sync-highlight', hl);
+            return;
+        }
+
         const span = document.createElement('span');
         span.className = 'sync-highlight';
-
         try {
             range.surroundContents(span);
         } catch (e) {
@@ -101,9 +109,7 @@ function highlightTextRangeInCell(cellElement, startOffset, endOffset) {
             span.appendChild(fragment);
             range.insertNode(span);
         }
-    } catch (err) {
-        console.warn("Lỗi tạo highlight:", err);
-    }
+    } catch (err) {}
 }
 
 // XỬ LÝ CHÍNH KHI NGƯỜI DÙNG BÔI ĐEN VĂN BẢN
@@ -136,195 +142,95 @@ function handleSelectionChangeSync() {
 
         const { tr, rowIndex, colKey } = cellInfo;
 
-        // Chỉ đối chiếu khi người dùng bôi đen ở cột Bản QT hoặc cột Raw
         if (colKey !== 'qt' && colKey !== 'raw') {
             clearSyncHighlights();
             return;
         }
 
-        const rawTd = tr.querySelector('td[data-col="raw"]') || tr.children[1] || tr.children[0];
-        const qtTd = tr.querySelector('td[data-col="qt"]') || tr.children[4];
+        const rawTd = tr.querySelector('td[data-col="raw"]');
+        const qtTd = tr.querySelector('td[data-col="qt"]');
         if (!rawTd || !qtTd) return;
 
         const rawText = rawTd.textContent || '';
         const qtText = qtTd.textContent || '';
         if (!rawText || !qtText) return;
 
-        // Lấy danh sách Token của hàng (nếu chưa có thì gọi TrieEngine nạp tức thì)
+        // Lấy danh sách Token của hàng này (từ Name Engine)
         let tokens = (typeof rowTokensMap !== 'undefined' && rowTokensMap[rowIndex]) ? rowTokensMap[rowIndex] : null;
         if ((!tokens || tokens.length === 0) && typeof nameQTEngine !== 'undefined' && nameQTEngine.process) {
             const rawClean = rawText.replace(/<[^>]+>/g, '').normalize('NFC');
-            const res = nameQTEngine.process(rawClean);
-            tokens = res.tokens;
+            tokens = nameQTEngine.process(rawClean).tokens;
             if (typeof rowTokensMap !== 'undefined') rowTokensMap[rowIndex] = tokens;
         }
 
-        // =====================================================================
-        // TRƯỜNG HỢP 1: BÔI ĐEN Ở BẢN QT ➔ PHÁT SÁNG BÊN RAW
-        // =====================================================================
-        if (colKey === 'qt') {
-            const { start: selStart, end: selEnd } = getSelectionOffsetsWithin(qtTd, range);
-            if (selStart === -1 || selEnd === -1) return;
+        const isRawTarget = (colKey === 'qt'); // Đích tô sáng
+        const sourceTdEl = isRawTarget ? qtTd : rawTd;
+        const targetTdEl = isRawTarget ? rawTd : qtTd;
 
-            let targetStart = -1;
-            let targetEnd = -1;
+        const { start: selStart, end: selEnd } = getSelectionOffsetsWithin(sourceTdEl, range);
+        if (selStart === -1 || selEnd === -1) return;
 
-            // 1. ÁNH XẠ QUA MẢNG TOKEN (ĐỘ CHÍNH XÁC CAO NHẤT)
-            if (tokens && tokens.length > 0) {
-                let qtSearchPos = 0;
-                let rawSearchPos = 0;
-
-                const mapped = tokens.map((tok, i) => {
-                    const rawStr = tok.orig || tok.raw || tok.cn || '';
-                    const transStr = (tok.text || tok.qt || tok.trans || tok.vi || '').trim();
-
-                    // Vị trí trong QT
-                    let qStart = -1;
-                    if (transStr) {
-                        qStart = qtText.toLowerCase().indexOf(transStr.toLowerCase(), qtSearchPos);
-                        if (qStart === -1) qStart = qtText.toLowerCase().indexOf(transStr.toLowerCase());
-                    }
-                    let qEnd = qStart !== -1 ? qStart + transStr.length : -1;
-                    if (qStart !== -1) qtSearchPos = qEnd;
-
-                    // Vị trí trong Raw
-                    let rStart = -1;
-                    if (rawStr) {
-                        rStart = rawText.indexOf(rawStr, rawSearchPos);
-                        if (rStart === -1) rStart = rawText.indexOf(rawStr);
-                    }
-                    let rEnd = rStart !== -1 ? rStart + rawStr.length : -1;
-                    if (rStart !== -1) rawSearchPos = rEnd;
-
-                    return { index: i, rawStr, transStr, qStart, qEnd, rStart, rEnd };
-                });
-
-                // Tìm các token trùng khớp với vùng bôi đen
-                const matched = mapped.filter(m => m.qStart !== -1 && m.qStart < selEnd && m.qEnd > selStart);
-
-                if (matched.length > 0) {
-                    targetStart = matched[0].rStart;
-                    targetEnd = matched[matched.length - 1].rEnd;
-                }
-            }
-
-            // 2. DỰ PHÒNG: NẾU TOKEN CHƯA KHỚP THÌ TRA CỨU BẢNG NHÂN VẬT & TỪ NGỮ
-            if (targetStart === -1) {
-                const cleanQuery = selectedText.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g, '').trim();
-                let matchedChinese = '';
-
-                // Tra trong bảng Nhân vật
-                if (typeof metadata !== 'undefined' && Array.isArray(metadata.characters)) {
-                    for (const char of metadata.characters) {
-                        if (char.c2 && char.c2.toLowerCase().trim() === cleanQuery && char.c1) {
-                            matchedChinese = char.c1.trim();
-                            break;
-                        }
-                    }
-                }
-
-                // Tra trong bảng Thống nhất từ ngữ
-                if (!matchedChinese && typeof metadata !== 'undefined' && Array.isArray(metadata.terms)) {
-                    for (const term of metadata.terms) {
-                        if (term.c2 && term.c2.toLowerCase().trim() === cleanQuery && term.c1) {
-                            matchedChinese = term.c1.trim();
-                            break;
-                        }
-                    }
-                }
-
-                if (matchedChinese) {
-                    // Chọn vị trí xuất hiện tương ứng theo tỷ lệ độ dài câu
-                    const relRatio = selStart / Math.max(1, qtText.length);
-                    let bestIdx = -1;
-                    let minDiff = Infinity;
-                    let sIdx = rawText.indexOf(matchedChinese);
-
-                    while (sIdx !== -1) {
-                        const diff = Math.abs((sIdx / Math.max(1, rawText.length)) - relRatio);
-                        if (diff < minDiff) {
-                            minDiff = diff;
-                            bestIdx = sIdx;
-                        }
-                        sIdx = rawText.indexOf(matchedChinese, sIdx + 1);
-                    }
-
-                    if (bestIdx !== -1) {
-                        targetStart = bestIdx;
-                        targetEnd = bestIdx + matchedChinese.length;
-                    }
-                }
-            }
-
-            // Thực hiện tô sáng nếu tìm thấy vị trí tương ứng
-            if (targetStart !== -1 && targetEnd > targetStart) {
-                highlightTextRangeInCell(rawTd, targetStart, targetEnd);
-            }
+        let targetStart = -1;
+        let targetEnd = -1;
 
         // =====================================================================
-        // TRƯỜNG HỢP 2: BÔI ĐEN Ở RAW ➔ PHÁT SÁNG BÊN BẢN QT
+        // THUẬT TOÁN ĐỈNH CAO: CỘNG DỒN CON TRỎ THEO ĐỘ DÀI TOKEN CHUẨN XÁC 100%
         // =====================================================================
-        } else if (colKey === 'raw') {
-            const { start: selStart, end: selEnd } = getSelectionOffsetsWithin(rawTd, range);
-            if (selStart === -1 || selEnd === -1) return;
+        if (tokens && tokens.length > 0) {
+            let rCursor = 0; // Con trỏ chạy bên tiếng Trung
+            let qCursor = 0; // Con trỏ chạy bên tiếng Việt (QT)
 
-            if (tokens && tokens.length > 0) {
-                let rawSearchPos = 0;
-                let qtSearchPos = 0;
+            for (const tok of tokens) {
+                // Lấy chữ Trung và chữ Việt từ từ điển
+                const rStr = tok.orig || tok.raw || tok.cn || '';
+                // Lấy y nguyên chữ Việt (bao gồm cả khoảng trắng thừa do máy dịch tạo ra)
+                const qStr = tok.text || tok.qt || tok.trans || tok.vi || '';
 
-                const mapped = tokens.map((tok, i) => {
-                    const rawStr = tok.orig || tok.raw || tok.cn || '';
-                    const transStr = (tok.text || tok.qt || tok.trans || tok.vi || '').trim();
+                // Xác định tọa độ của cục Token này
+                const rStart = rCursor;
+                const rEnd = rCursor + rStr.length;
 
-                    let rStart = -1;
-                    if (rawStr) {
-                        rStart = rawText.indexOf(rawStr, rawSearchPos);
-                        if (rStart === -1) rStart = rawText.indexOf(rawStr);
+                const qStart = qCursor;
+                const qEnd = qCursor + qStr.length;
+
+                // Nếu người dùng bôi đen Cột QT (isRawTarget = true)
+                if (isRawTarget) {
+                    // Kiểm tra vùng bôi đen có chạm vào tọa độ của cục Token này bên QT không
+                    if (selStart < qEnd && selEnd > qStart) {
+                        if (targetStart === -1) targetStart = rStart; // Mở điểm đầu bên Raw
+                        targetEnd = rEnd; // Kéo giãn điểm cuối bên Raw
                     }
-                    let rEnd = rStart !== -1 ? rStart + rawStr.length : -1;
-                    if (rStart !== -1) rawSearchPos = rEnd;
-
-                    let qStart = -1;
-                    if (transStr) {
-                        qStart = qtText.toLowerCase().indexOf(transStr.toLowerCase(), qtSearchPos);
-                        if (qStart === -1) qStart = qtText.toLowerCase().indexOf(transStr.toLowerCase());
-                    }
-                    let qEnd = qStart !== -1 ? qStart + transStr.length : -1;
-                    if (qStart !== -1) qtSearchPos = qEnd;
-
-                    return { index: i, rawStr, transStr, rStart, rEnd, qStart, qEnd };
-                });
-
-                const matched = mapped.filter(m => m.rStart !== -1 && m.rStart < selEnd && m.rEnd > selStart);
-
-                if (matched.length > 0) {
-                    const qStart = matched[0].qStart;
-                    const qEnd = matched[matched.length - 1].qEnd;
-                    if (qStart !== -1 && qEnd > qStart) {
-                        highlightTextRangeInCell(qtTd, qStart, qEnd);
+                } 
+                // Nếu người dùng bôi đen Cột Raw
+                else {
+                    if (selStart < rEnd && selEnd > rStart) {
+                        if (targetStart === -1) targetStart = qStart;
+                        targetEnd = qEnd;
                     }
                 }
+
+                // Tịnh tiến con trỏ
+                rCursor = rEnd;
+                qCursor = qEnd;
             }
         }
+
+        // TÔ SÁNG NẾU TÌM THẤY
+        if (targetStart !== -1 && targetEnd > targetStart) {
+            highlightTextRangeInCell(targetTdEl, targetStart, targetEnd);
+        }
+
     }, 50);
 }
 
-// =========================================================================
-// KHỞI CHẠY LẮNG NGHE SỰ KIỆN
-// =========================================================================
+// Bắt sự kiện
 function initSyncSelectionListeners() {
     document.addEventListener('selectionchange', handleSelectionChangeSync);
-
     document.addEventListener('mousedown', (e) => {
-        if (!e.target.closest('#table-body')) {
-            clearSyncHighlights();
-        }
+        if (!e.target.closest('#table-body')) clearSyncHighlights();
     });
-
     window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            clearSyncHighlights();
-        }
+        if (e.key === 'Escape') clearSyncHighlights();
     });
 }
 

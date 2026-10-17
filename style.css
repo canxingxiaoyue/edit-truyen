@@ -324,6 +324,19 @@ tr.active-row td { background-color: var(--row-active); }
 td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var(--bg-color) !important; }
 
 /* ================= HIỆU ỨNG BÔI ĐEN ĐỒNG THỜI REAL-TIME (RAW ↔ QT) ================= */
+/* 1. Hỗ trợ CSS Custom Highlight API hiện đại */
+::highlight(sync-highlight) {
+    background-color: #fde047 !important;
+    color: #1e293b !important;
+    font-weight: 700;
+}
+
+[data-theme="dark"] ::highlight(sync-highlight) {
+    background-color: #eab308 !important;
+    color: #000000 !important;
+}
+
+/* 2. Dự phòng qua DOM Span */
 .sync-highlight {
     background-color: #fde047 !important;
     color: #000000 !important;
@@ -987,13 +1000,20 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     opacity: 0.85;
 }
 
+/* NÚT CHỌN NHIỀU KHI ĐANG ACTIVE (ĐỔI SANG MÀU ĐỎ NỔI BẬT) */
+#btn-toggle-project-batch.active {
+    background-color: var(--btn-danger) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.35);
+}
+
 /* THANH THAO TÁC HÀNG LOẠT TRONG MODAL */
 .project-batch-bar {
     display: flex;
     align-items: center;
     gap: 8px;
     background: rgba(239, 68, 68, 0.08);
-    padding: 5px 12px;
+    padding: 6px 12px;
     border-radius: 8px;
     border: 1.5px dashed var(--btn-danger);
     margin: 6px 0 10px 0;
@@ -1001,12 +1021,12 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
 
 #project-batch-summary {
     font-weight: 700;
-    font-size: 0.82rem;
+    font-size: 0.85rem;
     color: var(--btn-danger);
     white-space: nowrap;
 }
 
-/* KHUNG CUỘN DANH SÁCH DỰ ÁN */
+/* KHUNG CUỘN DANH SÁCH DỰ ÁN CÓ THANH KÉO RÕ RÀNG */
 .projects-scroll-box {
     max-height: 50vh !important;
     overflow-x: auto !important;
@@ -1019,27 +1039,27 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
 }
 
 .projects-scroll-box::-webkit-scrollbar {
-    height: 6px !important;
-    width: 6px !important;
+    height: 8px !important;
+    width: 8px !important;
 }
 
 .projects-scroll-box::-webkit-scrollbar-track {
-    background: transparent !important;
+    background: rgba(0, 0, 0, 0.06) !important;
+    border-radius: 4px;
 }
 
 .projects-scroll-box::-webkit-scrollbar-thumb {
-    background-color: var(--border-color) !important;
-    border-radius: 10px !important;
-    transition: background-color 0.2s ease !important;
+    background-color: #94a3b8 !important; /* Màu xám slate rõ nét, dễ kéo */
+    border-radius: 4px !important;
 }
 
 .projects-scroll-box::-webkit-scrollbar-thumb:hover {
-    background-color: var(--btn-secondary) !important;
+    background-color: #64748b !important;
 }
 
 /* ĐỊNH DẠNG BẢNG DỰ ÁN */
 .projects-table {
-    min-width: 650px !important;
+    min-width: 640px !important;
     width: 100% !important;
     table-layout: fixed !important;
     border-collapse: collapse !important;
@@ -1063,14 +1083,21 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     word-break: break-word !important;
 }
 
+.projects-table td:last-child {
+    white-space: nowrap !important;
+    text-align: center !important;
+}
+
 /* ================= BỐ CỤC CỘT THAO TÁC: [ 📂 MỞ ] [ ⋮ ] ================= */
 .proj-actions-cell {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    white-space: nowrap;
-    width: 100%;
+    display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important; /* KHÓA CỨNG: TUYỆT ĐỐI KHÔNG RỚT DÒNG */
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    white-space: nowrap !important;
+    width: 100% !important;
 }
 
 /* NÚT MỞ DỰ ÁN CHÍNH (XANH DƯƠNG NỔI BẬT) */
@@ -1088,6 +1115,8 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     gap: 5px !important;
     box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25) !important;
     transition: all 0.15s ease !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
 }
 
 .btn-proj-main-open:hover {
@@ -1114,6 +1143,7 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     justify-content: center !important;
     transition: all 0.15s ease !important;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    flex-shrink: 0 !important;
 }
 
 .btn-proj-more-menu:hover,

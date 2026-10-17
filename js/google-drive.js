@@ -1,5 +1,5 @@
 // =========================================================================
-// GOOGLE DRIVE API V3 - ĐĂNG NHẬP VĨNH VIỄN, FIX 403 & HỖ TRỢ THAY THẾ DỰ ÁN
+// GOOGLE DRIVE API V3 - ĐĂNG NHẬP VĨNH VIỄN, FIX 403, THAY THẾ & ĐỔI TÊN DỰ ÁN
 // =========================================================================
 
 const CLIENT_ID = '214662773459-nepa84k1u7uhp1j08p250f9v42q0mbk6.apps.googleusercontent.com';
@@ -218,7 +218,7 @@ async function gdriveFetchAllFileNames(folderId) {
 }
 
 // =========================================================================
-// Ổ CHƯƠNG TRUYỆN (LƯU MỚI, THAY THẾ/GHI ĐÈ, MỞ, XÓA)
+// Ổ CHƯƠNG TRUYỆN (LƯU MỚI, THAY THẾ/GHI ĐÈ, ĐỔI TÊN, MỞ, XÓA)
 // =========================================================================
 async function gdriveListProjects() {
     const token = await getValidToken();
@@ -303,7 +303,7 @@ async function gdriveSaveProject(projObj) {
     return { success: false };
 }
 
-// 🟢 HÀM MỚI BỔ SUNG: GHI ĐÈ / THAY THẾ CHƯƠNG VÀO DỰ ÁN CŨ TRÊN GOOGLE DRIVE
+// GHI ĐÈ / THAY THẾ DỰ ÁN TRÊN GOOGLE DRIVE
 async function gdriveUpdateProject(fileId, projObj) {
     const token = await getValidToken();
     if (!token) return { success: false };
@@ -330,7 +330,6 @@ async function gdriveUpdateProject(fileId, projObj) {
         JSON.stringify(projObj) +
         `\r\n--${boundary}--`;
 
-    // Dùng PATCH để cập nhật trực tiếp nội dung và thông tin file cũ, không tạo trùng file
     const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
         method: 'PATCH',
         headers: {
@@ -341,6 +340,34 @@ async function gdriveUpdateProject(fileId, projObj) {
     });
 
     return { success: res.ok };
+}
+
+// 🟢 HÀM MỚI BỔ SUNG: ĐỔI TÊN DỰ ÁN TRỰC TIẾP TRÊN GOOGLE DRIVE
+async function gdriveRenameProject(fileId, newName) {
+    const token = await getValidToken();
+    if (!token) return { success: false };
+
+    const newFileName = `${newName}.json`;
+    const metadata = {
+        name: newFileName,
+        appProperties: {
+            name: newName
+        }
+    };
+
+    try {
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json; charset=UTF-8'
+            },
+            body: JSON.stringify(metadata)
+        });
+        return { success: res.ok };
+    } catch (e) {
+        return { success: false };
+    }
 }
 
 async function gdriveGetProjectContent(fileId) {

@@ -1,8 +1,11 @@
 // =========================================================================
-// QUẢN LÝ DỰ ÁN DỮ LIỆU - TẢI TỨC THÌ & NÚT THAO TÁC TỐI GIẢN, THANH LỊCH
+// QUẢN LÝ DỰ ÁN DỮ LIỆU - PHƯƠNG ÁN B (NÚT MỞ + MENU BA CHẤM ⋮ & CHỌN NHIỀU)
 // =========================================================================
 
 let localSavedProjectsCache = []; 
+let isProjectBatchMode = false;
+let selectedProjectIds = new Set();
+let currentActiveMenuProjId = null;
 
 function escapeHTML(str) {
     if (!str) return '';
@@ -40,7 +43,7 @@ function getNextInputProjectName(desiredName, existingList) {
     return { candidate, stt, cleanedBase };
 }
 
-// 1. TẢI DANH SÁCH DỰ ÁN (TẢI TỨC THÌ 0 GIÂY - KHÔNG BAO GIỜ ĐỨNG BẢNG)
+// 1. TẢI DANH SÁCH DỰ ÁN
 function loadSavedProjects() {
     try {
         let localData = JSON.parse(localStorage.getItem('mySavedProjects'));
@@ -84,10 +87,11 @@ async function saveProjectToCloudAndLocal(projObj) {
             renderMyProjectsListUI();
             calculateStorageMetrics();
             showToast(`💾 Đã lưu dự án "${actualName}" lên Google Drive!`, 'var(--btn-success)');
+            return { success: true, project: summaryObj };
         } else {
-            showToast("⚠️ Không thể lưu lên Google Drive! Dữ liệu được bảo toàn.", "var(--btn-warning)");
+            showToast("❌ Không thể đồng bộ lên Google Drive. Dữ liệu vẫn được giữ nguyên tại vị trí lưu trữ hiện có.", "var(--btn-warning)");
+            return { success: false };
         }
-        return;
     }
 
     const summaryObj = toProjectSummary(projObj);
@@ -98,9 +102,10 @@ async function saveProjectToCloudAndLocal(projObj) {
     renderMyProjectsListUI();
     calculateStorageMetrics();
     showToast(`💾 Đã lưu tạm dự án "${projObj.name}" vào máy!`, 'var(--btn-info)');
+    return { success: true, project: summaryObj };
 }
 
-// 3. XÓA DỰ ÁN
+// 3. XÓA DỰ ÁN (ĐƠN LẺ)
 async function deleteProjectFromCloudAndLocal(projId) {
     localSavedProjectsCache = localSavedProjectsCache.filter(p => p.id !== projId);
     try { localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache)); } catch (e) {}
@@ -109,8 +114,9 @@ async function deleteProjectFromCloudAndLocal(projId) {
     calculateStorageMetrics();
 
     if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
-        gdriveDeleteProject(projId);
+        return await gdriveDeleteProject(projId);
     }
+    return true;
 }
 
 function calculateStorageMetrics() {
@@ -127,8 +133,11 @@ function calculateStorageMetrics() {
     }
 }
 
-// 4. HIỂN THỊ DANH SÁCH DỰ ÁN (BỘ NÚT BẤM TỐI GIẢN, THANH LỊCH)
+// =========================================================================
+// 4. HIỂN THỊ DANH SÁCH DỰ ÁN (BỐ CỤC PHƯƠNG ÁN B: [ 📂 MỞ ] [ ⋮ ])
+// =========================================================================
 function renderMyProjectsListUI() {
+    closeProjectDropdownMenu();
     const listBody = document.getElementById('my-projects-list-body');
     if (!listBody) return;
 
@@ -150,8 +159,9 @@ function renderMyProjectsListUI() {
 
     listBody.innerHTML = '';
 
+    const colSpanTotal = isProjectBatchMode ? 6 : 5;
     if (projects.length === 0) {
-        listBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:gray; padding:20px; font-style:italic;">Chưa có dự án nào. Bấm "Lưu chương hiện tại thành dự án" để tạo dự án mới!</td></tr>';
+        listBody.innerHTML = `<tr><td colspan="${colSpanTotal}" style="text-align:center; color:gray; padding:24px; font-style:italic;">Không tìm thấy dự án nào phù hợp.</td></tr>`;
         return;
     }
 
@@ -159,117 +169,266 @@ function renderMyProjectsListUI() {
         const tr = document.createElement('tr');
         const dateStr = formatDate(proj.updatedAt);
         const sizeKB = ((proj.size || 0) / 1024).toFixed(1);
+        const isChecked = selectedProjectIds.has(proj.id);
 
         tr.innerHTML = `
+            ${isProjectBatchMode ? `
+            <td class="proj-batch-td" style="text-align:center; width:36px;">
+                <input type="checkbox" class="check-project-item" data-id="${proj.id}" ${isChecked ? 'checked' : ''}>
+            </td>` : ''}
             <td><strong>📄 ${escapeHTML(proj.name)}</strong>${proj.storyTitle ? `<br><small style="color:gray;">📚 ${escapeHTML(proj.storyTitle)}</small>` : ''}</td>
             <td style="text-align:center;">${proj.rowCount || 0} hàng</td>
             <td style="text-align:center; font-size:0.85rem;">${dateStr}</td>
             <td style="text-align:center;">${sizeKB} KB</td>
             <td style="text-align:center;">
                 <div class="proj-actions-cell">
-                    <button class="btn-proj-action action-open btn-open-proj" data-id="${proj.id}" title="Mở dự án này ra màn hình">Mở</button>
-                    <button class="btn-proj-action action-replace btn-replace-proj" data-id="${proj.id}" title="Ghi đè chương hiện tại vào dự án này">Thay thế</button>
-                    <button class="btn-proj-action action-delete btn-del-proj" data-id="${proj.id}" title="Xóa dự án này">Xóa</button>
+                    <button type="button" class="btn-proj-main-open btn-open-proj" data-id="${proj.id}" title="Mở dự án này ra màn hình">
+                        <span>📂</span> Mở
+                    </button>
+                    <button type="button" class="btn-proj-more-menu" data-id="${proj.id}" title="Thao tác khác" aria-label="Thao tác khác">
+                        ⋮
+                    </button>
                 </div>
             </td>
         `;
         listBody.appendChild(tr);
     });
 
-    // SỰ KIỆN MỞ DỰ ÁN
+    // 1. GẮN SỰ KIỆN MỞ DỰ ÁN
     listBody.querySelectorAll('.btn-open-proj').forEach(btn => {
         btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
             const id = e.currentTarget.getAttribute('data-id');
-            const summary = localSavedProjectsCache.find(p => p.id === id);
-            if (!summary) return;
-
-            if (confirm(`Mở dự án "${summary.name}"? Dữ liệu hiện tại sẽ bị thay thế.`)) {
-                showToast("⏳ Đang tải dự án...", "var(--btn-info)");
-                let proj = summary;
-
-                if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
-                    const fullProj = await gdriveGetProjectContent(id);
-                    if (fullProj) proj = fullProj;
-                }
-
-                let rawData = proj.data;
-                if (typeof rawData === 'string') {
-                    try { rawData = JSON.parse(rawData); } catch (e) {}
-                }
-                data = (Array.isArray(rawData) && rawData.length > 0) ? rawData : [createEmptyRow()];
-
-                if (proj.chapterTitle && typeof chapterTitle !== 'undefined') {
-                    chapterTitle = proj.chapterTitle;
-                    document.getElementById('chapter-title-input').value = chapterTitle;
-                }
-                
-                renderTable();
-                debounceSave();
-
-                if (proj.metadata) {
-                    let parsedMeta = proj.metadata;
-                    if (typeof parsedMeta === 'string') {
-                        try { parsedMeta = JSON.parse(parsedMeta); } catch (e) {}
-                    }
-                    metadata = (typeof normalizeMetadata === 'function') ? normalizeMetadata(parsedMeta) : parsedMeta;
-                    localStorage.setItem('storyMetadata', JSON.stringify(metadata));
-                    if (typeof renderMetadata === 'function') renderMetadata();
-                }
-
-                if (proj.history) {
-                    let parsedHist = proj.history;
-                    if (typeof parsedHist === 'string') {
-                        try { parsedHist = JSON.parse(parsedHist); } catch (e) {}
-                    }
-
-                    if (typeof window.appCloudHistory !== 'undefined') {
-                        window.appCloudHistory.editor = parsedHist.translation || [];
-                        window.appCloudHistory.meta = parsedHist.metadata || [];
-                    }
-
-                    if (parsedHist.translation) localStorage.setItem('translationHistory', JSON.stringify(parsedHist.translation));
-                    if (parsedHist.metadata) localStorage.setItem('metadataHistory', JSON.stringify(parsedHist.metadata));
-                    
-                    if (typeof forceSyncHistoryToCloud === 'function') forceSyncHistoryToCloud();
-                }
-
-                showToast(`📂 Đã mở dự án "${proj.name}"!`, 'var(--btn-success)');
-                document.getElementById('modal-my-data')?.classList.remove('show');
-            }
+            await openProjectById(id);
         });
     });
 
-    // 🟢 SỰ KIỆN NÚT THAY THẾ CHƯƠNG (GHI ĐÈ DỰ ÁN)
-    listBody.querySelectorAll('.btn-replace-proj').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
+    // 2. GẮN SỰ KIỆN NÚT ⋮ (MỞ DROPDOWN MENU NỔI)
+    listBody.querySelectorAll('.btn-proj-more-menu').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
             const id = e.currentTarget.getAttribute('data-id');
-            await replaceProjectWithCurrent(id);
+            toggleProjectDropdownMenu(e.currentTarget, id);
         });
     });
 
-    // SỰ KIỆN XÓA DỰ ÁN
-    listBody.querySelectorAll('.btn-del-proj').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            const id = e.currentTarget.getAttribute('data-id');
-            const proj = localSavedProjectsCache.find(p => p.id === id);
-            if (proj && confirm(`Xóa vĩnh viễn dự án "${proj.name}"?`)) {
-                await deleteProjectFromCloudAndLocal(id);
-                showToast(`🗑️ Đã xóa dự án "${proj.name}"!`, 'var(--btn-danger)');
-            }
+    // 3. GẮN SỰ KIỆN CHECKBOX CHỌN TỪNG DỰ ÁN (CHẾ ĐỘ CHỌN NHIỀU)
+    if (isProjectBatchMode) {
+        listBody.querySelectorAll('.check-project-item').forEach(cb => {
+            cb.addEventListener('change', (e) => {
+                const id = e.target.getAttribute('data-id');
+                if (e.target.checked) selectedProjectIds.add(id);
+                else selectedProjectIds.delete(id);
+                updateProjectBatchUI();
+            });
         });
-    });
+    }
+
+    updateProjectBatchUI();
 }
 
-// 🟢 HÀM THỰC HIỆN GHI ĐÈ / THAY THẾ DỰ ÁN BẰNG CHƯƠNG ĐANG MỞ
-async function replaceProjectWithCurrent(projId) {
-    const proj = localSavedProjectsCache.find(p => p.id === projId);
-    if (!proj) return;
-
-    if (!confirm(`⚠️ Bạn có chắc chắn muốn THAY THẾ toàn bộ nội dung của dự án "${proj.name}" bằng chương đang mở trên màn hình không?\n\n(Dữ liệu của dự án này sẽ được ghi đè bằng bản dịch hiện tại).`)) {
+// =========================================================================
+// 5. CƠ CHẾ MENU BA CHẤM ĐỊNH VỊ NỔI (CHỐNG CẮT BỞI CUỘN BẢNG)
+// =========================================================================
+function toggleProjectDropdownMenu(buttonEl, projId) {
+    if (currentActiveMenuProjId === projId) {
+        closeProjectDropdownMenu();
         return;
     }
 
-    showToast(`⏳ Đang thay thế dự án "${proj.name}"...`, 'var(--btn-info)');
+    currentActiveMenuProjId = projId;
+    const menu = document.getElementById('project-dropdown-menu');
+    if (!menu) return;
+
+    document.querySelectorAll('.btn-proj-more-menu.active').forEach(b => b.classList.remove('active'));
+    buttonEl.classList.add('active');
+
+    menu.style.display = 'flex';
+    menu.dataset.projId = projId;
+
+    // Tự động tính toán toạ độ nổi và lật hướng nếu gần mép dưới màn hình
+    const rect = buttonEl.getBoundingClientRect();
+    const menuWidth = 190;
+    const menuHeight = 180;
+
+    let top = rect.bottom + 4;
+    let left = rect.right - menuWidth;
+
+    if (top + menuHeight > window.innerHeight - 12) {
+        top = rect.top - menuHeight - 4; // Lật ngược lên trên
+    }
+    if (left < 10) left = 10;
+
+    menu.style.top = `${top}px`;
+    menu.style.left = `${left}px`;
+}
+
+function closeProjectDropdownMenu() {
+    const menu = document.getElementById('project-dropdown-menu');
+    if (menu) menu.style.display = 'none';
+    document.querySelectorAll('.btn-proj-more-menu.active').forEach(b => b.classList.remove('active'));
+    currentActiveMenuProjId = null;
+}
+
+// =========================================================================
+// 6. CÁC NGHIỆP VỤ CỤ THỂ TRONG MENU BA CHẤM
+// =========================================================================
+
+// A. MỞ DỰ ÁN
+async function openProjectById(id) {
+    const summary = localSavedProjectsCache.find(p => p.id === id);
+    if (!summary) return;
+
+    if (confirm(`Mở dự án "${summary.name}"? Dữ liệu hiện tại trên màn hình sẽ được thay thế.`)) {
+        showToast("⏳ Đang tải dự án...", "var(--btn-info)");
+        let proj = summary;
+
+        if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
+            const fullProj = await gdriveGetProjectContent(id);
+            if (fullProj) proj = fullProj;
+        }
+
+        let rawData = proj.data;
+        if (typeof rawData === 'string') {
+            try { rawData = JSON.parse(rawData); } catch (e) {}
+        }
+        data = (Array.isArray(rawData) && rawData.length > 0) ? rawData : [createEmptyRow()];
+
+        if (proj.chapterTitle && typeof chapterTitle !== 'undefined') {
+            chapterTitle = proj.chapterTitle;
+            const chapterInput = document.getElementById('chapter-title-input');
+            if (chapterInput) chapterInput.value = chapterTitle;
+        }
+        
+        renderTable();
+        debounceSave();
+
+        if (proj.metadata) {
+            let parsedMeta = proj.metadata;
+            if (typeof parsedMeta === 'string') {
+                try { parsedMeta = JSON.parse(parsedMeta); } catch (e) {}
+            }
+            metadata = (typeof normalizeMetadata === 'function') ? normalizeMetadata(parsedMeta) : parsedMeta;
+            localStorage.setItem('storyMetadata', JSON.stringify(metadata));
+            if (typeof renderMetadata === 'function') renderMetadata();
+        }
+
+        if (proj.history) {
+            let parsedHist = proj.history;
+            if (typeof parsedHist === 'string') {
+                try { parsedHist = JSON.parse(parsedHist); } catch (e) {}
+            }
+
+            if (typeof window.appCloudHistory !== 'undefined') {
+                window.appCloudHistory.editor = parsedHist.translation || [];
+                window.appCloudHistory.meta = parsedHist.metadata || [];
+            }
+
+            if (parsedHist.translation) localStorage.setItem('translationHistory', JSON.stringify(parsedHist.translation));
+            if (parsedHist.metadata) localStorage.setItem('metadataHistory', JSON.stringify(parsedHist.metadata));
+            
+            if (typeof forceSyncHistoryToCloud === 'function') forceSyncHistoryToCloud();
+        }
+
+        showToast(`📂 Đã mở dự án "${proj.name}"!`, 'var(--btn-success)');
+        document.getElementById('modal-my-data')?.classList.remove('show');
+    }
+}
+
+// B. ĐỔI TÊN DỰ ÁN
+async function handleRenameProject(projId) {
+    const proj = localSavedProjectsCache.find(p => p.id === projId);
+    if (!proj) return;
+
+    let newName = prompt("Nhập tên mới cho dự án:", proj.name);
+    if (newName === null) return; // Người dùng ấn Hủy
+    newName = newName.trim();
+
+    if (!newName) {
+        showToast("⚠️ Tên dự án không được để trống!", "var(--btn-warning)");
+        return;
+    }
+    if (newName === proj.name) return;
+
+    // Kiểm tra trùng tên
+    const existingNames = localSavedProjectsCache.filter(p => p.id !== projId).map(p => p.name);
+    if (existingNames.some(n => n.toLowerCase().trim() === newName.toLowerCase().trim())) {
+        const { candidate } = getNextInputProjectName(newName, existingNames);
+        if (confirm(`Tên "${newName}" đã tồn tại. Bạn có muốn đổi thành "${candidate}" không?`)) {
+            newName = candidate;
+        } else {
+            return;
+        }
+    }
+
+    showToast(`⏳ Đang đổi tên dự án thành "${newName}"...`, "var(--btn-info)");
+
+    // Đổi tên trên Google Drive
+    if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
+        if (typeof gdriveRenameProject === 'function') {
+            const res = await gdriveRenameProject(projId, newName);
+            if (!res || !res.success) {
+                showToast("❌ Không thể đồng bộ lên Google Drive. Tên dự án vẫn được giữ nguyên.", "var(--btn-danger)");
+                return;
+            }
+        }
+    }
+
+    proj.name = newName;
+    try {
+        localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache));
+    } catch(e) {}
+
+    renderMyProjectsListUI();
+    showToast(`✏️ Đã đổi tên dự án thành công: "${newName}"`, "var(--btn-success)");
+}
+
+// C. SAO CHÉP DỰ ÁN
+async function handleDuplicateProject(projId) {
+    const summary = localSavedProjectsCache.find(p => p.id === projId);
+    if (!summary) return;
+
+    showToast(`⏳ Đang tạo bản sao cho "${summary.name}"...`, "var(--btn-info)");
+
+    let fullData = summary;
+    if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
+        const remoteData = await gdriveGetProjectContent(projId);
+        if (remoteData) fullData = remoteData;
+    }
+
+    // Tạo tên bản sao không trùng lặp
+    const existingNames = localSavedProjectsCache.map(p => p.name);
+    let baseCopyName = `${summary.name} (Bản sao)`;
+    let candidateName = baseCopyName;
+    let stt = 2;
+    while (existingNames.some(n => n.toLowerCase().trim() === candidateName.toLowerCase().trim())) {
+        candidateName = `${summary.name} (Bản sao ${stt})`;
+        stt++;
+    }
+
+    const newProjId = 'proj_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const newProjObj = {
+        ...JSON.parse(JSON.stringify(fullData)),
+        id: newProjId,
+        name: candidateName,
+        updatedAt: Date.now()
+    };
+
+    const res = await saveProjectToCloudAndLocal(newProjObj);
+    if (res && res.success) {
+        showToast(`📄 Đã tạo bản sao dự án: "${candidateName}"!`, "var(--btn-success)");
+    }
+}
+
+// D. THAY THẾ DỮ LIỆU
+async function handleReplaceProjectData(projId) {
+    const proj = localSavedProjectsCache.find(p => p.id === projId);
+    if (!proj) return;
+
+    const confirmMsg = `⚠️ Bạn sắp THAY THẾ DỮ LIỆU của dự án "${proj.name}".\n\n- Dữ liệu nguồn: Toàn bộ bảng dịch hiện tại trên màn hình.\n- Dữ liệu đích: Sẽ ghi đè thay thế toàn bộ nội dung của dự án "${proj.name}".\n- Các dự án khác: Được giữ nguyên hoàn toàn.\n\nBạn có chắc chắn muốn thực hiện không?`;
+    if (!confirm(confirmMsg)) return;
+
+    showToast(`⏳ Đang thay thế dữ liệu dự án "${proj.name}"...`, "var(--btn-info)");
 
     if (typeof forceSyncHistoryToCloud === 'function') {
         await forceSyncHistoryToCloud();
@@ -279,8 +438,7 @@ async function replaceProjectWithCurrent(projId) {
     const storyTitleVal = (typeof metadata !== 'undefined' && metadata.title) ? metadata.title.trim() : '';
     const dataStr = JSON.stringify(data);
 
-    let transHist = [];
-    let metaHist = [];
+    let transHist = []; let metaHist = [];
     if (typeof window.appCloudHistory !== 'undefined') {
         transHist = window.appCloudHistory.editor || [];
         metaHist = window.appCloudHistory.meta || [];
@@ -291,7 +449,7 @@ async function replaceProjectWithCurrent(projId) {
 
     const updatedProjObj = {
         id: projId,
-        name: proj.name, // Giữ nguyên tên dự án cũ
+        name: proj.name,
         chapterTitle: titleVal,
         storyTitle: storyTitleVal,
         rowCount: data.length,
@@ -302,32 +460,120 @@ async function replaceProjectWithCurrent(projId) {
         updatedAt: Date.now()
     };
 
-    // Nếu đã kết nối Drive -> Gọi hàm cập nhật đè trên Drive
     if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
         if (typeof gdriveUpdateProject === 'function') {
             const res = await gdriveUpdateProject(projId, updatedProjObj);
             if (!res || !res.success) {
-                showToast(`❌ Không thể cập nhật dự án trên Google Drive!`, 'var(--btn-danger)');
+                showToast("❌ Không thể đồng bộ lên Google Drive. Dữ liệu vẫn được giữ nguyên tại vị trí lưu trữ hiện có.", "var(--btn-danger)");
                 return;
             }
         }
     }
 
-    // Cập nhật bộ nhớ đệm máy tính
     const idx = localSavedProjectsCache.findIndex(p => p.id === projId);
     if (idx !== -1) {
         localSavedProjectsCache[idx] = toProjectSummary(updatedProjObj);
-        try {
-            localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache));
-        } catch (e) {}
+        try { localStorage.setItem('mySavedProjects', JSON.stringify(localSavedProjectsCache)); } catch (e) {}
     }
 
     renderMyProjectsListUI();
     calculateStorageMetrics();
-    showToast(`🔄 Đã thay thế và cập nhật dự án "${proj.name}" thành công!`, 'var(--btn-success)');
+    showToast(`🔄 Đã thay thế dữ liệu dự án "${proj.name}" thành công!`, "var(--btn-success)");
 }
 
-// 5. LƯU THÀNH BẢN MỚI
+// E. XÓA DỰ ÁN ĐƠN LẺ
+async function handleDeleteSingleProject(projId) {
+    const proj = localSavedProjectsCache.find(p => p.id === projId);
+    if (!proj) return;
+
+    if (confirm(`⚠️ Bạn có chắc chắn muốn XÓA DỰ ÁN "${proj.name}"?\n\n(Thao tác này sẽ xóa vĩnh viễn và không thể khôi phục).`)) {
+        showToast(`⏳ Đang xóa dự án "${proj.name}"...`, "var(--btn-info)");
+        const ok = await deleteProjectFromCloudAndLocal(projId);
+        if (ok) {
+            showToast(`🗑️ Đã xóa dự án "${proj.name}" thành công!`, "var(--btn-danger)");
+        } else {
+            showToast("❌ Không thể xóa dự án trên Google Drive.", "var(--btn-danger)");
+        }
+    }
+}
+
+// =========================================================================
+// 7. QUẢN LÝ NHIỀU DỰ ÁN (CHẾ ĐỘ CHỌN & XÓA HÀNG LOẠT)
+// =========================================================================
+function toggleProjectBatchMode(forceState = null) {
+    isProjectBatchMode = (forceState !== null) ? forceState : !isProjectBatchMode;
+    selectedProjectIds.clear();
+
+    const batchBtn = document.getElementById('btn-toggle-project-batch');
+    const batchBar = document.getElementById('project-batch-bar');
+    const batchTh = document.querySelector('.proj-batch-th');
+
+    if (batchBtn) {
+        if (isProjectBatchMode) batchBtn.classList.add('active');
+        else batchBtn.classList.remove('active');
+    }
+
+    if (batchBar) batchBar.style.display = isProjectBatchMode ? 'flex' : 'none';
+    if (batchTh) batchTh.style.display = isProjectBatchMode ? 'table-cell' : 'none';
+
+    renderMyProjectsListUI();
+}
+
+function updateProjectBatchUI() {
+    const count = selectedProjectIds.size;
+    const summaryEl = document.getElementById('project-batch-summary');
+    const deleteBtn = document.getElementById('btn-project-batch-delete');
+    const checkAll = document.getElementById('check-all-projects');
+
+    if (summaryEl) summaryEl.innerText = `Đã chọn: ${count} dự án`;
+    if (deleteBtn) deleteBtn.disabled = (count === 0);
+
+    const totalRendered = document.querySelectorAll('.check-project-item').length;
+    if (checkAll) {
+        checkAll.checked = (count === totalRendered && totalRendered > 0);
+        checkAll.indeterminate = (count > 0 && count < totalRendered);
+    }
+}
+
+async function executeProjectBatchDelete() {
+    const count = selectedProjectIds.size;
+    if (count === 0) return;
+
+    const selectedProjects = localSavedProjectsCache.filter(p => selectedProjectIds.has(p.id));
+    const projectNames = selectedProjects.map(p => p.name);
+
+    let listPreview = projectNames.slice(0, 5).map(n => `- ${n}`).join('\n');
+    if (projectNames.length > 5) {
+        listPreview += `\n... và ${projectNames.length - 5} dự án khác.`;
+    }
+
+    const confirmMsg = `⚠️ Bạn sắp XÓA ${count} DỰ ÁN sau:\n${listPreview}\n\nThao tác này không thể khôi phục! Bạn có chắc chắn muốn xóa?`;
+    if (!confirm(confirmMsg)) return;
+
+    showToast(`⏳ Đang xóa ${count} dự án...`, "var(--btn-info)");
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const id of Array.from(selectedProjectIds)) {
+        const ok = await deleteProjectFromCloudAndLocal(id);
+        if (ok) successCount++;
+        else failCount++;
+    }
+
+    selectedProjectIds.clear();
+    toggleProjectBatchMode(false);
+
+    if (failCount === 0) {
+        showToast(`🗑️ Đã xóa ${successCount} dự án thành công!`, "var(--btn-danger)");
+    } else {
+        showToast(`⚠️ Đã xóa ${successCount}/${count} dự án. ${failCount} dự án chưa xóa được.`, "var(--btn-warning)");
+    }
+}
+
+// =========================================================================
+// 8. LƯU CHƯƠNG HIỆN TẠI THÀNH BẢN MỚI
+// =========================================================================
 async function saveCurrentAsProject() {
     const titleVal = (typeof chapterTitle !== 'undefined' && chapterTitle) ? chapterTitle.trim() : 'Chương_Mới';
     const storyTitleVal = (typeof metadata !== 'undefined' && metadata.title) ? metadata.title.trim() : '';
@@ -370,6 +616,9 @@ async function saveCurrentAsProject() {
     await saveProjectToCloudAndLocal(projObj);
 }
 
+// =========================================================================
+// 9. KHỞI CHẠY LẮNG NGHE SỰ KIỆN GIAO DIỆN
+// =========================================================================
 function initProjectManagerEvents() {
     document.getElementById('nav-my-projects')?.addEventListener('click', () => {
         loadSavedProjects();
@@ -378,18 +627,97 @@ function initProjectManagerEvents() {
 
     document.getElementById('btn-close-my-data')?.addEventListener('click', () => {
         document.getElementById('modal-my-data')?.classList.remove('show');
+        closeProjectDropdownMenu();
+        toggleProjectBatchMode(false);
     });
 
     document.getElementById('btn-save-current-as-project')?.addEventListener('click', saveCurrentAsProject);
     document.getElementById('project-search-input')?.addEventListener('input', renderMyProjectsListUI);
     document.getElementById('project-sort-select')?.addEventListener('change', renderMyProjectsListUI);
 
+    // KẾT NỐI DRIVE
     document.addEventListener('click', (e) => {
         if (e.target && (e.target.id === 'btn-open-gdrive-auth' || e.target.closest('#btn-open-gdrive-auth'))) {
             e.preventDefault();
             if (typeof triggerGoogleRedirectLogin === 'function') triggerGoogleRedirectLogin();
         }
     });
+
+    // SỰ KIỆN CHỌN NHIỀU DỰ ÁN
+    document.getElementById('btn-toggle-project-batch')?.addEventListener('click', () => {
+        toggleProjectBatchMode();
+    });
+
+    document.getElementById('btn-project-batch-deselect')?.addEventListener('click', () => {
+        selectedProjectIds.clear();
+        document.querySelectorAll('.check-project-item').forEach(cb => cb.checked = false);
+        updateProjectBatchUI();
+    });
+
+    document.getElementById('btn-project-batch-exit')?.addEventListener('click', () => {
+        toggleProjectBatchMode(false);
+    });
+
+    document.getElementById('btn-project-batch-delete')?.addEventListener('click', executeProjectBatchDelete);
+
+    document.getElementById('check-all-projects')?.addEventListener('change', (e) => {
+        const isChecked = e.target.checked;
+        selectedProjectIds.clear();
+        document.querySelectorAll('.check-project-item').forEach(cb => {
+            cb.checked = isChecked;
+            const id = cb.getAttribute('data-id');
+            if (isChecked && id) selectedProjectIds.add(id);
+        });
+        updateProjectBatchUI();
+    });
+
+    // SỰ KIỆN CLICK VÀO CÁC MỤC TRONG MENU BA CHẤM ⋮
+    const menuEl = document.getElementById('project-dropdown-menu');
+    menuEl?.querySelectorAll('.proj-menu-item').forEach(item => {
+        item.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const action = e.currentTarget.dataset.action;
+            const projId = menuEl.dataset.projId;
+            closeProjectDropdownMenu();
+
+            if (!projId) return;
+
+            // Chờ menu đóng xong mới thực thi hành động để tránh xung đột UI
+            setTimeout(async () => {
+                switch (action) {
+                    case 'rename':
+                        await handleRenameProject(projId);
+                        break;
+                    case 'duplicate':
+                        await handleDuplicateProject(projId);
+                        break;
+                    case 'replace':
+                        await handleReplaceProjectData(projId);
+                        break;
+                    case 'delete':
+                        await handleDeleteSingleProject(projId);
+                        break;
+                }
+            }, 60);
+        });
+    });
+
+    // ĐÓNG MENU KHI CLICK RA NGOÀI HOẶC NHẤN ESC HOẶC CUỘN BẢNG
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#project-dropdown-menu') && !e.target.closest('.btn-proj-more-menu')) {
+            closeProjectDropdownMenu();
+        }
+    });
+
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeProjectDropdownMenu();
+        }
+    });
+
+    document.querySelector('.projects-scroll-box')?.addEventListener('scroll', () => {
+        closeProjectDropdownMenu();
+    }, { passive: true });
 }
 
 document.addEventListener('DOMContentLoaded', () => {

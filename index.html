@@ -116,10 +116,10 @@
                 <button class="btn-add" id="btn-add">➕ Thêm hàng</button>
                 <button class="btn-delete" id="btn-delete" title="Xóa hàng đang chọn">🗑️ Xóa hàng</button>
                 
-                <!-- NÚT BẬT/TẮT CHẾ ĐỘ CHỌN ĐỂ XÓA HÀNG LOẠT -->
+                <!-- NÚT BẬT/TẮT CHẾ ĐỘ CHỌN ĐỂ XÓA HÀNG LOẠT TRONG BẢNG -->
                 <button type="button" class="btn-tool" id="btn-toggle-batch" title="Bật/Tắt chế độ chọn và xóa hàng loạt">☑️ Chọn để xóa</button>
                 
-                <!-- THANH ĐIỀU KHIỂN XÓA HÀNG LOẠT (HIỆN KHI BẬT CHẾ ĐỘ) -->
+                <!-- THANH ĐIỀU KHIỂN XÓA HÀNG LOẠT -->
                 <div id="batch-action-bar" style="display: none;">
                     <span id="batch-count-summary">Đã chọn: 0 hàng, 0 cột (0 ô)</span>
                     <button type="button" class="btn-danger btn-sm" id="btn-batch-confirm-delete" disabled>🗑️ Xóa mục đã chọn</button>
@@ -190,7 +190,7 @@
                 <table>
                     <thead>
                         <tr>
-                            <!-- CỘT CHECKBOX HÀNG (ẨN MẶC ĐỊNH, CHỈ HIỆN KHI BẬT CHẾ ĐỘ) -->
+                            <!-- CỘT CHECKBOX HÀNG (ẨN MẶC ĐỊNH) -->
                             <th class="batch-select-cell batch-toggle-el" style="display: none; width: 45px; text-align: center; vertical-align: middle;">
                                 <input type="checkbox" id="batch-check-all-rows" title="Chọn tất cả các hàng">
                             </th>
@@ -489,31 +489,47 @@
         </div>
     </div>
 
-    <!-- HỘP THOẠI MODAL: QUẢN LÝ DỰ ÁN CỦA TÔI (CĂN CHỈNH TỶ LỆ 5 CỘT VỪA KHÍT 3 NÚT BẤM) -->
+    <!-- =============================================================== -->
+    <!-- HỘP THOẠI MODAL: QUẢN LÝ DỰ ÁN CỦA TÔI (PHƯƠNG ÁN B HOÀN HẢO) -->
+    <!-- =============================================================== -->
     <div class="modal-overlay" id="modal-my-data">
         <div class="modal-content modal-projects-box">
             <h3>📂 Dự án của tôi</h3>
             <p class="modal-desc" id="storage-summary-info">Đang tính toán dung lượng...</p>
 
-            <div class="project-toolbar-bar" style="display:flex; gap:8px; align-items:center; margin: 8px 0;">
-                <input type="text" id="project-search-input" placeholder="🔍 Tìm kiếm dự án / chương truyện..." style="flex:1; padding:6px 10px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-color); color:var(--text-color); font-size:0.88rem;">
+            <!-- THANH TÌM KIẾM, SẮP XẾP & NÚT CHỌN NHIỀU -->
+            <div class="project-toolbar-bar" style="display:flex; gap:8px; align-items:center; margin: 8px 0; flex-wrap:wrap;">
+                <input type="text" id="project-search-input" placeholder="🔍 Tìm kiếm dự án / chương truyện..." style="flex:1; min-width:200px; padding:6px 10px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-color); color:var(--text-color); font-size:0.88rem;">
                 <select id="project-sort-select" class="font-select" style="margin:0; padding:6px 8px; font-size:0.85rem;">
                     <option value="updated-desc">Mới nhất trước</option>
                     <option value="updated-asc">Cũ nhất trước</option>
                     <option value="name-asc">Tên A-Z</option>
                     <option value="size-desc">Dung lượng lớn</option>
                 </select>
+                <button type="button" class="btn-tool btn-sm" id="btn-toggle-project-batch" title="Bật/Tắt chế độ chọn nhiều dự án">☑️ Chọn nhiều</button>
+            </div>
+
+            <!-- THANH THAO TÁC HÀNG LOẠT (HIỆN KHI BẬT CHỌN NHIỀU) -->
+            <div id="project-batch-bar" class="project-batch-bar" style="display: none;">
+                <span id="project-batch-summary">Đã chọn: 0 dự án</span>
+                <button type="button" class="btn-danger btn-xs" id="btn-project-batch-delete" disabled>🗑️ Xóa dự án đã chọn</button>
+                <button type="button" class="btn-file btn-xs" id="btn-project-batch-deselect">Bỏ chọn</button>
+                <button type="button" class="btn-secondary btn-xs" id="btn-project-batch-exit">✕ Thoát</button>
             </div>
 
             <div class="modal-body-scroll projects-scroll-box">
                 <table class="info-table projects-table">
                     <thead>
                         <tr>
-                            <th style="width: 30%;">Tên Chương / Dự án</th>
-                            <th style="width: 12%;">Số hàng</th>
-                            <th style="width: 18%;">Lần sửa cuối</th>
+                            <!-- CỘT CHECKBOX CHỌN NHIỀU (ẨN MẶC ĐỊNH) -->
+                            <th class="proj-batch-th" style="display: none; width: 36px; text-align: center;">
+                                <input type="checkbox" id="check-all-projects" title="Chọn tất cả dự án">
+                            </th>
+                            <th style="width: 38%;">Tên Chương / Dự án</th>
+                            <th style="width: 14%;">Số hàng</th>
+                            <th style="width: 20%;">Lần sửa cuối</th>
                             <th style="width: 12%;">Dung lượng</th>
-                            <th style="width: 28%;">Thao tác</th>
+                            <th style="width: 16%; text-align: center;">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody id="my-projects-list-body"></tbody>
@@ -524,6 +540,23 @@
                 <button class="btn-file btn-sm" id="btn-close-my-data" style="margin-right: auto;">Đóng</button>
                 <button class="btn-add btn-sm" id="btn-save-current-as-project">💾 Lưu chương hiện tại thành dự án</button>
             </div>
+        </div>
+
+        <!-- MENU BA CHẤM ĐỊNH VỊ NỔI (FLOATING DROPDOWN MENU) -->
+        <div id="project-dropdown-menu" class="proj-dropdown-menu" style="display: none;">
+            <button type="button" class="proj-menu-item" data-action="rename">
+                <span class="proj-menu-icon">✏️</span> Đổi tên
+            </button>
+            <button type="button" class="proj-menu-item" data-action="duplicate">
+                <span class="proj-menu-icon">📄</span> Sao chép dự án
+            </button>
+            <button type="button" class="proj-menu-item" data-action="replace">
+                <span class="proj-menu-icon">🔄</span> Thay thế dữ liệu
+            </button>
+            <div class="proj-menu-divider"></div>
+            <button type="button" class="proj-menu-item text-danger" data-action="delete">
+                <span class="proj-menu-icon">🗑️</span> Xóa dự án
+            </button>
         </div>
     </div>
 

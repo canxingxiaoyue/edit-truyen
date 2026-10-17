@@ -964,15 +964,16 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
 .history-actions { display: flex; gap: 6px; }
 
 /* ========================================================= */
-/* TỐI ƯU BẢNG DỰ ÁN: GỌN GÀNG, THANH LỊCH & ĐỒNG BỘ THEME */
+/* TỐI ƯU BẢNG DỰ ÁN - PHƯƠNG ÁN B (NÚT MỞ & MENU BA CHẤM ⋮) */
 /* ========================================================= */
 .modal-projects-box {
-    width: 780px !important;
+    width: 820px !important;
     max-width: 95vw !important;
     max-height: 85vh !important;
     padding: 20px 24px !important;
     border-radius: 16px !important;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2) !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28) !important;
+    position: relative;
 }
 
 .modal-projects-box h3 {
@@ -984,6 +985,25 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     font-size: 0.85rem !important;
     margin-bottom: 8px !important;
     opacity: 0.85;
+}
+
+/* THANH THAO TÁC HÀNG LOẠT TRONG MODAL */
+.project-batch-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(239, 68, 68, 0.08);
+    padding: 5px 12px;
+    border-radius: 8px;
+    border: 1.5px dashed var(--btn-danger);
+    margin: 6px 0 10px 0;
+}
+
+#project-batch-summary {
+    font-weight: 700;
+    font-size: 0.82rem;
+    color: var(--btn-danger);
+    white-space: nowrap;
 }
 
 /* KHUNG CUỘN DANH SÁCH DỰ ÁN */
@@ -998,7 +1018,6 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     scrollbar-color: var(--border-color) transparent !important;
 }
 
-/* THANH KÉO CUỘN: TỰ ĐỘNG ĐỒNG BỘ THEO MÀU NỀN THEME ĐANG CHỌN */
 .projects-scroll-box::-webkit-scrollbar {
     height: 6px !important;
     width: 6px !important;
@@ -1009,7 +1028,7 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
 }
 
 .projects-scroll-box::-webkit-scrollbar-thumb {
-    background-color: var(--border-color) !important; /* Lấy trực tiếp màu viền theme */
+    background-color: var(--border-color) !important;
     border-radius: 10px !important;
     transition: background-color 0.2s ease !important;
 }
@@ -1020,7 +1039,7 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
 
 /* ĐỊNH DẠNG BẢNG DỰ ÁN */
 .projects-table {
-    min-width: 640px !important;
+    min-width: 650px !important;
     width: 100% !important;
     table-layout: fixed !important;
     border-collapse: collapse !important;
@@ -1044,57 +1063,130 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     word-break: break-word !important;
 }
 
-/* ========================================================= */
-/* BỘ NÚT THAO TÁC TỐI GIẢN - ĐƠN GIẢN MÀ ĐẸP (CLEAN PILL) */
-/* ========================================================= */
+/* ================= BỐ CỤC CỘT THAO TÁC: [ 📂 MỞ ] [ ⋮ ] ================= */
 .proj-actions-cell {
-    display: flex;
-    justify-content: center;
+    display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
     white-space: nowrap;
+    width: 100%;
 }
 
-.btn-proj-action {
-    padding: 4px 10px !important;
-    font-size: 0.78rem !important;
+/* NÚT MỞ DỰ ÁN CHÍNH (XANH DƯƠNG NỔI BẬT) */
+.btn-proj-main-open {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border: 1px solid #1d4ed8 !important;
+    padding: 5px 12px !important;
+    border-radius: 7px !important;
     font-weight: 600 !important;
-    border-radius: 6px !important;
-    border: 1px solid var(--border-color) !important;
+    font-size: 0.8rem !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25) !important;
+    transition: all 0.15s ease !important;
+}
+
+.btn-proj-main-open:hover {
+    background: #1d4ed8 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(37, 99, 235, 0.35) !important;
+}
+
+/* NÚT MENU BA CHẤM ⋮ */
+.btn-proj-more-menu {
     background: var(--bg-color) !important;
     color: var(--text-color) !important;
+    border: 1px solid var(--border-color) !important;
+    width: 29px !important;
+    height: 29px !important;
+    padding: 0 !important;
+    border-radius: 7px !important;
+    font-size: 1.15rem !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
     cursor: pointer !important;
-    transition: all 0.15s ease !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
+    transition: all 0.15s ease !important;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
 }
 
-.btn-proj-action:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
-}
-
-/* Nút Mở: Ửng xanh dương nhẹ nhàng */
-.btn-proj-action.action-open:hover {
-    background: rgba(59, 130, 246, 0.12) !important;
-    border-color: var(--btn-primary) !important;
+.btn-proj-more-menu:hover,
+.btn-proj-more-menu.active {
+    background: var(--border-color) !important;
+    border-color: var(--text-color) !important;
     color: var(--btn-primary) !important;
 }
 
-/* Nút Thay thế: Ửng xanh ngọc trang nhã */
-.btn-proj-action.action-replace:hover {
-    background: rgba(16, 185, 129, 0.12) !important;
-    border-color: var(--btn-success) !important;
-    color: var(--btn-success) !important;
+/* ================= MENU THẢ XUỐNG NỔI (DROPDOWN MENU) ================= */
+.proj-dropdown-menu {
+    position: fixed !important;
+    z-index: 100050 !important;
+    background: var(--header-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.18) !important;
+    min-width: 185px !important;
+    padding: 5px !important;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    animation: fadeInDropdown 0.15s ease-out;
 }
 
-/* Nút Xóa: Ửng đỏ hồng tinh tế */
-.btn-proj-action.action-delete:hover {
-    background: rgba(239, 68, 68, 0.12) !important;
-    border-color: var(--btn-danger) !important;
+@keyframes fadeInDropdown {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.proj-menu-item {
+    width: 100% !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 6px !important;
+    padding: 7px 12px !important;
+    font-size: 0.84rem !important;
+    font-weight: 600 !important;
+    color: var(--text-color) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    text-align: left !important;
+    transition: background 0.15s ease, color 0.15s ease !important;
+    box-shadow: none !important;
+}
+
+.proj-menu-item:hover {
+    background: var(--row-hover) !important;
+    color: var(--btn-primary) !important;
+}
+
+.proj-menu-item.text-danger {
     color: var(--btn-danger) !important;
+}
+
+.proj-menu-item.text-danger:hover {
+    background: rgba(239, 68, 68, 0.1) !important;
+    color: var(--btn-danger) !important;
+}
+
+.proj-menu-icon {
+    font-size: 0.95rem;
+    width: 18px;
+    display: inline-block;
+    text-align: center;
+}
+
+.proj-menu-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 4px 0;
 }
 
 /* ========================================================= */

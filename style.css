@@ -1115,9 +1115,37 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
 }
 
-/* ========================================================================= */
-/* 📱 TỐI ƯU HÓA DI ĐỘNG - MỞ KHÓA CUỘN DỌC & LƯỚT NGANG MƯỢT MÀ */
-/* ========================================================================= */
+/* ========================================================= */
+/* HIỆU ỨNG ĐÓNG/MỞ (COLLAPSE) CHO MỤC THÔNG TIN TRUYỆN */
+/* ========================================================= */
+.section-collapse-toggle {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+    transition: color 0.2s;
+}
+
+.section-collapse-toggle:hover {
+    color: var(--btn-primary);
+}
+
+.collapse-icon {
+    font-style: normal;
+    font-size: 0.8rem;
+    transition: transform 0.3s ease;
+    display: inline-block;
+}
+
+/* Trạng thái khi bị thu gọn */
+.story-section-box.collapsed .collapse-icon {
+    transform: rotate(-90deg); /* Mũi tên chĩa sang phải */
+}
+
+.story-section-box.collapsed .info-cards-scroll {
+    display: none !important; /* Ẩn toàn bộ danh sách thẻ bên dưới */
+}
 
 /* ========================================================================= */
 /* 📱 TỐI ƯU HÓA DI ĐỘNG - MỞ KHÓA CUỘN DỌC & SỬA LỖI DÍNH TAB */

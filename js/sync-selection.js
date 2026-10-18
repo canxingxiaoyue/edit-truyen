@@ -1,6 +1,6 @@
 // =========================================================================
-// ĐỒNG BỘ TÔ SÁNG HAI CHIỀU (RAW ↔ QT) BẰNG THUẬT TOÁN TỌA ĐỘ TOKEN
-// Chính xác 100% - Không phụ thuộc vào khoảng trắng hay dấu câu
+// ĐỒNG BỘ TÔ SÁNG HAI CHIỀU (RAW ↔ QT) - PHIÊN BẢN BỌC THÉP (BULLETPROOF)
+// Khắc phục triệt để lỗi khi người dùng bôi đen kéo lố hoặc chọn nguyên ô
 // =========================================================================
 
 let syncSelectionTimeout = null;
@@ -20,56 +20,52 @@ function clearSyncHighlights() {
     });
 }
 
-// Hàm lấy tọa độ chính xác của vùng bôi đen (Dựa trên Text Nodes)
-function getSelectionCharacterOffsets(element, range) {
-    let start = 0, end = 0;
-    let charCount = 0;
-    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
-    let node;
-    while ((node = walker.nextNode())) {
-        if (node === range.startContainer) start = charCount + range.startOffset;
-        if (node === range.endContainer) end = charCount + range.endOffset;
-        charCount += node.nodeValue.length;
+// Lấy tọa độ ký tự an toàn tuyệt đối (Bất chấp HTML bên trong hay chọn nguyên ô)
+function getSafeTextOffset(cell, range) {
+    try {
+        const preRange = document.createRange();
+        preRange.selectNodeContents(cell);
+        preRange.setEnd(range.startContainer, range.startOffset);
+        return preRange.toString().length;
+    } catch (e) {
+        return -1;
     }
-    return { start, end };
 }
 
-// Hàm tô sáng dựa trên tọa độ bắt đầu và kết thúc
-function highlightByOffsets(cellElement, startOffset, endOffset) {
-    if (startOffset < 0 || endOffset <= startOffset || !cellElement) return;
-    
-    const walker = document.createTreeWalker(cellElement, NodeFilter.SHOW_TEXT, null, false);
+// Tô màu an toàn (Tìm đúng Node chữ để tô, không làm vỡ HTML bảng)
+function applyHighlightSafe(cell, startPos, endPos) {
+    if (!cell || startPos < 0 || endPos <= startPos) return;
+    clearSyncHighlights();
+
+    const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT, null, false);
     let currentPos = 0;
-    let startNode = null, startNodeOffset = 0;
-    let endNode = null, endNodeOffset = 0;
+    let startNode = null, startOffset = 0;
+    let endNode = null, endOffset = 0;
+
     let node;
-
     while ((node = walker.nextNode())) {
-        const nodeLen = node.nodeValue.length;
-        const nextPos = currentPos + nodeLen;
-
-        if (!startNode && startOffset >= currentPos && startOffset <= nextPos) {
+        const len = node.nodeValue.length;
+        if (!startNode && startPos >= currentPos && startPos < currentPos + len) {
             startNode = node;
-            startNodeOffset = startOffset - currentPos;
+            startOffset = startPos - currentPos;
         }
-        if (endOffset >= currentPos && endOffset <= nextPos) {
+        if (endPos > currentPos && endPos <= currentPos + len) {
             endNode = node;
-            endNodeOffset = endOffset - currentPos;
+            endOffset = endPos - currentPos;
             break;
         }
-        currentPos = nextPos;
+        currentPos += len;
     }
 
     if (!startNode || !endNode) return;
 
     try {
         const hlRange = document.createRange();
-        hlRange.setStart(startNode, startNodeOffset);
-        hlRange.setEnd(endNode, endNodeOffset);
+        hlRange.setStart(startNode, startOffset);
+        hlRange.setEnd(endNode, endOffset);
 
         if (typeof CSS !== 'undefined' && CSS.highlights) {
-            const hl = new Highlight(hlRange);
-            CSS.highlights.set('sync-highlight', hl);
+            CSS.highlights.set('sync-highlight', new Highlight(hlRange));
         } else {
             const mark = document.createElement('mark');
             mark.className = 'sync-highlight';
@@ -87,65 +83,67 @@ function handleSelectionChangeSync() {
             return;
         }
 
-        let containerNode = selection.anchorNode;
-        if (containerNode.nodeType === Node.TEXT_NODE) containerNode = containerNode.parentNode;
+        const selectedText = selection.toString().trim();
+        if (!selectedText) {
+            clearSyncHighlights();
+            return;
+        }
+
+        // [SỬA LỖI CHÍNH]: Dò tìm ô TD chứa chữ, xử lý cả trường hợp kéo chuột lố ra ngoài
+        let focusNode = selection.focusNode;
+        let anchorNode = selection.anchorNode;
         
-        const sourceTd = containerNode.closest('td');
+        let targetNode = focusNode.nodeType === 3 ? focusNode.parentNode : focusNode;
+        let sourceTd = targetNode.closest('td[data-col]');
+        
+        // Nếu focus trượt, thử lại với điểm bắt đầu (anchor)
+        if (!sourceTd) {
+            targetNode = anchorNode.nodeType === 3 ? anchorNode.parentNode : anchorNode;
+            sourceTd = targetNode.closest('td[data-col]');
+        }
+
         if (!sourceTd) {
             clearSyncHighlights();
             return;
         }
 
-        const tr = sourceTd.closest('tr');
-        if (!tr || tr.parentElement.id !== 'table-body') {
-            clearSyncHighlights();
-            return;
-        }
-
-        // Lấy đúng tên cột (tự tìm nếu thiếu data-col)
-        let colKey = sourceTd.dataset.col;
-        if (!colKey) {
-            const dataTds = Array.from(tr.children).filter(c => !c.classList.contains('batch-select-cell'));
-            colKey = ['raw', 'pinyin', 'meaning', 'translation', 'qt', 'edit'][dataTds.indexOf(sourceTd)];
-        }
-
+        const colKey = sourceTd.dataset.col;
         if (colKey !== 'qt' && colKey !== 'raw') {
             clearSyncHighlights();
             return;
         }
 
-        clearSyncHighlights();
-
-        const rawTd = tr.querySelector('td[data-col="raw"]') || Array.from(tr.children).find(c => c.dataset?.col === 'raw') || tr.children[1];
-        const qtTd = tr.querySelector('td[data-col="qt"]') || Array.from(tr.children).find(c => c.dataset?.col === 'qt') || tr.children[5];
+        const tr = sourceTd.closest('tr');
+        const rawTd = tr.querySelector('td[data-col="raw"]');
+        const qtTd = tr.querySelector('td[data-col="qt"]');
         if (!rawTd || !qtTd) return;
 
-        const rowIndex = Array.from(tr.parentElement.children).indexOf(tr);
+        const isRawSource = (colKey === 'raw');
+        const targetTd = isRawSource ? qtTd : rawTd;
+        
+        // Lấy tọa độ bôi đen thuần túy
+        const selStart = getSafeTextOffset(sourceTd, selection.getRangeAt(0));
+        if (selStart === -1) return;
+        const selEnd = selStart + selection.toString().length;
 
-        // Lấy mảng Token từ bộ từ điển
+        // Xử lý nạp Token
+        const rowIndex = Array.from(tr.parentElement.children).indexOf(tr);
         let tokens = (typeof rowTokensMap !== 'undefined' && rowTokensMap[rowIndex]) ? rowTokensMap[rowIndex] : null;
+        
         if (!tokens && typeof nameQTEngine !== 'undefined') {
-            const rawClean = (rawTd.textContent || '').replace(/<[^>]+>/g, '').normalize('NFC');
+            const rawClean = (rawTd.innerText || rawTd.textContent || '').replace(/<[^>]+>/g, '').normalize('NFC');
             tokens = nameQTEngine.process(rawClean).tokens;
             if (typeof rowTokensMap !== 'undefined') rowTokensMap[rowIndex] = tokens;
         }
 
         if (!tokens || tokens.length === 0) return;
 
-        const isRawSource = (colKey === 'raw');
-        const targetTd = isRawSource ? qtTd : rawTd;
-        
-        // 1. Tính toán tọa độ của vùng đang bôi đen
-        const { start: selStart, end: selEnd } = getSelectionCharacterOffsets(sourceTd, selection.getRangeAt(0));
-        if (selStart === -1) return;
-
+        // TÍNH TOÁN ÁNH XẠ TOÁN HỌC CHUẨN XÁC
         let targetStart = -1;
         let targetEnd = -1;
-
         let rawCursor = 0;
         let qtCursor = 0;
 
-        // 2. Thuật toán quét và chiếu tọa độ Token
         for (const tok of tokens) {
             const rLen = (tok.orig || tok.raw || tok.cn || '').length;
             const qLen = (tok.text || tok.qt || tok.vi || '').length;
@@ -155,17 +153,12 @@ function handleSelectionChangeSync() {
             const qStart = qtCursor;
             const qEnd = qtCursor + qLen;
 
-            // Nếu đang bôi đen bên RAW
-            if (isRawSource) {
-                // Kiểm tra vùng bôi đen có chạm vào tọa độ của Raw không
-                if (selStart < rEnd && selEnd > rStart) {
+            if (isRawSource) { // Quét RAW -> Phát sáng QT
+                if (selStart < rEnd && selEnd > rStart) { // Có chạm vào vùng chọn
                     if (targetStart === -1) targetStart = qStart;
                     targetEnd = qEnd; 
                 }
-            } 
-            // Nếu đang bôi đen bên QT
-            else {
-                // Kiểm tra vùng bôi đen có chạm vào tọa độ của QT không
+            } else { // Quét QT -> Phát sáng RAW
                 if (selStart < qEnd && selEnd > qStart) {
                     if (targetStart === -1) targetStart = rStart;
                     targetEnd = rEnd; 
@@ -176,9 +169,9 @@ function handleSelectionChangeSync() {
             qtCursor = qEnd;
         }
 
-        // 3. Thực thi tô sáng ở ô đích
+        // Thực thi tô sáng
         if (targetStart !== -1 && targetEnd > targetStart) {
-            highlightByOffsets(targetTd, targetStart, targetEnd);
+            applyHighlightSafe(targetTd, targetStart, targetEnd);
         }
 
     }, 40);

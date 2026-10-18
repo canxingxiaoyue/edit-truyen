@@ -1,8 +1,10 @@
 // =========================================================================
 // ULTRA-LIGHTWEIGHT NAME QT ENGINE - GIẢM RAM TỐI ĐA & TÍCH HỢP GOOGLE DRIVE
+// HỖ TRỢ ĐỘ ƯU TIÊN TUYỆT ĐỐI CHO "Name tự sửa.txt"
 // =========================================================================
 const DB_NAME = 'NameQT_Store_DB_v3';
 const FILES_STORE = 'files_store_v3';
+const PRIORITY_CUSTOM_FILE = 'Name tự sửa.txt';
 
 function openNameQTDB() {
     return new Promise((resolve, reject) => {
@@ -26,7 +28,9 @@ async function saveFileToIndexedDB(fileObj) {
             tx.oncomplete = () => resolve();
             tx.onerror = (e) => reject(e.target.error);
         });
-    } catch (e) {}
+    } catch (e) {
+        console.error('Lỗi lưu IndexedDB:', e);
+    }
 }
 
 async function loadFilesFromIndexedDB() {
@@ -70,7 +74,7 @@ class FastNameQTEngine {
         this.dict = new Map();
         this.files = []; 
         this.maxDepth = 15;
-        this.isLoaded = false; // CỜ CHỐNG NẠP LẶP LẠI KHI CHUYỂN TAB
+        this.isLoaded = false;
     }
 
     countEntries(txtContent) {
@@ -85,14 +89,64 @@ class FastNameQTEngine {
         return count;
     }
 
+    // Gộp thông minh nội dung 2 file từ điển (khử trùng lặp khóa tiếng Trung)
+    mergeNameEntries(contentA, contentB) {
+        const entryMap = new Map();
+        const parseLines = (text) => {
+            if (!text) return;
+            const lines = text.normalize('NFC').replace(/^\uFEFF/, '').split(/\r?\n/);
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line || line.charCodeAt(0) === 35) continue;
+                const eqIdx = line.indexOf('=');
+                if (eqIdx > 0) {
+                    const cn = line.slice(0, eqIdx).trim();
+                    const vi = line.slice(eqIdx + 1).trim();
+                    if (cn && vi) entryMap.set(cn, vi);
+                }
+            }
+        };
+        parseLines(contentA);
+        parseLines(contentB); // Nội dung B sẽ cập nhật đè nội dung A nếu trùng
+        const outLines = [];
+        for (const [cn, vi] of entryMap.entries()) {
+            outLines.push(`${cn}=${vi}`);
+        }
+        return outLines.join('\n');
+    }
+
+    // Đưa 'Name tự sửa.txt' lên đầu danh sách hiển thị
+    sortFilesWithPriority() {
+        const pName = PRIORITY_CUSTOM_FILE.toLowerCase();
+        this.files.sort((a, b) => {
+            const isA = (a.fileName || '').trim().toLowerCase() === pName;
+            const isB = (b.fileName || '').trim().toLowerCase() === pName;
+            if (isA && !isB) return -1;
+            if (!isA && isB) return 1;
+            return 0;
+        });
+    }
+
+    // TÁI TẠO TỪ ĐIỂN VỚI QUY TẮC "Name tự sửa.txt" CÓ ĐỘ ƯU TIÊN CAO NHẤT
     rebuildCombinedDict() {
         this.dict.clear();
         let maxLen = 1;
 
+        const pName = PRIORITY_CUSTOM_FILE.toLowerCase();
+        const normalFiles = [];
+        let priorityCustomFile = null;
+
         for (let f = 0; f < this.files.length; f++) {
             const file = this.files[f];
             if (!file || !file.content) continue;
+            if ((file.fileName || '').trim().toLowerCase() === pName) {
+                priorityCustomFile = file;
+            } else {
+                normalFiles.push(file);
+            }
+        }
 
+        const loadEntriesFromFile = (file) => {
             const lines = file.content.replace(/^\uFEFF/, '').split(/\r?\n/);
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].trim();
@@ -110,31 +164,170 @@ class FastNameQTEngine {
                     }
                 }
             }
+        };
+
+        // BƯỚC 1: Nạp toàn bộ các file từ điển thông thường trước (VietPhrase, Names...)
+        for (let f = 0; f < normalFiles.length; f++) {
+            loadEntriesFromFile(normalFiles[f]);
         }
+
+        // BƯỚC 2: Nạp 'Name tự sửa.txt' SAU CÙNG -> GHI ĐÈ LÊN MỌI FILE KHÁC (ƯU TIÊN TUYỆT ĐỐI)
+        if (priorityCustomFile) {
+            loadEntriesFromFile(priorityCustomFile);
+        }
+
         this.maxDepth = Math.min(maxLen, 25);
         this.isLoaded = true;
     }
 
+    // THÊM HOẶC CẬP NHẬT TỪ VÀO "Name tự sửa.txt"
+    async addOrUpdateCustomName(rawWord, targetWord) {
+        if (!rawWord || !targetWord) {
+            throw new Error("Từ gốc và tên từ không được để trống!");
+        }
+
+        const cleanRaw = rawWord.trim();
+        let cleanTarget = targetWord.trim();
+        if (cleanTarget.includes('/')) cleanTarget = cleanTarget.split('/')[0].trim();
+        if (cleanTarget.includes(',')) cleanTarget = cleanTarget.split(',')[0].trim();
+
+        if (!this.isLoaded) {
+            await this.loadFromStorage();
+        }
+
+        const pName = PRIORITY_CUSTOM_FILE.toLowerCase();
+        let customFile = this.files.find(f => (f.fileName || '').trim().toLowerCase() === pName);
+        let status = 'added'; // 'added' | 'updated' | 'unchanged'
+
+        if (!customFile) {
+            // Trường hợp file chưa tồn tại -> Tạo mới duy nhất một file
+            const newId = 'file_custom_' + Date.now();
+            const content = `${cleanRaw}=${cleanTarget}`;
+            customFile = {
+                id: newId,
+                fileName: PRIORITY_CUSTOM_FILE,
+                content: content,
+                count: 1,
+                updatedAt: Date.now()
+            };
+            this.files.unshift(customFile);
+            await saveFileToIndexedDB(customFile);
+            status = 'added';
+        } else {
+            // Trường hợp file đã tồn tại -> Kiểm tra và cập nhật
+            const lines = (customFile.content || '').replace(/^\uFEFF/, '').split(/\r?\n/);
+            let foundIndex = -1;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line || line.charCodeAt(0) === 35) continue;
+                const eqIdx = line.indexOf('=');
+                if (eqIdx > 0) {
+                    const cn = line.slice(0, eqIdx).trim();
+                    if (cn === cleanRaw) {
+                        foundIndex = i;
+                        const existingVi = line.slice(eqIdx + 1).trim();
+                        if (existingVi === cleanTarget) {
+                            status = 'unchanged';
+                        } else {
+                            status = 'updated';
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (status === 'unchanged') {
+                // Giá trị giống hệt -> Không cần ghi lại
+            } else if (status === 'updated') {
+                lines[foundIndex] = `${cleanRaw}=${cleanTarget}`;
+                customFile.content = lines.join('\n');
+                customFile.count = this.countEntries(customFile.content);
+                customFile.updatedAt = Date.now();
+                await saveFileToIndexedDB(customFile);
+            } else {
+                // Thêm mục mới vào file
+                if (customFile.content.trim().length === 0) {
+                    customFile.content = `${cleanRaw}=${cleanTarget}`;
+                } else {
+                    customFile.content = customFile.content.trimEnd() + `\n${cleanRaw}=${cleanTarget}`;
+                }
+                customFile.count = this.countEntries(customFile.content);
+                customFile.updatedAt = Date.now();
+                await saveFileToIndexedDB(customFile);
+                status = 'added';
+            }
+        }
+
+        // Đảm bảo file tự sửa nằm đầu danh sách
+        this.sortFilesWithPriority();
+
+        // Tái tạo từ điển để cập nhật độ ưu tiên
+        this.rebuildCombinedDict();
+
+        // Tự động đẩy file cập nhật lên Google Drive nếu đang kết nối
+        if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
+            if (typeof this.pushFileToGDrive === 'function') {
+                this.pushFileToGDrive(customFile.id).catch(e => console.warn('Lỗi auto-sync Drive:', e));
+            }
+        }
+
+        // Cập nhật modal Quản lý Name QT nếu đang mở
+        if (typeof updateNameQTModalUI === 'function') {
+            updateNameQTModalUI();
+        }
+
+        // Làm mới lại bảng dịch
+        if (typeof refreshAllQT === 'function') {
+            refreshAllQT(false);
+        }
+
+        return { status, file: customFile, raw: cleanRaw, target: cleanTarget };
+    }
+
+    // THÊM HOẶC CẬP NHẬT TỆP (CHỐNG TẠO FILE TRÙNG TÊN TỪ DRIVE HOẶC MÁY)
     async addOrUpdateFile(fileName, content, fileId = null) {
+        const normName = (fileName || 'Name_QT.txt').trim();
         const normContent = (content || '').normalize('NFC');
         const count = this.countEntries(normContent);
-        const id = fileId || 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
-        
+
+        // Tìm kiếm xem file đã có theo ID hoặc theo TÊN FILE (không phân biệt hoa/thường)
+        const existingIdx = this.files.findIndex(f => 
+            (fileId && f.id === fileId) || 
+            (f.fileName && f.fileName.trim().toLowerCase() === normName.toLowerCase())
+        );
+
+        let id = fileId;
+        if (existingIdx >= 0) {
+            id = this.files[existingIdx].id; // Giữ nguyên ID trong IndexedDB
+        } else if (!id) {
+            id = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        }
+
+        let finalContent = normContent;
+        // Nếu là 'Name tự sửa.txt' và cả 2 bên đều có dữ liệu -> Tự động gộp dòng (Merge)
+        if (existingIdx >= 0 && normName.toLowerCase() === PRIORITY_CUSTOM_FILE.toLowerCase()) {
+            finalContent = this.mergeNameEntries(this.files[existingIdx].content, normContent);
+        }
+
         const fileObj = {
             id,
-            fileName: fileName || 'Name_QT.txt',
-            content: normContent,
-            count,
+            fileName: normName,
+            content: finalContent,
+            count: this.countEntries(finalContent),
             updatedAt: Date.now()
         };
 
-        const idx = this.files.findIndex(f => f.id === id);
-        if (idx >= 0) this.files[idx] = fileObj;
-        else this.files.push(fileObj);
+        if (existingIdx >= 0) {
+            this.files[existingIdx] = fileObj;
+        } else {
+            this.files.push(fileObj);
+        }
 
         await saveFileToIndexedDB(fileObj);
+        this.sortFilesWithPriority();
         this.rebuildCombinedDict();
-        return count;
+        return fileObj.count;
     }
 
     async removeFile(fileId) {
@@ -142,7 +335,6 @@ class FastNameQTEngine {
         this.files = this.files.filter(f => f.id !== fileId);
         await deleteFileFromIndexedDB(fileId);
         
-        // Kích hoạt xóa trên Google Drive nếu đang kết nối
         if (fileObj && typeof isGDriveConnected === 'function' && isGDriveConnected()) {
             if (typeof gdriveDeleteNameQTFile === 'function') {
                 await gdriveDeleteNameQTFile(fileObj.fileName);
@@ -160,7 +352,6 @@ class FastNameQTEngine {
     }
 
     async loadFromStorage(forceReload = false) {
-        // NẾU ĐÃ NẠP VÀO RAM RỒI -> BỎ QUA NGAY LẬP TỨC (0ms, KHÔNG BỊ LAG KHI CHUYỂN TAB)
         if (this.isLoaded && this.dict.size > 0 && !forceReload) {
             return;
         }
@@ -168,6 +359,7 @@ class FastNameQTEngine {
         const localFiles = await loadFilesFromIndexedDB();
         if (localFiles && localFiles.length > 0) {
             this.files = localFiles;
+            this.sortFilesWithPriority();
             this.rebuildCombinedDict();
             if (typeof updateNameQTModalUI === 'function') updateNameQTModalUI();
         }
@@ -177,7 +369,6 @@ class FastNameQTEngine {
     // GOOGLE DRIVE INTEGRATION CHO NAME QT
     // =========================================================================
 
-    // 1. ĐẨY 1 FILE TỪ MÁY LÊN GOOGLE DRIVE
     async pushFileToGDrive(fileId) {
         const fileObj = this.files.find(f => f.id === fileId);
         if (!fileObj) return;
@@ -194,7 +385,6 @@ class FastNameQTEngine {
         }
     }
 
-    // 2. KÉO TOÀN BỘ FILE NAME QT TỪ DRIVE VỀ MÁY
     async pullAllFromGDrive() {
         if (typeof isGDriveConnected !== 'function' || !isGDriveConnected()) {
             if (typeof openGDriveModal === 'function') openGDriveModal();
@@ -223,6 +413,7 @@ class FastNameQTEngine {
             }
         }
 
+        this.sortFilesWithPriority();
         this.rebuildCombinedDict();
         if (typeof updateNameQTModalUI === 'function') updateNameQTModalUI();
         if (typeof refreshAllQT === 'function') refreshAllQT(false);

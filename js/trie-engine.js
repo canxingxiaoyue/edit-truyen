@@ -1,10 +1,51 @@
 // =========================================================================
 // ULTRA-LIGHTWEIGHT NAME QT ENGINE - GIẢM RAM TỐI ĐA & TÍCH HỢP GOOGLE DRIVE
-// HỖ TRỢ ĐỘ ƯU TIÊN TUYỆT ĐỐI CHO "Name tự sửa.txt"
+// THIẾT LẬP THỨ TỰ ƯU TIÊN TỪ ĐIỂN CHUẨN XÁC THEO TÊN FILE THỰC TẾ
 // =========================================================================
 const DB_NAME = 'NameQT_Store_DB_v3';
 const FILES_STORE = 'files_store_v3';
 const PRIORITY_CUSTOM_FILE = 'Name tự sửa.txt';
+
+// HÀM ĐỊNH TUYẾN THỨ TỰ ƯU TIÊN CHÍNH XÁC THEO TÊN FILE THỰC TẾ
+function getDictionaryPriority(fileName) {
+    if (!fileName) return 0;
+    const clean = fileName.trim().toLowerCase();
+
+    // 1. Name tự sửa: Dữ liệu tùy chỉnh của người dùng (Ưu tiên cao nhất khi tồn tại)
+    if (clean === 'name tự sửa.txt' || clean === 'name_tu_sua.txt') {
+        return 100;
+    }
+    // 2. Name.txt (hoặc Names.txt)
+    if (clean === 'name.txt' || clean === 'names.txt') {
+        return 90;
+    }
+    // 3. VietPhrase.txt
+    if (clean === 'vietphrase.txt') {
+        return 80;
+    }
+    // 4. DanhTu.txt
+    if (clean === 'danhtu.txt') {
+        return 70;
+    }
+    // 5. HauTu.txt
+    if (clean === 'hautu.txt') {
+        return 60;
+    }
+    // 6. Pronouns.txt
+    if (clean === 'pronouns.txt') {
+        return 50;
+    }
+    // 7. LacViet.txt
+    if (clean === 'lacviet.txt') {
+        return 40;
+    }
+    // 8. Các file đặc thù: giữ nguyên dữ liệu, không ghi đè lên 6 từ điển trên
+    if (clean === 'luatnhan.txt' || clean === 'honguoi.txt') {
+        return 10;
+    }
+    // Các file từ điển khác nếu có
+    return 20;
+}
 
 function openNameQTDB() {
     return new Promise((resolve, reject) => {
@@ -75,6 +116,7 @@ class FastNameQTEngine {
         this.files = []; 
         this.maxDepth = 15;
         this.isLoaded = false;
+        this.dictVersion = 0;
     }
 
     countEntries(txtContent) {
@@ -115,38 +157,30 @@ class FastNameQTEngine {
         return outLines.join('\n');
     }
 
-    // Đưa 'Name tự sửa.txt' lên đầu danh sách hiển thị
+    // Sắp xếp danh sách file hiển thị trên UI theo đúng thứ tự ưu tiên (Giảm dần)
     sortFilesWithPriority() {
-        const pName = PRIORITY_CUSTOM_FILE.toLowerCase();
         this.files.sort((a, b) => {
-            const isA = (a.fileName || '').trim().toLowerCase() === pName;
-            const isB = (b.fileName || '').trim().toLowerCase() === pName;
-            if (isA && !isB) return -1;
-            if (!isA && isB) return 1;
-            return 0;
+            const pA = getDictionaryPriority(a.fileName);
+            const pB = getDictionaryPriority(b.fileName);
+            if (pA !== pB) {
+                return pB - pA; // File ưu tiên cao nhất xếp lên đầu danh sách UI
+            }
+            return (a.fileName || '').localeCompare(b.fileName || '');
         });
     }
 
-    // TÁI TẠO TỪ ĐIỂN VỚI QUY TẮC "Name tự sửa.txt" CÓ ĐỘ ƯU TIÊN CAO NHẤT
+    // TÁI TẠO TỪ ĐIỂN CHUẨN XÁC THEO ĐÚNG THỨ TỰ ƯU TIÊN BẮT BUỘC
     rebuildCombinedDict() {
         this.dict.clear();
         let maxLen = 1;
 
-        const pName = PRIORITY_CUSTOM_FILE.toLowerCase();
-        const normalFiles = [];
-        let priorityCustomFile = null;
-
-        for (let f = 0; f < this.files.length; f++) {
-            const file = this.files[f];
-            if (!file || !file.content) continue;
-            if ((file.fileName || '').trim().toLowerCase() === pName) {
-                priorityCustomFile = file;
-            } else {
-                normalFiles.push(file);
-            }
-        }
+        // Sắp xếp các file theo trọng số TĂNG DẦN (Ưu tiên thấp nạp trước, ưu tiên cao nạp sau để ghi đè)
+        const sortedFiles = [...this.files].sort((a, b) => {
+            return getDictionaryPriority(a.fileName) - getDictionaryPriority(b.fileName);
+        });
 
         const loadEntriesFromFile = (file) => {
+            if (!file || !file.content) return;
             const lines = file.content.replace(/^\uFEFF/, '').split(/\r?\n/);
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].trim();
@@ -166,18 +200,14 @@ class FastNameQTEngine {
             }
         };
 
-        // BƯỚC 1: Nạp toàn bộ các file từ điển thông thường trước (VietPhrase, Names...)
-        for (let f = 0; f < normalFiles.length; f++) {
-            loadEntriesFromFile(normalFiles[f]);
-        }
-
-        // BƯỚC 2: Nạp 'Name tự sửa.txt' SAU CÙNG -> GHI ĐÈ LÊN MỌI FILE KHÁC (ƯU TIÊN TUYỆT ĐỐI)
-        if (priorityCustomFile) {
-            loadEntriesFromFile(priorityCustomFile);
+        // Nạp lần lượt: Phụ -> LacViet -> Pronouns -> HauTu -> DanhTu -> VietPhrase -> Name -> Name tự sửa
+        for (let f = 0; f < sortedFiles.length; f++) {
+            loadEntriesFromFile(sortedFiles[f]);
         }
 
         this.maxDepth = Math.min(maxLen, 25);
         this.isLoaded = true;
+        this.dictVersion = Date.now(); // Làm mới cache token & reverse dict
     }
 
     // THÊM HOẶC CẬP NHẬT TỪ VÀO "Name tự sửa.txt"
@@ -259,10 +289,10 @@ class FastNameQTEngine {
             }
         }
 
-        // Đảm bảo file tự sửa nằm đầu danh sách
+        // Sắp xếp lại thứ tự ưu tiên
         this.sortFilesWithPriority();
 
-        // Tái tạo từ điển để cập nhật độ ưu tiên
+        // Tái tạo từ điển để cập nhật độ ưu tiên tức thời
         this.rebuildCombinedDict();
 
         // Tự động đẩy file cập nhật lên Google Drive nếu đang kết nối

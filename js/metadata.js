@@ -11,10 +11,13 @@ let metaSearchQuery = ''; // Giữ lại dự phòng cho tìm kiếm tổng th�
 // 1. TỰ ĐỘNG TIÊM CSS CHO THANH TÌM KIẾM TỪNG MỤC VÀ MODAL NHẬP VĂN XUÔI
 (function injectMetadataStyles() {
     const STYLE_ID = 'metadata-custom-styles';
-    if (document.getElementById(STYLE_ID)) return;
+    let style = document.getElementById(STYLE_ID);
+    if (!style) {
+        style = document.createElement('style');
+        style.id = STYLE_ID;
+        document.head.appendChild(style);
+    }
 
-    const style = document.createElement('style');
-    style.id = STYLE_ID;
     style.textContent = `
         /* Thanh tìm kiếm độc lập từng mục */
         .section-search-bar-wrap {
@@ -45,15 +48,26 @@ let metaSearchQuery = ''; // Giữ lại dự phòng cho tìm kiếm tổng th�
             color: var(--text-muted, #64748b);
             user-select: none;
         }
-        .section-search-input {
+
+        /* ĐỒNG BỘ FONT CHO CẢ CHỮ GÕ VÀO VÀ PLACEHOLDER CỦA TẤT CẢ Ô TÌM KIẾM */
+        .section-search-input,
+        #meta-search-input {
             flex: 1;
             border: none;
             background: transparent;
             outline: none;
-            font-size: 13px;
+            font-size: 13.5px;
             color: inherit;
+            font-family: inherit !important; /* KẾ THỪA FONT ĐANG DÙNG (Merriweather, Literata...) */
             padding: 2px 0;
         }
+        .section-search-input::placeholder,
+        #meta-search-input::placeholder {
+            font-family: inherit !important; /* ĐỒNG BỘ FONT CHO CHỮ GỢI Ý */
+            color: var(--text-muted, #94a3b8);
+            opacity: 0.85;
+        }
+
         .btn-clear-section-search {
             background: none;
             border: none;
@@ -70,6 +84,7 @@ let metaSearchQuery = ''; // Giữ lại dự phòng cho tìm kiếm tổng th�
             padding: 20px;
             text-align: center;
             font-size: 13px;
+            font-family: inherit !important;
             color: var(--text-muted, #64748b);
             background: var(--bg-card, #ffffff);
             border-radius: 8px;
@@ -90,7 +105,6 @@ let metaSearchQuery = ''; // Giữ lại dự phòng cho tìm kiếm tổng th�
             transform: translateY(-1px);
         }
     `;
-    document.head.appendChild(style);
 })();
 
 // HÀM TIỆN ÍCH: BỎ DẤU TIẾNG VIỆT ĐỂ TÌM KIẾM LINH HOẠT

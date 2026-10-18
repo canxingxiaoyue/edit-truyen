@@ -151,7 +151,7 @@ function editorUndo() {
     const currentStateStr = JSON.stringify(data);
     let prevStateStr = editorUndoStack.pop();
     if (prevStateStr === currentStateStr && editorUndoStack.length > 0) {
-        editorRedoStack.push(prevStateStr);
+        metaRedoStack.push(prevStateStr);
         prevStateStr = editorUndoStack.pop();
     }
     editorRedoStack.push(currentStateStr);
@@ -880,23 +880,6 @@ function initEditorEvents() {
 
             await copyAdvancedToClipboard(textBlocks, `✅ Đã copy cột ${colKey.toUpperCase()}!`);
         });
-    });
-
-    // COPY BẢN BÊ TA
-    document.getElementById('btn-copy')?.addEventListener('click', async (e) => {
-        e.preventDefault();
-        const textBlocks = [];
-        data.forEach(row => {
-            const text = extractCellContent(row.edit);
-            if (text !== '') textBlocks.push(text);
-        });
-
-        if (textBlocks.length === 0) {
-            showToast('⚠️ Cột Bản bê ta đang trống!', 'var(--btn-warning)');
-            return;
-        }
-
-        await copyAdvancedToClipboard(textBlocks, '✅ Đã sao chép chương Bản bê ta!');
     });
 
     // NÚT RIBBON

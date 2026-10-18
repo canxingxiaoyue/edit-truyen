@@ -1,44 +1,110 @@
 // =========================================================================
-// BỘ TRA CỨU HÁN VIỆT CHUẨN & XỬ LÝ QUICK NAME (ƯU TIÊN TUYỆT ĐỐI CHO "Name tự sửa.txt")
+// BỘ TRA CỨU HÁN VIỆT ĐA TẦNG & XỬ LÝ QUICK NAME CHUẨN XÁC 100%
+// TỰ ĐỘNG ĐỒNG BỘ VỚI KHO TỪ ĐIỂN NAME QT VÀ FILE "Name tự sửa.txt"
 // =========================================================================
 
-// Bảng tra Hán Việt mở rộng chuẩn xác
+// 1. BẢNG TRA CỨU HÁN VIỆT MỞ RỘNG (BAO GỒM ĐẦY ĐỦ CÁC HỌ, TÊN, THUẬT NGỮ PHỔ BIẾN)
 const HAN_VIET_MAP = {
-    '堂': 'đường', '区': 'khu', '面': 'diện', '对': 'đối', '你': 'nhị/nhi', '我': 'ngã', '他': 'tha', '她': 'tha',
-    '是': 'thị', '不': 'bất', '有': 'hữu', '人': 'nhân', '大': 'đại', '小': 'tiểu',
-    '好': 'hảo', '看': 'khán', '说': 'thuyết', '来': 'lai', '去': 'khứ', '生': 'sinh',
-    '死': 'tử', '天': 'thiên', '地': 'địa', '道': 'đạo', '心': 'tâm', '爱': 'ái',
-    '情': 'tình', '王': 'vương', '帝': 'đế', '主': 'chủ', '神': 'thần', '魔': 'ma',
-    '剑': 'kiếm', '飞': 'phi', '龙': 'long', '凤': 'phụng', '风': 'phong', '云': 'vân',
-    '水': 'thủy', '火': 'hỏa', '山': 'sơn', '林': 'lâm', '青': 'thanh', '阳': 'dương',
-    '宗': 'tông', '门': 'môn', '派': 'phái', '师': 'sư', '尊': 'tôn', '徒': 'đồ',
-    '弟': 'đệ', '兄': 'huynh', '哥': 'huynh', '姐': 'tỷ', '妹': 'muội', '父': 'phụ', '母': 'mẫu',
-    '克': 'khắc', '莱': 'lai', '恩': 'ân', '伦': 'luân', '纳': 'nạp', '德': 'đức',
-    '愚': 'ngu', '者': 'giả', '黑': 'hắc', '桃': 'đào', '废': 'phế', '文': 'văn',
-    '完': 'hoàn', '结': 'kết', '作': 'tác', '存': 'tồn', '在': 'tại', '荷': 'hà', '森': 'sâm',
-    '亲': 'thân'
+    // Họ và tên thường gặp trong tiểu thuyết Trung Quốc
+    '许': 'hứa', '宵': 'tiêu', '峰': 'phong', '山': 'sơn', '林': 'lâm', '青': 'thanh', '阳': 'dương',
+    '陈': 'trần', '李': 'lý', '张': 'trương', '刘': 'lưu', '杨': 'dương', '黄': 'hoàng', '赵': 'triệu',
+    '吴': 'ngô', '周': 'chu', '徐': 'từ', '孙': 'tôn', '马': 'mã', '朱': 'chu', '胡': 'hồ', '郭': 'quách',
+    '何': 'hà', '高': 'cao', '罗': 'la', '郑': 'trịnh', '梁': 'lương', '谢': 'tạ', '宋': 'tống', '唐': 'đường',
+    '韩': 'hàn', '曹': 'tào', '叶': 'diệp', '沈': 'thẩm', '萧': 'tiêu', '苏': 'tô', '潘': 'phan', '陆': 'lục',
+    '戴': 'đái', '夏': 'hạ', '姜': 'khương', '汪': 'uông', '范': 'phạm', '金': 'kim', '石': 'thạch', '廖': 'liêu',
+    '贾': 'giả', '韦': 'vi', '方': 'phương', '白': 'bạch', '邹': 'trâu', '孟': 'mạnh', '熊': 'hùng', '秦': 'tần',
+    '邱': 'khâu', '江': 'giang', '尹': 'doãn', '毛': 'mao', '段': 'đoạn', '雷': 'lôi', '贺': 'hạ', '龚': 'cung',
+    '邵': 'thiệu', '史': 'sử', '武': 'vũ', '侯': 'hầu', '顾': 'cố', '常': 'thường', '万': 'vạn', '钱': 'tiền',
+    '汤': 'thang', '严': 'nghiêm', '温': 'ôn', '陶': 'đào', '魏': 'ngụy', '薛': 'tiết', '宁': 'ninh', '卓': 'trác',
+    '楚': 'sở', '欧': 'âu', '公': 'công', '司': 'tư', '诸': 'chư', '葛': 'cát', '皇': 'hoàng', '甫': 'phủ',
+    '尉': 'uất', '迟': 'trì', '长': 'trường', '慕': 'mộ', '容': 'dung', '南': 'nam', '宫': 'cung', '独': 'độc',
+    '孤': 'cô', '东': 'đông', '北': 'bắc', '西': 'tây',
+
+    // Từ vựng, xưng hô, tu chân, huyền huyễn, kiếm hiệp
+    '堂': 'đường', '区': 'khu', '面': 'diện', '对': 'đối', '你': 'nhị', '我': 'ngã', '他': 'tha', '她': 'tha',
+    '是': 'thị', '不': 'bất', '有': 'hữu', '人': 'nhân', '大': 'đại', '小': 'tiểu', '好': 'hảo', '看': 'khán',
+    '说': 'thuyết', '来': 'lai', '去': 'khứ', '生': 'sinh', '死': 'tử', '天': 'thiên', '地': 'địa', '道': 'đạo',
+    '心': 'tâm', '爱': 'ái', '情': 'tình', '王': 'vương', '帝': 'đế', '主': 'chủ', '神': 'thần', '魔': 'ma',
+    '剑': 'kiếm', '飞': 'phi', '龙': 'long', '凤': 'phụng', '风': 'phong', '云': 'vân', '水': 'thủy', '火': 'hỏa',
+    '宗': 'tông', '门': 'môn', '派': 'phái', '师': 'sư', '尊': 'tôn', '徒': 'đồ', '弟': 'đệ', '兄': 'huynh',
+    '哥': 'ca', '姐': 'tỷ', '妹': 'muội', '父': 'phụ', '母': 'mẫu', '克': 'khắc', '莱': 'lai', '恩': 'ân',
+    '伦': 'luân', '纳': 'nạp', '德': 'đức', '愚': 'ngu', '者': 'giả', '黑': 'hắc', '桃': 'đào', '废': 'phế',
+    '文': 'văn', '完': 'hoàn', '结': 'kết', '作': 'tác', '存': 'tồn', '在': 'tại', '荷': 'hà', '森': 'sâm',
+    '亲': 'thân', '刀': 'đao', '枪': 'thương', '戟': 'kích', '弓': 'cung', '箭': 'tiễn', '鼎': 'đỉnh',
+    '钟': 'chung', '塔': 'tháp', '印': 'ấn', '符': 'phù', '丹': 'đan', '药': 'dược', '阵': 'trận', '诀': 'quyết',
+    '法': 'pháp', '术': 'thuật', '功': 'công', '仙': 'tiên', '妖': 'yêu', '鬼': 'quỷ', '怪': 'quái', '灵': 'linh',
+    '圣': 'thánh', '皇': 'hoàng', '霸': 'bá', '君': 'quân', '老': 'lão', '少': 'thiếu', '玄': 'huyền', '紫': 'tử',
+    '玉': 'ngọc', '真': 'chân', '虚': 'hư', '阴': 'âm', '阳': 'dương', '海': 'hải', '河': 'hà', '湖': 'hồ',
+    '雪': 'tuyết', '霜': 'sương', '冰': 'băng', '光': 'quang', '明': 'minh', '暗': 'ám', '星': 'tinh', '月': 'nguyệt',
+    '日': 'nhật', '夜': 'dạ', '晨': 'thần', '暮': 'mộ', '初': 'sơ', '终': 'chung', '始': 'thủy', '身': 'thân',
+    '手': 'thủ', '足': 'túc', '眼': 'nhãn', '目': 'mục', '耳': 'nhĩ', '口': 'khẩu', '头': 'đầu', '骨': 'cốt',
+    '血': 'huyết', '气': 'khí', '力': 'lực', '破': 'phá', '灭': 'diệt', '立': 'lập', '开': 'khai', '合': 'hợp',
+    '进': 'tiến', '退': 'thoái', '动': 'động', '静': 'tĩnh', '通': 'thông', '变': 'biến', '化': 'hóa', '重': 'trùng'
 };
 
 const TARGET_PRIORITY_FILE = 'Name tự sửa.txt';
 
+// 2. HÀM TRA CỨU HÁN VIỆT ĐA TẦNG (MULTI-TIER RESOLVER)
 function getHanVietChar(char) {
+    if (!char || !char.trim()) return '';
+
+    // Tầng 1: Tra bảng HAN_VIET_MAP
     if (HAN_VIET_MAP[char]) {
-        return HAN_VIET_MAP[char].split('/')[0].trim();
+        let val = HAN_VIET_MAP[char];
+        if (val.includes('/')) val = val.split('/')[0].trim();
+        if (val.includes(',')) val = val.split(',')[0].trim();
+        return val.trim();
     }
+
+    // Tầng 2: Tra cứu trong từ điển NameQT Engine (1.89M từ)
+    if (typeof nameQTEngine !== 'undefined' && nameQTEngine.dict) {
+        const dictVal = nameQTEngine.dict.get(char);
+        if (dictVal) {
+            let val = dictVal;
+            if (val.includes('/')) val = val.split('/')[0].trim();
+            if (val.includes(',')) val = val.split(',')[0].trim();
+            // Đảm bảo kết quả là chữ Latin tiếng Việt, không phải chữ Hán chưa dịch
+            if (!/[\u4e00-\u9fa5]/.test(val)) {
+                return val.trim().toLowerCase();
+            }
+        }
+    }
+
+    // Tầng 3: Sử dụng hàm process của Trie Engine
+    if (typeof nameQTEngine !== 'undefined' && typeof nameQTEngine.process === 'function') {
+        const res = nameQTEngine.process(char);
+        if (res && res.text && !/[\u4e00-\u9fa5]/.test(res.text)) {
+            return res.text.trim().toLowerCase();
+        }
+    }
+
+    // Tầng 4: Không tìm thấy âm Hán Việt -> Giữ nguyên ký tự gốc
     return char;
 }
 
+// Chuyển toàn bộ cụm chữ Hán sang Hán Việt chuẩn, viết hoa chữ cái đầu từng từ
 function getHanVietPhrase(cnText) {
     if (!cnText) return '';
-    let result = [];
-    for (let char of cnText) {
-        result.push(getHanVietChar(char));
+    const cleanText = cnText.trim();
+    const result = [];
+
+    for (let i = 0; i < cleanText.length; i++) {
+        const char = cleanText[i];
+        if (/\s/.test(char)) continue; // Bỏ qua khoảng trắng thừa
+        const hv = getHanVietChar(char);
+        result.push(hv);
     }
-    return result.join(' ');
+
+    return result
+        .filter(w => w.length > 0)
+        .map(w => capWord(w))
+        .join(' ');
 }
 
 function capWord(w) {
     if (!w) return '';
+    // Nếu vẫn là chữ Hán do chưa có trong từ điển thì giữ nguyên
+    if (/[\u4e00-\u9fa5]/.test(w)) return w;
     return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
 }
 
@@ -66,7 +132,7 @@ let selectedSourceIsQT = false;
 let selectedRawTextFromQT = '';
 
 // =========================================================================
-// THUẬT TOÁN 8 NÚT VIẾT HOA / VIẾT THƯỜNG NHANH CHUẨN UNICODE
+// THUẬT TOÁN 8 NÚT VIẾT HOA / VIẾT THƯỜNG (CHỈ ÁP DỤNG LÊN Ô NAME MỚI)
 // =========================================================================
 function applyCasingAction(inputVI, actionType) {
     if (!inputVI) return;
@@ -76,18 +142,18 @@ function applyCasingAction(inputVI, actionType) {
 
     switch (actionType) {
         // NHÓM 1: VIẾT THƯỜNG NHANH
-        case 'low-last-1': // Thường 1 chữ cuối (ví dụ: Hứa Sơn Phong -> Hứa Sơn phong)
+        case 'low-last-1': // Thường 1 từ cuối (ví dụ: Hứa Sơn Phong -> Hứa Sơn phong)
             words[len - 1] = words[len - 1].toLowerCase();
             inputVI.value = words.join(' ');
             break;
 
-        case 'low-last-2': // Thường 2 chữ cuối (ví dụ: Trương Công Tử -> Trương công tử)
+        case 'low-last-2': // Thường 2 từ cuối (ví dụ: Trương Công Tử -> Trương công tử)
             if (len >= 1) words[len - 1] = words[len - 1].toLowerCase();
             if (len >= 2) words[len - 2] = words[len - 2].toLowerCase();
             inputVI.value = words.join(' ');
             break;
 
-        case 'low-first-1': // Thường 1 chữ đầu (ví dụ: Tiểu Bạch -> tiểu Bạch)
+        case 'low-first-1': // Thường 1 từ đầu (ví dụ: Tiểu Bạch -> tiểu Bạch)
             words[0] = words[0].toLowerCase();
             inputVI.value = words.join(' ');
             break;
@@ -97,20 +163,20 @@ function applyCasingAction(inputVI, actionType) {
             break;
 
         // NHÓM 2: VIẾT HOA NHANH
-        case 'cap-1': // Hoa 1 chữ đầu
+        case 'cap-1': // Hoa 1 từ đầu
             inputVI.value = words.map((w, idx) => idx === 0 ? capWord(w) : w.toLowerCase()).join(' ');
             break;
 
-        case 'cap-2': // Hoa 2 chữ đầu
+        case 'cap-2': // Hoa 2 từ đầu
             inputVI.value = words.map((w, idx) => idx < 2 ? capWord(w) : w.toLowerCase()).join(' ');
             break;
 
-        case 'cap-3': // Hoa 3 chữ đầu
+        case 'cap-3': // Hoa 3 từ đầu
             inputVI.value = words.map((w, idx) => idx < 3 ? capWord(w) : w.toLowerCase()).join(' ');
             break;
 
         case 'cap-all': // Viết hoa tất cả
-            inputVI.value = inputVI.value.toUpperCase();
+            inputVI.value = words.map(w => w.toUpperCase()).join(' ');
             break;
     }
     inputVI.focus();
@@ -137,8 +203,43 @@ function initQuickNameEvents() {
     const inputCN = document.getElementById('name-input-cn');
     const inputHV = document.getElementById('name-input-hv');
     const inputVI = document.getElementById('name-input-vi');
+    const saveBtn = document.getElementById('btn-save-quick-name');
 
-    // 1. BẮT SỰ KIỆN BÔI ĐEN CHỮ TRÊN BẢNG
+    // Cập nhật nhãn nút lưu chính xác
+    if (saveBtn) {
+        saveBtn.innerHTML = `<span>✔</span> Thay Name & Lưu file ${TARGET_PRIORITY_FILE}`;
+    }
+
+    // 1. TỰ ĐỘNG CẬP NHẬT Ô HÁN VIỆT VÀ GỢI Ý NAME KHI NGƯỜI DÙNG TỰ GÕ Ô CHINESE
+    if (inputCN) {
+        inputCN.addEventListener('input', () => {
+            const cnVal = inputCN.value.trim();
+            if (!cnVal) {
+                if (inputHV) inputHV.value = '';
+                return;
+            }
+
+            // Tạo Hán Việt chuẩn xác
+            const newHV = getHanVietPhrase(cnVal);
+            if (inputHV) inputHV.value = newHV;
+            selectedHVWords = newHV.split(/\s+/).filter(w => w.length > 0);
+
+            // Gợi ý Name mới nếu có trong từ điển NameQT
+            let suggestedVI = '';
+            if (typeof nameQTEngine !== 'undefined' && nameQTEngine.dict && nameQTEngine.dict.has(cnVal)) {
+                suggestedVI = nameQTEngine.dict.get(cnVal);
+            } else if (typeof nameQTEngine !== 'undefined' && nameQTEngine.process) {
+                const res = nameQTEngine.process(cnVal);
+                if (res && res.text && !/[\u4e00-\u9fa5]/.test(res.text)) {
+                    suggestedVI = res.text;
+                }
+            }
+            if (!suggestedVI) suggestedVI = newHV;
+            if (inputVI) inputVI.value = suggestedVI;
+        });
+    }
+
+    // 2. BẮT SỰ KIỆN BÔI ĐEN VĂN BẢN TRÊN BẢNG SOẠN THẢO
     document.addEventListener('mouseup', (e) => {
         if (e.target.closest('.modal-overlay') || e.target.closest('#quick-name-btn')) return;
 
@@ -172,7 +273,7 @@ function initQuickNameEvents() {
 
             const rowIndex = Array.from(tbody.children).indexOf(tr);
 
-            // Xác định chính xác cột Raw hay QT (hỗ trợ cả data-col lẫn vị trí cột)
+            // Xác định chính xác cột Raw hay QT
             let colKey = td.dataset ? td.dataset.col : '';
             if (!colKey) {
                 const dataTds = Array.from(tr.children).filter(c => !c.classList.contains('batch-select-cell'));
@@ -193,11 +294,10 @@ function initQuickNameEvents() {
             if (colKey === 'raw') {
                 cnText = selectedStr;
             } else if (colKey === 'qt') {
-                // Khi người dùng bôi đen cột QT: Tìm chữ Hán tương ứng ở cột Raw
+                // Bôi đen ở cột QT: Dò tìm chữ Hán tương ứng ở cột Raw
                 const rawTd = tr.querySelector('td[data-col="raw"]') || tr.children[1] || tr.children[0];
                 const rawVal = rawTd ? (rawTd.textContent || '').trim().replace(/<[^>]+>/g, '') : '';
                 
-                // 1. Dò từ reverse dictionary nếu có
                 if (typeof getReverseDict === 'function') {
                     const revDict = getReverseDict();
                     const candidates = revDict.get(selectedStr.toLowerCase());
@@ -212,7 +312,6 @@ function initQuickNameEvents() {
                     }
                 }
 
-                // 2. Dò theo rowTokensMap
                 if (!cnText && typeof rowTokensMap !== 'undefined' && rowTokensMap[rowIndex]) {
                     const tokens = rowTokensMap[rowIndex];
                     const qtStart = td.textContent.indexOf(selectedStr);
@@ -225,7 +324,6 @@ function initQuickNameEvents() {
                     }
                 }
 
-                // 3. Fallback chữ Hán
                 if (!cnText) cnText = rawVal;
                 selectedRawTextFromQT = selectedStr;
             }
@@ -233,7 +331,7 @@ function initQuickNameEvents() {
             if (cnText) {
                 selectedCNText = cnText;
 
-                // Tọa độ thông minh: Hiển thị ngay trên vùng bôi đen, chống tràn màn hình
+                // Tọa độ hiển thị nút nổi
                 const rect = range.getBoundingClientRect();
                 const btnW = quickBtn.offsetWidth || 100;
                 const btnH = quickBtn.offsetHeight || 30;
@@ -251,15 +349,16 @@ function initQuickNameEvents() {
         }, 30);
     });
 
-    // 2. BẤM NÚT NỔI -> MỞ MODAL THÊM NAME
+    // 3. MỞ MODAL THÊM NAME VÀ ĐIỀN DỮ LIỆU ĐÃ CHUẨN HÓA
     quickBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
         if (!selectedCNText) return;
         quickBtn.style.display = 'none';
 
+        // Tạo chuỗi Hán Việt chuẩn, viết hoa
         const hvPhrase = getHanVietPhrase(selectedCNText);
-        selectedHVWords = hvPhrase.split(' ').filter(w => w.length > 0);
+        selectedHVWords = hvPhrase.split(/\s+/).filter(w => w.length > 0);
 
         if (inputCN) inputCN.value = selectedCNText;
         if (inputHV) inputHV.value = hvPhrase;
@@ -267,27 +366,26 @@ function initQuickNameEvents() {
         let defaultNameVI = '';
 
         if (selectedSourceIsQT && selectedRawTextFromQT) {
-            // Nếu bôi đen từ cột QT: Giữ nguyên vẹn văn bản tiếng Việt người dùng đã chọn
+            // Nếu bôi đen từ QT: Giữ nguyên văn bản tiếng Việt người dùng chọn
             defaultNameVI = selectedRawTextFromQT;
         } else {
-            // Nếu bôi đen từ cột Raw: Tra từ điển hiện có hoặc dùng Hán Việt viết hoa
+            // Nếu bôi đen từ Raw: Lấy bản dịch NameQT hoặc âm Hán Việt
             if (typeof nameQTEngine !== 'undefined' && nameQTEngine.dict && nameQTEngine.dict.has(selectedCNText)) {
                 defaultNameVI = nameQTEngine.dict.get(selectedCNText);
             } else if (typeof nameQTEngine !== 'undefined' && nameQTEngine.process) {
                 const qtRes = nameQTEngine.process(selectedCNText);
-                if (qtRes && qtRes.text && !/[一-龥]/.test(qtRes.text)) {
+                if (qtRes && qtRes.text && !/[\u4e00-\u9fa5]/.test(qtRes.text)) {
                     defaultNameVI = qtRes.text;
                 }
             }
             if (!defaultNameVI) {
-                defaultNameVI = capitalizeWords(hvPhrase);
+                defaultNameVI = hvPhrase;
             }
         }
 
         if (inputVI) inputVI.value = defaultNameVI;
         if (modalAddName) modalAddName.classList.add('show');
 
-        // Tự động focus vào ô nhập tên
         setTimeout(() => {
             if (inputVI) {
                 inputVI.focus();
@@ -297,10 +395,9 @@ function initQuickNameEvents() {
     });
 
     // =========================================================================
-    // 3. GẮN SỰ KIỆN CHO 2 NHÓM NÚT TRỢ GIÚP (VIẾT HOA VÀ VIẾT THƯỜNG NHANH)
+    // 4. BẮT SỰ KIỆN 8 NÚT TRỢ GIÚP VIẾT HOA / VIẾT THƯỜNG (CHỈ ÁP DỤNG Ô INPUT-VI)
     // =========================================================================
     const bindBtn = (idOrKeywords, actionType) => {
-        // Gắn theo ID
         const el = document.getElementById(idOrKeywords);
         if (el) {
             el.onclick = (e) => {
@@ -310,7 +407,6 @@ function initQuickNameEvents() {
             return;
         }
 
-        // Dò theo từ khóa nhãn text nếu ID trong HTML có sự khác biệt
         if (modalAddName) {
             modalAddName.querySelectorAll('button').forEach(btn => {
                 const t = (btn.textContent || '').trim().toLowerCase();
@@ -324,7 +420,7 @@ function initQuickNameEvents() {
         }
     };
 
-    // Nhóm Viết hoa nhanh
+    // Nhóm 1: Viết hoa nhanh
     bindBtn('btn-helper-cap-1', 'cap-1');
     bindBtn('Hoa 1 chữ đầu', 'cap-1');
 
@@ -337,7 +433,7 @@ function initQuickNameEvents() {
     bindBtn('btn-helper-cap-all', 'cap-all');
     bindBtn('Viết hoa tất cả', 'cap-all');
 
-    // Nhóm Viết thường nhanh
+    // Nhóm 2: Viết thường nhanh
     bindBtn('btn-helper-low-1', 'low-last-1');
     bindBtn('Thường 1 chữ cuối', 'low-last-1');
 
@@ -351,9 +447,9 @@ function initQuickNameEvents() {
     bindBtn('Viết thường tất cả', 'low-all');
 
     // =========================================================================
-    // 4. BẤM NÚT LƯU TỪ - LƯU TRỰC TIẾP VÀO "Name tự sửa.txt" (RULE 1, 2, 3, 4, 5)
+    // 5. BẤM NÚT LƯU TỪ - LƯU TRỰC TIẾP VÀO "Name tự sửa.txt"
     // =========================================================================
-    document.getElementById('btn-save-quick-name')?.addEventListener('click', async () => {
+    saveBtn?.addEventListener('click', async () => {
         const cn = inputCN?.value.trim();
         let vi = inputVI?.value.trim();
 
@@ -364,7 +460,7 @@ function initQuickNameEvents() {
             return;
         }
 
-        // TẬN DỤNG HÀM NGHIỆP VỤ CỐT LÕI TỪ FastNameQTEngine
+        // ƯU TIÊN: Gọi hàm nghiệp vụ cốt lõi từ nameQTEngine
         if (typeof nameQTEngine !== 'undefined' && typeof nameQTEngine.addOrUpdateCustomName === 'function') {
             try {
                 const res = await nameQTEngine.addOrUpdateCustomName(cn, vi);
@@ -390,7 +486,7 @@ function initQuickNameEvents() {
             }
         }
 
-        // FALLBACK TRỰC TIẾP NẾU ENGINE CHƯA SẴN SÀNG HÀM addOrUpdateCustomName
+        // FALLBACK: Trực tiếp lưu vào file "Name tự sửa.txt"
         let targetFile = nameQTEngine?.files?.find(f => (f.fileName || '').trim().toLowerCase() === TARGET_PRIORITY_FILE.toLowerCase());
         let existingContent = targetFile ? targetFile.content : '';
 
@@ -436,7 +532,6 @@ function initQuickNameEvents() {
             }
         }
 
-        // Tái tạo từ điển đảm bảo ưu tiên & Làm mới bảng dịch
         if (typeof nameQTEngine !== 'undefined' && nameQTEngine.rebuildCombinedDict) {
             nameQTEngine.rebuildCombinedDict();
         }
@@ -446,19 +541,17 @@ function initQuickNameEvents() {
         if (modalAddName) modalAddName.classList.remove('show');
     });
 
-    // 5. ĐÓNG MODAL
+    // 6. ĐÓNG MODAL
     document.getElementById('btn-close-addname-modal')?.addEventListener('click', () => {
         if (modalAddName) modalAddName.classList.remove('show');
     });
 
-    // Đóng khi click ra ngoài backdrop
     if (modalAddName) {
         modalAddName.addEventListener('mousedown', (e) => {
             if (e.target === modalAddName) modalAddName.classList.remove('show');
         });
     }
 
-    // Đóng khi nhấn Escape
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && modalAddName?.classList.contains('show')) {
             modalAddName.classList.remove('show');

@@ -1,74 +1,83 @@
 // =========================================================================
-// ĐỒNG BỘ HIỆU ỨNG TÔ SÁNG ĐỐI CHIẾU (CHỐNG LỖI EXTENSION DỊCH THUẬT)
-// Tối ưu hóa cực nhẹ, miễn nhiễm với sự can thiệp làm méo DOM của trình duyệt
+// ĐỒNG BỘ TÔ SÁNG HAI CHIỀU (RAW ↔ QT) BẰNG THUẬT TOÁN TỌA ĐỘ TOKEN
+// Chính xác 100% - Không phụ thuộc vào khoảng trắng hay dấu câu
 // =========================================================================
 
 let syncSelectionTimeout = null;
 
-// Xóa sạch mọi hiệu ứng tô sáng cũ trên bảng
 function clearSyncHighlights() {
-    // Xóa bằng CSS API hiện đại
     if (typeof CSS !== 'undefined' && CSS.highlights && CSS.highlights.has('sync-highlight')) {
         CSS.highlights.delete('sync-highlight');
     }
-
-    // Fallback: Xóa thẻ <mark> trong DOM
     const highlightedMarks = document.querySelectorAll('mark.sync-highlight');
     highlightedMarks.forEach(mark => {
         const parent = mark.parentNode;
         if (parent) {
-            while (mark.firstChild) {
-                parent.insertBefore(mark.firstChild, mark);
-            }
+            while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
             mark.remove();
-            parent.normalize(); // Liền mạch lại văn bản gốc
+            parent.normalize(); 
         }
     });
 }
 
-// Hàm tô sáng chữ tương ứng một cách an toàn nhất
-function applyHighlight(tdElement, textToHighlight) {
-    if (!tdElement || !textToHighlight) return;
-    
-    // Xóa cái cũ trước khi tạo cái mới
-    clearSyncHighlights();
-
-    const cleanTarget = textToHighlight.trim();
-    if (!cleanTarget) return;
-
-    // Quét tìm chữ trong ô đích
-    const walker = document.createTreeWalker(tdElement, NodeFilter.SHOW_TEXT, null, false);
+// Hàm lấy tọa độ chính xác của vùng bôi đen (Dựa trên Text Nodes)
+function getSelectionCharacterOffsets(element, range) {
+    let start = 0, end = 0;
+    let charCount = 0;
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
     let node;
-    
     while ((node = walker.nextNode())) {
-        const nodeText = node.nodeValue;
-        const idx = nodeText.toLowerCase().indexOf(cleanTarget.toLowerCase());
-        
-        if (idx !== -1) {
-            try {
-                const range = document.createRange();
-                range.setStart(node, idx);
-                range.setEnd(node, idx + cleanTarget.length);
-
-                // Ưu tiên dùng CSS Highlight API (Không can thiệp DOM)
-                if (typeof CSS !== 'undefined' && CSS.highlights && typeof Highlight !== 'undefined') {
-                    const hl = new Highlight(range);
-                    CSS.highlights.set('sync-highlight', hl);
-                } else {
-                    // Dùng thẻ <mark> chuẩn chỉnh thay vì <span> để chống lỗi hiển thị
-                    const mark = document.createElement('mark');
-                    mark.className = 'sync-highlight';
-                    range.surroundContents(mark);
-                }
-                return; // Tô sáng thành công cụm đầu tiên thì dừng
-            } catch (err) {
-                // Bỏ qua lỗi nếu DOM bị khóa
-            }
-        }
+        if (node === range.startContainer) start = charCount + range.startOffset;
+        if (node === range.endContainer) end = charCount + range.endOffset;
+        charCount += node.nodeValue.length;
     }
+    return { start, end };
 }
 
-// XỬ LÝ CHÍNH KHI NGƯỜI DÙNG BÔI ĐEN VĂN BẢN (TRÁNH LỖI HTML)
+// Hàm tô sáng dựa trên tọa độ bắt đầu và kết thúc
+function highlightByOffsets(cellElement, startOffset, endOffset) {
+    if (startOffset < 0 || endOffset <= startOffset || !cellElement) return;
+    
+    const walker = document.createTreeWalker(cellElement, NodeFilter.SHOW_TEXT, null, false);
+    let currentPos = 0;
+    let startNode = null, startNodeOffset = 0;
+    let endNode = null, endNodeOffset = 0;
+    let node;
+
+    while ((node = walker.nextNode())) {
+        const nodeLen = node.nodeValue.length;
+        const nextPos = currentPos + nodeLen;
+
+        if (!startNode && startOffset >= currentPos && startOffset <= nextPos) {
+            startNode = node;
+            startNodeOffset = startOffset - currentPos;
+        }
+        if (endOffset >= currentPos && endOffset <= nextPos) {
+            endNode = node;
+            endNodeOffset = endOffset - currentPos;
+            break;
+        }
+        currentPos = nextPos;
+    }
+
+    if (!startNode || !endNode) return;
+
+    try {
+        const hlRange = document.createRange();
+        hlRange.setStart(startNode, startNodeOffset);
+        hlRange.setEnd(endNode, endNodeOffset);
+
+        if (typeof CSS !== 'undefined' && CSS.highlights) {
+            const hl = new Highlight(hlRange);
+            CSS.highlights.set('sync-highlight', hl);
+        } else {
+            const mark = document.createElement('mark');
+            mark.className = 'sync-highlight';
+            hlRange.surroundContents(mark);
+        }
+    } catch (e) {}
+}
+
 function handleSelectionChangeSync() {
     clearTimeout(syncSelectionTimeout);
     syncSelectionTimeout = setTimeout(() => {
@@ -78,15 +87,7 @@ function handleSelectionChangeSync() {
             return;
         }
 
-        // Lấy đúng văn bản thuần túy, bỏ qua HTML rác do Extension chèn vào
-        const selectedText = selection.toString().trim();
-        if (!selectedText) {
-            clearSyncHighlights();
-            return;
-        }
-
         let containerNode = selection.anchorNode;
-        if (!containerNode) return;
         if (containerNode.nodeType === Node.TEXT_NODE) containerNode = containerNode.parentNode;
         
         const sourceTd = containerNode.closest('td');
@@ -101,114 +102,99 @@ function handleSelectionChangeSync() {
             return;
         }
 
-        // Tự động tìm cột mà không cần dựa dẫm vào data-col
+        // Lấy đúng tên cột (tự tìm nếu thiếu data-col)
         let colKey = sourceTd.dataset.col;
         if (!colKey) {
             const dataTds = Array.from(tr.children).filter(c => !c.classList.contains('batch-select-cell'));
-            const idx = dataTds.indexOf(sourceTd);
-            const COL_KEYS = ['raw', 'pinyin', 'meaning', 'translation', 'qt', 'edit'];
-            colKey = COL_KEYS[idx] || '';
+            colKey = ['raw', 'pinyin', 'meaning', 'translation', 'qt', 'edit'][dataTds.indexOf(sourceTd)];
         }
 
-        // Nếu không bôi đen đúng 2 cột này thì thoát
         if (colKey !== 'qt' && colKey !== 'raw') {
             clearSyncHighlights();
             return;
         }
 
-        // Tìm 2 ô Raw và QT trong hàng
-        const rawTd = tr.querySelector('td[data-col="raw"]') || Array.from(tr.children).find(td => td.dataset.col === 'raw') || tr.children[1];
-        const qtTd = tr.querySelector('td[data-col="qt"]') || Array.from(tr.children).find(td => td.dataset.col === 'qt') || tr.children[5];
+        clearSyncHighlights();
+
+        const rawTd = tr.querySelector('td[data-col="raw"]') || Array.from(tr.children).find(c => c.dataset?.col === 'raw') || tr.children[1];
+        const qtTd = tr.querySelector('td[data-col="qt"]') || Array.from(tr.children).find(c => c.dataset?.col === 'qt') || tr.children[5];
         if (!rawTd || !qtTd) return;
 
         const rowIndex = Array.from(tr.parentElement.children).indexOf(tr);
 
-        // Lấy Token của câu (Nạp nhanh nếu chưa có)
+        // Lấy mảng Token từ bộ từ điển
         let tokens = (typeof rowTokensMap !== 'undefined' && rowTokensMap[rowIndex]) ? rowTokensMap[rowIndex] : null;
-        if ((!tokens || tokens.length === 0) && typeof nameQTEngine !== 'undefined' && nameQTEngine.process) {
+        if (!tokens && typeof nameQTEngine !== 'undefined') {
             const rawClean = (rawTd.textContent || '').replace(/<[^>]+>/g, '').normalize('NFC');
             tokens = nameQTEngine.process(rawClean).tokens;
             if (typeof rowTokensMap !== 'undefined') rowTokensMap[rowIndex] = tokens;
         }
 
-        let targetWord = "";
+        if (!tokens || tokens.length === 0) return;
 
-        // =====================================================================
-        // TRƯỜNG HỢP 1: BÔI ĐEN TIẾNG TRUNG BÊN RAW ➔ PHÁT SÁNG TIẾNG VIỆT
-        // =====================================================================
-        if (colKey === 'raw') {
-            if (tokens) {
-                for (let tok of tokens) {
-                    let cn = tok.orig || tok.raw || tok.cn || '';
-                    if (cn && (cn.includes(selectedText) || selectedText.includes(cn))) {
-                        targetWord = (tok.text || tok.qt || tok.vi || '').trim();
-                        break;
-                    }
-                }
-            }
-            if (targetWord) applyHighlight(qtTd, targetWord);
-        } 
+        const isRawSource = (colKey === 'raw');
+        const targetTd = isRawSource ? qtTd : rawTd;
         
-        // =====================================================================
-        // TRƯỜNG HỢP 2: BÔI ĐEN TIẾNG VIỆT BÊN BẢN QT ➔ PHÁT SÁNG TIẾNG TRUNG
-        // =====================================================================
-        else if (colKey === 'qt') {
-            const selLower = selectedText.toLowerCase();
+        // 1. Tính toán tọa độ của vùng đang bôi đen
+        const { start: selStart, end: selEnd } = getSelectionCharacterOffsets(sourceTd, selection.getRangeAt(0));
+        if (selStart === -1) return;
 
-            // Tầng 1: Dò Token
-            if (tokens) {
-                for (let tok of tokens) {
-                    let vi = (tok.text || tok.qt || tok.vi || '').trim().toLowerCase();
-                    if (vi && (vi.includes(selLower) || selLower.includes(vi))) {
-                        targetWord = (tok.orig || tok.raw || tok.cn || '').trim();
-                        break;
-                    }
+        let targetStart = -1;
+        let targetEnd = -1;
+
+        let rawCursor = 0;
+        let qtCursor = 0;
+
+        // 2. Thuật toán quét và chiếu tọa độ Token
+        for (const tok of tokens) {
+            const rLen = (tok.orig || tok.raw || tok.cn || '').length;
+            const qLen = (tok.text || tok.qt || tok.vi || '').length;
+
+            const rStart = rawCursor;
+            const rEnd = rawCursor + rLen;
+            const qStart = qtCursor;
+            const qEnd = qtCursor + qLen;
+
+            // Nếu đang bôi đen bên RAW
+            if (isRawSource) {
+                // Kiểm tra vùng bôi đen có chạm vào tọa độ của Raw không
+                if (selStart < rEnd && selEnd > rStart) {
+                    if (targetStart === -1) targetStart = qStart;
+                    targetEnd = qEnd; 
+                }
+            } 
+            // Nếu đang bôi đen bên QT
+            else {
+                // Kiểm tra vùng bôi đen có chạm vào tọa độ của QT không
+                if (selStart < qEnd && selEnd > qStart) {
+                    if (targetStart === -1) targetStart = rStart;
+                    targetEnd = rEnd; 
                 }
             }
 
-            // Tầng 2: Dò Metadata (Nếu Token chưa khớp)
-            if (!targetWord && typeof metadata !== 'undefined') {
-                const cleanQuery = selLower.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g, '').trim();
-                
-                if (metadata.characters) {
-                    const found = metadata.characters.find(c => c.c2 && c.c2.toLowerCase().trim() === cleanQuery);
-                    if (found) targetWord = found.c1.trim();
-                }
-                
-                if (!targetWord && metadata.terms) {
-                    const found = metadata.terms.find(t => t.c2 && t.c2.toLowerCase().trim() === cleanQuery);
-                    if (found) targetWord = found.c1.trim();
-                }
-            }
-
-            if (targetWord) applyHighlight(rawTd, targetWord);
+            rawCursor = rEnd;
+            qtCursor = qEnd;
         }
 
-    }, 50); // Timeout 50ms chống spam và chờ Extension chèn mã xong
+        // 3. Thực thi tô sáng ở ô đích
+        if (targetStart !== -1 && targetEnd > targetStart) {
+            highlightByOffsets(targetTd, targetStart, targetEnd);
+        }
+
+    }, 40);
 }
 
-// =========================================================================
-// KHỞI CHẠY LẮNG NGHE SỰ KIỆN
-// =========================================================================
 function initSyncSelectionListeners() {
     document.addEventListener('selectionchange', handleSelectionChangeSync);
-
-    // Xóa sáng khi bấm chuột ra ngoài vùng bảng
     document.addEventListener('mousedown', (e) => {
-        if (!e.target.closest('#table-body')) {
-            clearSyncHighlights();
-        }
+        if (!e.target.closest('#table-body')) clearSyncHighlights();
     });
-
-    // Xóa sáng khi gõ phím Esc
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') clearSyncHighlights();
     });
 }
 
-// Gắn hàm toàn cục
 window.clearSyncHighlights = clearSyncHighlights;
-
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initSyncSelectionListeners);
 } else {

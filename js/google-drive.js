@@ -1,9 +1,10 @@
 // =========================================================================
-// GOOGLE DRIVE API V3 - ĐĂNG NHẬP VĨNH VIỄN, FIX 403, THAY THẾ & ĐỔI TÊN DỰ ÁN
+// GOOGLE DRIVE API V3 - HỖ TRỢ ĐẦY ĐỦ FILE TẢI LÊN THỦ CÔNG & CHỐNG DUPLICATE
 // =========================================================================
 
 const CLIENT_ID = '214662773459-nepa84k1u7uhp1j08p250f9v42q0mbk6.apps.googleusercontent.com';
-const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+// NÂNG CẤP SCOPE ĐỂ ĐỌC ĐƯỢC CẢ CÁC FILE DO NGƯỜI DÙNG TẢI LÊN THỦ CÔNG QUA WEB DRIVE
+const SCOPES = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file';
 
 const FOLDER_PROJECTS = 'CongCuEdit_ChuongTruyen';  
 const FOLDER_NAMEQT   = 'CongCuEdit_TuDienNameQT';  
@@ -13,7 +14,7 @@ let accessToken = localStorage.getItem('gdrive_access_token') || null;
 let tokenExpiresAt = Number(localStorage.getItem('gdrive_token_expires')) || 0;
 
 // =========================================================================
-// 1. CƠ CHẾ ĐĂNG NHẬP VĨNH VIỄN VÀ QUẢN LÝ CỬA SỔ XANH (MODAL)
+// 1. CƠ CHẾ ĐĂNG NHẬP VÀ QUẢN LÝ TOKEN
 // =========================================================================
 function isGDriveConnected() {
     return localStorage.getItem('gdrive_auto_login') === 'true';
@@ -78,7 +79,7 @@ function checkUrlForOAuthToken() {
             localStorage.setItem('gdrive_auto_login', 'true'); 
 
             history.replaceState(null, null, window.location.pathname + window.location.search);
-            showToast("🟢 Đã kết nối Google Drive vĩnh viễn!", "var(--btn-success)");
+            showToast("🟢 Đã kết nối Google Drive thành công!", "var(--btn-success)");
             
             if (typeof loadSavedProjects === 'function') loadSavedProjects();
             if (typeof syncHistoryFromDrive === 'function') syncHistoryFromDrive();
@@ -169,7 +170,7 @@ function resolveDriveFileNameConflict(desiredFullName, existingNamesList) {
 }
 
 // =========================================================================
-// QUẢN LÝ THƯ MỤC
+// QUẢN LÝ THƯ MỤC TRÊN DRIVE
 // =========================================================================
 async function getOrCreateFolder(folderName) {
     const token = await getValidToken();
@@ -196,7 +197,9 @@ async function getOrCreateFolder(folderName) {
             const folderData = await createRes.json();
             return folderData.id;
         }
-    } catch (e) {}
+    } catch (e) {
+        console.error("Lỗi lấy/tạo thư mục Drive:", e);
+    }
     return null;
 }
 
@@ -235,7 +238,6 @@ async function gdriveListProjects() {
         if (res.ok) {
             const data = await res.json();
             const files = data.files || [];
-            
             const validProjects = files.filter(f => !f.name.startsWith('[LỊCH SỬ]'));
 
             return validProjects.map(f => {
@@ -303,7 +305,6 @@ async function gdriveSaveProject(projObj) {
     return { success: false };
 }
 
-// GHI ĐÈ / THAY THẾ DỰ ÁN TRÊN GOOGLE DRIVE
 async function gdriveUpdateProject(fileId, projObj) {
     const token = await getValidToken();
     if (!token) return { success: false };
@@ -342,7 +343,6 @@ async function gdriveUpdateProject(fileId, projObj) {
     return { success: res.ok };
 }
 
-// 🟢 HÀM MỚI BỔ SUNG: ĐỔI TÊN DỰ ÁN TRỰC TIẾP TRÊN GOOGLE DRIVE
 async function gdriveRenameProject(fileId, newName) {
     const token = await getValidToken();
     if (!token) return { success: false };
@@ -395,35 +395,72 @@ async function gdriveDeleteProject(fileId) {
 }
 
 // =========================================================================
-// Ổ TỪ ĐIỂN NAME QT
+// Ổ TỪ ĐIỂN NAME QT (ĐÃ FIX: NHẬN DIỆN MỌI FILE TRONG THƯ MỤC & GHI ĐÈ THÔNG MINH)
 // =========================================================================
+
+// LƯU FILE NAME QT LÊN DRIVE (CẬP NHẬT GHI ĐÈ NẾU FILE ĐÃ CÓ, KHÔNG SINH BIẾN THỂ (1))
 async function gdriveSaveNameQTFile(fileObj) {
     const token = await getValidToken();
     if (!token) return { success: false };
     
     const folderId = await getOrCreateFolder(FOLDER_NAMEQT);
-    let existingFileNames = await gdriveFetchAllFileNames(folderId);
+    const cleanFileName = fileObj.fileName || 'Name.txt';
 
-    const { baseName, ext } = splitFileNameAndExt(fileObj.fileName || 'Name.txt');
-    const safeExt = ext || '.txt';
-    const desiredFullName = `${NAMEQT_PREFIX}${baseName}${safeExt}`;
-    
-    const finalFullName = resolveDriveFileNameConflict(desiredFullName, existingFileNames);
-    const finalCleanFileName = finalFullName.replace(NAMEQT_PREFIX, '');
+    // 1. Kiểm tra xem file này đã tồn tại trong thư mục chưa (theo tên gốc hoặc tên có tiền tố)
+    let existingFileId = null;
+    try {
+        const checkQ = `'${folderId}' in parents and (name='${cleanFileName}' or name='${NAMEQT_PREFIX}${cleanFileName}') and trashed=false`;
+        const checkRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(checkQ)}&fields=files(id,name)`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (checkRes.ok) {
+            const checkData = await checkRes.json();
+            if (checkData.files && checkData.files.length > 0) {
+                existingFileId = checkData.files[0].id;
+            }
+        }
+    } catch(e) {}
 
     const content = fileObj.content || '';
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
 
     const metadata = {
-        name: finalFullName,
+        name: cleanFileName, // Lưu với tên sạch sẽ (ví dụ Name.txt, VietPhrase.txt)
         mimeType: 'text/plain',
         appProperties: {
             type: 'nameqt',
-            originalName: finalCleanFileName,
+            originalName: cleanFileName,
             count: String(fileObj.count || 0),
             updatedAt: String(fileObj.updatedAt || Date.now())
         }
     };
+
+    // 2. Nếu file ĐÃ TỒN TẠI trên Drive: Ghi đè (PATCH) để cập nhật, KHÔNG TẠO FILE MỚI
+    if (existingFileId) {
+        const uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=media`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'text/plain;charset=utf-8'
+            },
+            body: blob
+        });
+        if (uploadRes.ok) {
+            // Cập nhật lại metadata
+            await fetch(`https://www.googleapis.com/drive/v3/files/${existingFileId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json; charset=UTF-8'
+                },
+                body: JSON.stringify(metadata)
+            });
+            return { success: true, savedName: cleanFileName };
+        }
+        return { success: false };
+    }
+
+    // 3. Nếu file CHƯA CÓ trên Drive: Tạo mới qua Resumable Upload
     if (folderId) metadata.parents = [folderId];
 
     const initRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable`, {
@@ -447,26 +484,31 @@ async function gdriveSaveNameQTFile(fileObj) {
         body: blob
     });
 
-    if (uploadRes.ok) return { success: true, savedName: finalCleanFileName };
+    if (uploadRes.ok) return { success: true, savedName: cleanFileName };
     return { success: false };
 }
 
+// LIỆT KÊ TOÀN BỘ FILE TRONG THƯ MỤC CongCuEdit_TuDienNameQT (ĐÃ FIX: NHẬN DIỆN CẢ FILE TẢI LÊN BẰNG TAY)
 async function gdriveListNameQTFiles() {
     const token = await getValidToken();
     if (!token) return [];
     const folderId = await getOrCreateFolder(FOLDER_NAMEQT);
+    if (!folderId) return [];
 
     try {
-        let q = `trashed=false and appProperties has { key='type' and value='nameqt' }`;
-        if (folderId) q += ` and '${folderId}' in parents`;
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,appProperties,modifiedTime)&orderBy=modifiedTime desc&pageSize=1000`, {
+        // CÂU TRUY VẤN MỚI: BỎ BỎ LỌC appProperties -> QUÉT TOÀN BỘ FILE TRONG THƯ MỤC
+        let q = `'${folderId}' in parents and trashed=false and mimeType != 'application/vnd.google-apps.folder'`;
+        
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,appProperties,size,modifiedTime)&orderBy=name asc&pageSize=1000`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
             const data = await res.json();
             return data.files || [];
         }
-    } catch (e) {}
+    } catch (e) {
+        console.error("Lỗi liệt kê file Name QT từ Drive:", e);
+    }
     return [];
 }
 
@@ -478,7 +520,9 @@ async function gdriveDownloadNameQTContent(fileId) {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) return await res.text();
-    } catch (e) {}
+    } catch (e) {
+        console.error(`Lỗi tải nội dung file ID [${fileId}]:`, e);
+    }
     return null;
 }
 
@@ -488,7 +532,7 @@ async function gdriveDeleteNameQTFile(fileName) {
     const folderId = await getOrCreateFolder(FOLDER_NAMEQT);
 
     try {
-        let q = `name='${NAMEQT_PREFIX}${fileName}' and trashed=false`;
+        let q = `(name='${NAMEQT_PREFIX}${fileName}' or name='${fileName}') and trashed=false`;
         if (folderId) q += ` and '${folderId}' in parents`;
         const checkRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -508,7 +552,7 @@ async function gdriveDeleteNameQTFile(fileName) {
 }
 
 // =========================================================================
-// CLOUD HISTORY - ĐÃ FIX LỖI 403 (SỬ DỤNG MULTIPART ĐỂ GHI ĐÈ / XÓA)
+// CLOUD HISTORY - ĐỒNG BỘ LỊCH SỬ DỊCH
 // =========================================================================
 async function gdriveSaveHistoryCloud(type, historyArray) {
     const token = await getValidToken();
@@ -560,9 +604,6 @@ async function gdriveSaveHistoryCloud(type, historyArray) {
         body: multipartRequestBody
     });
 
-    if (!res.ok) {
-        console.error("Lỗi đồng bộ lịch sử:", await res.text());
-    }
     return res.ok;
 }
 

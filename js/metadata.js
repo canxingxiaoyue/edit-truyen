@@ -1,12 +1,35 @@
 // =========================================================================
-// QUẢN LÝ THÔNG TIN TRUYỆN (MỤC 2) - TÌM KIẾM ĐỘC LẬP TỪNG MỤC & NHẬP VĂN XUÔI TỰ ĐỘNG
+// QUẢN LÝ THÔNG TIN TRUYỆN (MỤC 2) - TÌM KIẾM ĐỘC LẬP & TEXT TẠO BẢNG CHUYÊN SÂU
 // =========================================================================
 
-// CÁC BIẾN TÌM KIẾM ĐỘC LẬP CHO TỪNG MỤC
+// KHỞI TẠO STATE AN TOÀN (CHỐNG CRASH BỞI LỖI "Unexpected token u in JSON")
+let metadata;
+try {
+    const rawData = localStorage.getItem('storyMetadata');
+    metadata = rawData ? JSON.parse(rawData) : null;
+    if (!metadata || typeof metadata !== 'object') throw new Error("Data invalid");
+} catch (e) {
+    console.warn("Dữ liệu Thông tin truyện trống hoặc lỗi định dạng, khởi tạo mới.");
+    metadata = {
+        title: '',
+        characters: [{ c1: '', c2: '', c3: '', c4: '', c5: '' }],
+        pronouns: [{ c1: '', c2: '', c3: '', c4: '', c5: '' }],
+        terms: [{ c1: '', c2: '' }]
+    };
+}
+
+// CÁC BIẾN STATE
+let activeInfoRows = { characters: -1, pronouns: -1, terms: -1 };
+let metaUndoStack = [];
+let metaRedoStack = [];
+let metaTypingUndoTimeout = null;
+let metaIsTyping = false;
+let lastMetaHistoryTime = 0;
+
 let searchCharsQuery = '';
 let searchPronounsQuery = '';
 let searchTermsQuery = '';
-let metaSearchQuery = ''; // Giữ lại dự phòng cho tìm kiếm tổng thể nếu có
+let metaSearchQuery = ''; 
 
 // 1. TỰ ĐỘNG TIÊM CSS CHO THANH TÌM KIẾM TỪNG MỤC VÀ MODAL NHẬP VĂN XUÔI
 (function injectMetadataStyles() {
@@ -20,250 +43,104 @@ let metaSearchQuery = ''; // Giữ lại dự phòng cho tìm kiếm tổng th�
 
     style.textContent = `
         /* Thanh tìm kiếm độc lập từng mục */
-        .section-search-bar-wrap {
-            padding: 8px 12px;
-            background: var(--bg-card, #ffffff);
-            border-bottom: 1px solid var(--border-color, #e2e8f0);
-            position: sticky;
-            top: 0;
-            z-index: 5;
-        }
-        .section-search-inner {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--bg-input, #f8fafc);
-            border: 1px solid var(--border-color, #cbd5e1);
-            border-radius: 8px;
-            padding: 5px 10px;
-            transition: all 0.15s ease;
-        }
-        .section-search-inner:focus-within {
-            border-color: #3b82f6;
-            background: #ffffff;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-        }
-        .section-search-icon {
-            font-size: 13px;
-            color: var(--text-muted, #64748b);
-            user-select: none;
-        }
+        .section-search-bar-wrap { padding: 8px 12px; background: var(--bg-card, #ffffff); border-bottom: 1px solid var(--border-color, #e2e8f0); position: sticky; top: 0; z-index: 5; }
+        .section-search-inner { display: flex; align-items: center; gap: 8px; background: var(--bg-input, #f8fafc); border: 1px solid var(--border-color, #cbd5e1); border-radius: 8px; padding: 5px 10px; transition: all 0.15s ease; }
+        .section-search-inner:focus-within { border-color: #3b82f6; background: #ffffff; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+        .section-search-icon { font-size: 13px; color: var(--text-muted, #64748b); user-select: none; }
+        .section-search-input, #meta-search-input { flex: 1; border: none; background: transparent; outline: none; font-size: 13.5px; color: inherit; font-family: inherit !important; padding: 2px 0; }
+        .section-search-input::placeholder, #meta-search-input::placeholder { font-family: inherit !important; color: var(--text-muted, #94a3b8); opacity: 0.85; }
+        .btn-clear-section-search { background: none; border: none; color: var(--text-muted, #94a3b8); font-size: 16px; cursor: pointer; line-height: 1; padding: 0 4px; }
+        .btn-clear-section-search:hover { color: #ef4444; }
+        .meta-no-result { padding: 20px; text-align: center; font-size: 13px; font-family: inherit !important; color: var(--text-muted, #64748b); background: var(--bg-card, #ffffff); border-radius: 8px; margin: 8px; border: 1px dashed var(--border-color, #cbd5e1); }
 
-        /* ĐỒNG BỘ FONT CHO CẢ CHỮ GÕ VÀO VÀ PLACEHOLDER CỦA TẤT CẢ Ô TÌM KIẾM */
-        .section-search-input,
-        #meta-search-input {
-            flex: 1;
-            border: none;
-            background: transparent;
-            outline: none;
-            font-size: 13.5px;
-            color: inherit;
-            font-family: inherit !important; /* KẾ THỪA FONT ĐANG DÙNG (Merriweather, Literata...) */
-            padding: 2px 0;
-        }
-        .section-search-input::placeholder,
-        #meta-search-input::placeholder {
-            font-family: inherit !important; /* ĐỒNG BỘ FONT CHO CHỮ GỢI Ý */
-            color: var(--text-muted, #94a3b8);
-            opacity: 0.85;
-        }
+        /* Nút Text tạo bảng */
+        .btn-prose-import-trigger { background: linear-gradient(135deg, #0284c7, #0369a1) !important; color: #ffffff !important; font-weight: 600 !important; border: none !important; box-shadow: 0 2px 4px rgba(2, 132, 199, 0.25); }
+        .btn-prose-import-trigger:hover { background: linear-gradient(135deg, #0369a1, #075985) !important; transform: translateY(-1px); }
 
-        .btn-clear-section-search {
-            background: none;
-            border: none;
-            color: var(--text-muted, #94a3b8);
-            font-size: 16px;
-            cursor: pointer;
-            line-height: 1;
-            padding: 0 4px;
-        }
-        .btn-clear-section-search:hover {
-            color: #ef4444;
-        }
-        .meta-no-result {
-            padding: 20px;
-            text-align: center;
-            font-size: 13px;
-            font-family: inherit !important;
-            color: var(--text-muted, #64748b);
-            background: var(--bg-card, #ffffff);
-            border-radius: 8px;
-            margin: 8px;
-            border: 1px dashed var(--border-color, #cbd5e1);
-        }
-
-        /* Nút nhập văn xuôi trên thanh công cụ */
-        .btn-prose-import-trigger {
-            background: linear-gradient(135deg, #0284c7, #0369a1) !important;
-            color: #ffffff !important;
-            font-weight: 600 !important;
-            border: none !important;
-            box-shadow: 0 2px 4px rgba(2, 132, 199, 0.25);
-        }
-        .btn-prose-import-trigger:hover {
-            background: linear-gradient(135deg, #0369a1, #075985) !important;
-            transform: translateY(-1px);
-        }
+        /* Chuyên biệt cho Text Tạo Bảng Modal */
+        .prose-textarea-wrap { position: relative; }
+        .prose-textarea { width: 100%; height: 210px; box-sizing: border-box; font-family: monospace; font-size: 13px; padding: 10px; border: 2px dashed var(--border-color, #cbd5e1); border-radius: 8px; resize: vertical; outline: none; background: var(--bg-input, #ffffff); color: inherit; transition: all 0.2s; }
+        .prose-textarea:focus { border-color: #3b82f6; border-style: solid; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+        .prose-textarea.drag-over { border-color: #10b981; background: rgba(16, 185, 129, 0.05); }
+        
+        .btn-clear-textarea { position: absolute; top: 10px; right: 20px; background: rgba(0,0,0,0.4); color: #fff; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: 0.2s; z-index: 10; }
+        .btn-clear-textarea:hover { background: #ef4444; }
+        
+        .prose-preview-box { max-height: 250px; overflow-y: auto; background: var(--bg-tool-group, rgba(248, 250, 252, 0.9)); border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px; padding: 12px; font-size: 13px; }
+        .preview-list { list-style: none; margin: 0 0 10px 10px; padding: 0; }
+        .preview-list li { position: relative; padding-left: 12px; margin-bottom: 4px; color: var(--text-color); }
+        .preview-list li::before { content: '•'; position: absolute; left: 0; color: #3b82f6; font-weight: bold; }
+        .warning-item { cursor: pointer; color: #b45309; padding: 4px; border-radius: 4px; transition: 0.2s; display: block; }
+        .warning-item:hover { background: rgba(245, 158, 11, 0.2); }
+        .warning-item b { display: inline-block; width: 60px; }
     `;
 })();
 
-// HÀM TIỆN ÍCH: BỎ DẤU TIẾNG VIỆT ĐỂ TÌM KIẾM LINH HOẠT
-function stripAccents(str) {
-    if (!str) return '';
-    return str.normalize('NFD')
-              .replace(/[\u0300-\u036f]/g, '')
-              .replace(/đ/g, 'd').replace(/Đ/g, 'D')
-              .toLowerCase().trim();
-}
-
-// HÀM KIỂM TRA TỪ KHÓA TÌM KIẾM (TIẾNG TRUNG + TIẾNG VIỆT CÓ/KHÔNG DẤU)
+// ================= CÁC HÀM TIỆN ÍCH & QUẢN LÝ DỮ LIỆU =================
+function stripAccents(str) { return (str||'').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().trim(); }
 function matchSearch(text, query) {
     if (!query) return true;
     if (!text) return false;
-    const tLower = String(text).toLowerCase();
-    const qLower = query.toLowerCase().trim();
+    const tLower = String(text).toLowerCase(); const qLower = query.toLowerCase().trim();
     if (tLower.includes(qLower)) return true;
     return stripAccents(tLower).includes(stripAccents(qLower));
 }
 
-// BẬT TẮT NÚT UNDO / REDO
-function updateUndoRedoButtonsState() {
-    try {
-        const btnMetaUndo = document.getElementById('btn-meta-undo');
-        const btnMetaRedo = document.getElementById('btn-meta-redo');
-        if (btnMetaUndo) btnMetaUndo.disabled = (typeof metaUndoStack !== 'undefined') ? metaUndoStack.length === 0 : true;
-        if (btnMetaRedo) btnMetaRedo.disabled = (typeof metaRedoStack !== 'undefined') ? metaRedoStack.length === 0 : true;
-
-        const btnUndo = document.getElementById('btn-undo');
-        const btnRedo = document.getElementById('btn-redo');
-        if (btnUndo) btnUndo.disabled = (typeof editorUndoStack !== 'undefined') ? editorUndoStack.length === 0 : true;
-        if (btnRedo) btnRedo.disabled = (typeof editorRedoStack !== 'undefined') ? editorRedoStack.length === 0 : true;
-    } catch (e) {}
-}
-
-// CHUẨN HÓA DỮ LIỆU ĐẢM BẢO TƯƠNG THÍCH VỚI FILE JSON CŨ
 function normalizeMetadata(imported) {
     if (!imported) return { title: '', characters: [], pronouns: [], terms: [] };
-    
-    const title = imported.title || '';
-
-    const characters = (imported.characters || []).map(item => ({
-        c1: item.c1 || item.cn || '',
-        c2: item.c2 || item.vi || '',
-        c3: item.c3 || item.called || '',
-        c4: item.c4 || item.desc || '',
-        c5: item.c5 || item.pronoun3 || ''
-    }));
-
-    const pronouns = (imported.pronouns || []).map(item => ({
-        c1: item.c1 || item.a || '',
-        c2: item.c2 || item.b || '',
-        c3: item.c3 || item.ab || '',
-        c4: item.c4 || item.ba || '',
-        c5: item.c5 || item.note || ''
-    }));
-
-    const terms = (imported.terms || []).map(item => ({
-        c1: item.c1 || item.orig || '',
-        c2: item.c2 || item.changed || ''
-    }));
-
-    return { title, characters, pronouns, terms };
+    return {
+        title: imported.title || '',
+        characters: (imported.characters || []).map(item => ({ c1: item.c1||item.cn||'', c2: item.c2||item.vi||'', c3: item.c3||item.called||'', c4: item.c4||item.desc||'', c5: item.c5||item.pronoun3||'' })),
+        pronouns: (imported.pronouns || []).map(item => ({ c1: item.c1||item.a||'', c2: item.c2||item.b||'', c3: item.c3||item.ab||'', c4: item.c4||item.ba||'', c5: item.c5||item.note||'' })),
+        terms: (imported.terms || []).map(item => ({ c1: item.c1||item.orig||'', c2: item.c2||item.changed||'' }))
+    };
 }
 
-function saveMetadata() {
-    localStorage.setItem('storyMetadata', JSON.stringify(metadata));
+function saveMetadata() { localStorage.setItem('storyMetadata', JSON.stringify(metadata)); }
+function updateUndoRedoButtonsState() {
+    try {
+        const u = document.getElementById('btn-meta-undo'), r = document.getElementById('btn-meta-redo');
+        if (u) u.disabled = metaUndoStack.length === 0;
+        if (r) r.disabled = metaRedoStack.length === 0;
+    } catch(e){}
 }
-
-function renderMetadata() {
-    if (metadata) {
-        metadata = normalizeMetadata(metadata);
-    }
-
-    const titleInput = document.getElementById('story-title-input');
-    if (titleInput) titleInput.value = metadata.title || '';
-    
-    ensureSectionSearchBars();
-    ensureProseImportButton();
-
-    renderCharacters();
-    renderPronouns();
-    renderTerms();
-    updateUndoRedoButtonsState();
-}
-
 function saveMetaUndoState() {
-    const currentStateStr = JSON.stringify(metadata);
-    if (metaUndoStack.length > 0 && metaUndoStack[metaUndoStack.length - 1] === currentStateStr) {
-        return;
-    }
-    metaUndoStack.push(currentStateStr);
-    if (metaUndoStack.length > 50) metaUndoStack.shift();
-    metaRedoStack = [];
-    updateUndoRedoButtonsState();
+    const s = JSON.stringify(metadata);
+    if (metaUndoStack.length > 0 && metaUndoStack[metaUndoStack.length - 1] === s) return;
+    metaUndoStack.push(s); if (metaUndoStack.length > 50) metaUndoStack.shift();
+    metaRedoStack = []; updateUndoRedoButtonsState();
 }
-
 function handleMetaTypingInput() {
-    if (!metaIsTyping) {
-        saveMetaUndoState();
-        metaIsTyping = true;
-    }
+    if (!metaIsTyping) { saveMetaUndoState(); metaIsTyping = true; }
     clearTimeout(metaTypingUndoTimeout);
-    metaTypingUndoTimeout = setTimeout(() => {
-        saveMetaUndoState();
-        metaIsTyping = false;
-    }, 1000);
+    metaTypingUndoTimeout = setTimeout(() => { saveMetaUndoState(); metaIsTyping = false; }, 1000);
 }
-
-function metaUndo() {
-    if (metaUndoStack.length === 0) return;
-    if (metaIsTyping) {
-        clearTimeout(metaTypingUndoTimeout);
-        saveMetaUndoState();
-        metaIsTyping = false;
-    }
-    const currentStateStr = JSON.stringify(metadata);
-    let prevStateStr = metaUndoStack.pop();
-    if (prevStateStr === currentStateStr && metaUndoStack.length > 0) {
-        metaRedoStack.push(prevStateStr);
-        prevStateStr = metaUndoStack.pop();
-    }
-    metaRedoStack.push(currentStateStr);
-    metadata = normalizeMetadata(JSON.parse(prevStateStr));
-    renderMetadata();
-    saveMetadata();
-    updateUndoRedoButtonsState();
-    showToast('↩️ Đã hoàn tác thông tin (Undo)', 'var(--btn-info)');
-}
-
-function metaRedo() {
-    if (metaRedoStack.length === 0) return;
-    metaUndoStack.push(JSON.stringify(metadata));
-    const nextState = normalizeMetadata(JSON.parse(metaRedoStack.pop()));
-    metadata = nextState;
-    renderMetadata();
-    saveMetadata();
-    updateUndoRedoButtonsState();
-    showToast('🔁 Đã làm lại thông tin (Redo)', 'var(--btn-info)');
-}
-
-function addMetaHistoryEntry() {
-    if (typeof pushToCloudHistory === 'function') {
-        pushToCloudHistory('meta', metadata);
-    }
-}
-
 let metaSaveTimeout;
 function debounceMetaSave() {
     clearTimeout(metaSaveTimeout);
     metaSaveTimeout = setTimeout(() => {
         saveMetadata();
-        const now = Date.now();
-        if (now - lastMetaHistoryTime > 15000) {
-            addMetaHistoryEntry();
-            lastMetaHistoryTime = now;
-        }
+        if (Date.now() - lastMetaHistoryTime > 15000) { if(typeof pushToCloudHistory === 'function') pushToCloudHistory('meta', metadata); lastMetaHistoryTime = Date.now(); }
     }, 500);
+}
+
+function metaUndo() {
+    if (metaUndoStack.length === 0) return;
+    if (metaIsTyping) { clearTimeout(metaTypingUndoTimeout); saveMetaUndoState(); metaIsTyping = false; }
+    const cur = JSON.stringify(metadata);
+    let prev = metaUndoStack.pop();
+    if (prev === cur && metaUndoStack.length > 0) { metaRedoStack.push(prev); prev = metaUndoStack.pop(); }
+    metaRedoStack.push(cur);
+    metadata = normalizeMetadata(JSON.parse(prev));
+    renderMetadata(); saveMetadata(); updateUndoRedoButtonsState();
+    if(typeof showToast === 'function') showToast('↩️ Đã hoàn tác', 'var(--btn-info)');
+}
+function metaRedo() {
+    if (metaRedoStack.length === 0) return;
+    metaUndoStack.push(JSON.stringify(metadata));
+    metadata = normalizeMetadata(JSON.parse(metaRedoStack.pop()));
+    renderMetadata(); saveMetadata(); updateUndoRedoButtonsState();
+    if(typeof showToast === 'function') showToast('🔁 Đã làm lại', 'var(--btn-info)');
 }
 
 function selectInfoCard(el, section, originalIndex) {
@@ -272,989 +149,512 @@ function selectInfoCard(el, section, originalIndex) {
     activeInfoRows[section] = originalIndex;
 }
 
-// =========================================================================
-// TÍNH NĂNG 1: TỰ ĐỘNG CHÈN THANH TÌM KIẾM RIÊNG TỪNG MỤC
-// =========================================================================
+// ================= RENDER GIAO DIỆN & TÌM KIẾM ĐỘC LẬP TỪNG MỤC =================
+function renderMetadata() {
+    metadata = normalizeMetadata(metadata);
+    const t = document.getElementById('story-title-input'); if (t) t.value = metadata.title || '';
+    ensureSectionSearchBars(); ensureProseImportButton();
+    renderCharacters(); renderPronouns(); renderTerms();
+    updateUndoRedoButtonsState();
+}
+
 function ensureSectionSearchBars() {
-    // 1. Ô tìm kiếm Mục 1: Nhân vật
-    const bodyChars = document.getElementById('body-characters');
-    if (bodyChars && !document.getElementById('search-chars-input')) {
-        const wrap = document.createElement('div');
-        wrap.className = 'section-search-bar-wrap';
-        wrap.innerHTML = `
-            <div class="section-search-inner">
-                <span class="section-search-icon">🔍</span>
-                <input type="text" id="search-chars-input" class="section-search-input" placeholder="Tìm nhân vật (tên Trung, Việt, miêu tả, xưng hô...)..." autocomplete="off" />
-                <button type="button" id="btn-clear-chars-search" class="btn-clear-section-search" style="display:none;" title="Xóa tìm kiếm">&times;</button>
-            </div>
-        `;
-        bodyChars.parentNode.insertBefore(wrap, bodyChars);
-
-        const inEl = wrap.querySelector('#search-chars-input');
-        const clearBtn = wrap.querySelector('#btn-clear-chars-search');
-        inEl.addEventListener('input', (e) => {
-            searchCharsQuery = e.target.value.trim();
-            clearBtn.style.display = searchCharsQuery ? 'inline-block' : 'none';
-            renderCharacters();
-        });
-        clearBtn.addEventListener('click', () => {
-            inEl.value = '';
-            searchCharsQuery = '';
-            clearBtn.style.display = 'none';
-            renderCharacters();
-            inEl.focus();
-        });
-    }
-
-    // 2. Ô tìm kiếm Mục 2: Xưng hô
-    const bodyPros = document.getElementById('body-pronouns');
-    if (bodyPros && !document.getElementById('search-pronouns-input')) {
-        const wrap = document.createElement('div');
-        wrap.className = 'section-search-bar-wrap';
-        wrap.innerHTML = `
-            <div class="section-search-inner">
-                <span class="section-search-icon">🔍</span>
-                <input type="text" id="search-pronouns-input" class="section-search-input" placeholder="Tìm xưng hô (A, B, A-B, B-A, ghi chú...)..." autocomplete="off" />
-                <button type="button" id="btn-clear-pros-search" class="btn-clear-section-search" style="display:none;" title="Xóa tìm kiếm">&times;</button>
-            </div>
-        `;
-        bodyPros.parentNode.insertBefore(wrap, bodyPros);
-
-        const inEl = wrap.querySelector('#search-pronouns-input');
-        const clearBtn = wrap.querySelector('#btn-clear-pros-search');
-        inEl.addEventListener('input', (e) => {
-            searchPronounsQuery = e.target.value.trim();
-            clearBtn.style.display = searchPronounsQuery ? 'inline-block' : 'none';
-            renderPronouns();
-        });
-        clearBtn.addEventListener('click', () => {
-            inEl.value = '';
-            searchPronounsQuery = '';
-            clearBtn.style.display = 'none';
-            renderPronouns();
-            inEl.focus();
-        });
-    }
-
-    // 3. Ô tìm kiếm Mục 3: Thống nhất từ ngữ
-    const bodyTerms = document.getElementById('body-terms');
-    if (bodyTerms && !document.getElementById('search-terms-input')) {
-        const wrap = document.createElement('div');
-        wrap.className = 'section-search-bar-wrap';
-        wrap.innerHTML = `
-            <div class="section-search-inner">
-                <span class="section-search-icon">🔍</span>
-                <input type="text" id="search-terms-input" class="section-search-input" placeholder="Tìm từ ngữ (chữ Hán, bản dịch tiếng Việt)..." autocomplete="off" />
-                <button type="button" id="btn-clear-terms-search" class="btn-clear-section-search" style="display:none;" title="Xóa tìm kiếm">&times;</button>
-            </div>
-        `;
-        bodyTerms.parentNode.insertBefore(wrap, bodyTerms);
-
-        const inEl = wrap.querySelector('#search-terms-input');
-        const clearBtn = wrap.querySelector('#btn-clear-terms-search');
-        inEl.addEventListener('input', (e) => {
-            searchTermsQuery = e.target.value.trim();
-            clearBtn.style.display = searchTermsQuery ? 'inline-block' : 'none';
-            renderTerms();
-        });
-        clearBtn.addEventListener('click', () => {
-            inEl.value = '';
-            searchTermsQuery = '';
-            clearBtn.style.display = 'none';
-            renderTerms();
-            inEl.focus();
-        });
-    }
-}
-
-// =========================================================================
-// 1. RENDER NHÂN VẬT (DANH SÁCH KHỐI DỌC) - TÌM KIẾM ĐA TRƯỜNG & CHỐNG XÓA NHẦM
-// =========================================================================
-function renderCharacters() {
-    const container = document.getElementById('body-characters');
-    if (!container) return;
-    container.innerHTML = '';
-
-    const list = metadata.characters || [];
-    let matchCount = 0;
-
-    list.forEach((char, origIndex) => {
-        // Lọc theo từ khóa tìm kiếm của riêng mục Nhân vật
-        const query = searchCharsQuery || metaSearchQuery;
-        const isMatch = !query || 
-            matchSearch(char.c1, query) ||
-            matchSearch(char.c2, query) ||
-            matchSearch(char.c3, query) ||
-            matchSearch(char.c4, query) ||
-            matchSearch(char.c5, query);
-
-        if (!isMatch) return;
-        matchCount++;
-
-        const card = document.createElement('div');
-        card.className = `meta-card-block ${activeInfoRows.characters === origIndex ? 'active-info-card' : ''}`;
-        card.dataset.index = origIndex;
-        card.onclick = () => selectInfoCard(card, 'characters', origIndex);
-
-        card.innerHTML = `
-            <div class="meta-card-header">
-                <span>Nhân vật ${origIndex + 1}</span>
-                <button class="btn-card-del" title="Xóa nhân vật này">🗑️</button>
-            </div>
-            <div class="meta-field-row">
-                <span class="meta-field-label">Tên tiếng Trung:</span>
-                <div class="meta-field-value" contenteditable="true" data-field="c1">${char.c1 || ''}</div>
-            </div>
-            <div class="meta-field-row">
-                <span class="meta-field-label">Tên tiếng Việt:</span>
-                <div class="meta-field-value" contenteditable="true" data-field="c2">${char.c2 || ''}</div>
-            </div>
-            <div class="meta-field-row">
-                <span class="meta-field-label">Ngôi thứ 3 người khác gọi:</span>
-                <div class="meta-field-value" contenteditable="true" data-field="c3">${char.c3 || ''}</div>
-            </div>
-            <div class="meta-field-row">
-                <span class="meta-field-label">Miêu tả nhân vật:</span>
-                <div class="meta-field-value" contenteditable="true" data-field="c4">${char.c4 || ''}</div>
-            </div>
-            <div class="meta-field-row">
-                <span class="meta-field-label">Ngôi thứ ba:</span>
-                <div class="meta-field-value" contenteditable="true" data-field="c5">${char.c5 || ''}</div>
-            </div>
-        `;
-
-        card.querySelectorAll('.meta-field-value').forEach(fieldEl => {
-            fieldEl.addEventListener('input', (e) => {
-                const f = e.target.dataset.field;
-                metadata.characters[origIndex][f] = e.target.innerHTML;
-                handleMetaTypingInput();
-                debounceMetaSave();
+    const setup = (id, wrapId, ph, queryVar, renderFn) => {
+        const body = document.getElementById(id);
+        if (body && !document.getElementById(wrapId)) {
+            const w = document.createElement('div'); w.className = 'section-search-bar-wrap';
+            w.innerHTML = `<div class="section-search-inner"><span class="section-search-icon">🔍</span><input type="text" id="${wrapId}" class="section-search-input" placeholder="${ph}" autocomplete="off"/><button type="button" id="clr-${wrapId}" class="btn-clear-section-search" style="display:none;" title="Xóa">&times;</button></div>`;
+            body.parentNode.insertBefore(w, body);
+            const input = w.querySelector(`#${wrapId}`), clr = w.querySelector(`#clr-${wrapId}`);
+            input.addEventListener('input', (e) => {
+                if (id==='body-characters') searchCharsQuery = e.target.value.trim();
+                if (id==='body-pronouns') searchPronounsQuery = e.target.value.trim();
+                if (id==='body-terms') searchTermsQuery = e.target.value.trim();
+                clr.style.display = e.target.value ? 'inline-block' : 'none'; renderFn();
             });
-        });
+            clr.addEventListener('click', () => {
+                input.value=''; clr.style.display='none';
+                if (id==='body-characters') searchCharsQuery = '';
+                if (id==='body-pronouns') searchPronounsQuery = '';
+                if (id==='body-terms') searchTermsQuery = '';
+                renderFn(); input.focus();
+            });
+        }
+    };
+    setup('body-characters', 'search-chars-input', 'Tìm nhân vật...', 'searchCharsQuery', renderCharacters);
+    setup('body-pronouns', 'search-pronouns-input', 'Tìm xưng hô...', 'searchPronounsQuery', renderPronouns);
+    setup('body-terms', 'search-terms-input', 'Tìm từ ngữ...', 'searchTermsQuery', renderTerms);
+}
 
-        // BẢO ĐẢM XÓA CHUẨN XÁC BẢN GHI NGUỒN THEO origIndex
-        card.querySelector('.btn-card-del')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            deleteCharacterRow(origIndex);
-        });
-
-        container.appendChild(card);
+function renderCharacters() {
+    const c = document.getElementById('body-characters'); if (!c) return;
+    c.innerHTML = ''; let match = 0;
+    (metadata.characters||[]).forEach((char, idx) => {
+        const q = searchCharsQuery || metaSearchQuery;
+        if (q && !matchSearch(char.c1,q) && !matchSearch(char.c2,q) && !matchSearch(char.c3,q) && !matchSearch(char.c4,q) && !matchSearch(char.c5,q)) return;
+        match++;
+        const div = document.createElement('div'); div.className = `meta-card-block ${activeInfoRows.characters === idx ? 'active-info-card' : ''}`;
+        div.onclick = () => selectInfoCard(div, 'characters', idx);
+        div.innerHTML = `
+            <div class="meta-card-header"><span>Nhân vật ${idx + 1}</span><button class="btn-card-del">🗑️</button></div>
+            ${['Tên tiếng Trung:c1', 'Tên tiếng Việt:c2', 'Ngôi thứ 3 người khác gọi:c3', 'Miêu tả nhân vật:c4', 'Ngôi thứ ba:c5'].map(f => {
+                const [l, k] = f.split(':'); return `<div class="meta-field-row"><span class="meta-field-label">${l}:</span><div class="meta-field-value" contenteditable="true" data-f="${k}">${char[k]}</div></div>`;
+            }).join('')}
+        `;
+        div.querySelectorAll('.meta-field-value').forEach(el => el.addEventListener('input', e => { metadata.characters[idx][e.target.dataset.f] = e.target.innerHTML; handleMetaTypingInput(); debounceMetaSave(); }));
+        div.querySelector('.btn-card-del').addEventListener('click', e => { e.stopPropagation(); deleteCharacterRow(idx); });
+        c.appendChild(div);
     });
-
-    if (matchCount === 0 && list.length > 0) {
-        container.innerHTML = '<div class="meta-no-result">🔍 Không tìm thấy nhân vật phù hợp.</div>';
-    } else if (list.length === 0) {
-        container.innerHTML = '<div class="meta-no-result">Chưa có nhân vật nào. Bấm "+ Thêm nhân vật" để tạo mới.</div>';
-    }
+    if (match===0 && metadata.characters.length>0) c.innerHTML = '<div class="meta-no-result">🔍 Không tìm thấy nhân vật.</div>';
 }
 
-function addCharacterRow() {
-    if (!metadata.characters) metadata.characters = [];
-    metadata.characters.push({ c1: '', c2: '', c3: '', c4: '', c5: '' });
-    activeInfoRows.characters = metadata.characters.length - 1;
-    debounceMetaSave();
-    renderCharacters();
-    const container = document.getElementById('body-characters');
-    if (container) container.scrollTop = container.scrollHeight;
+function renderPronouns() {
+    const c = document.getElementById('body-pronouns'); if (!c) return;
+    c.innerHTML = ''; let match = 0;
+    (metadata.pronouns||[]).forEach((pro, idx) => {
+        const q = searchPronounsQuery || metaSearchQuery;
+        if (q && !matchSearch(pro.c1,q) && !matchSearch(pro.c2,q) && !matchSearch(pro.c3,q) && !matchSearch(pro.c4,q) && !matchSearch(pro.c5,q)) return;
+        match++;
+        const div = document.createElement('div'); div.className = `meta-card-block ${activeInfoRows.pronouns === idx ? 'active-info-card' : ''}`;
+        div.onclick = () => selectInfoCard(div, 'pronouns', idx);
+        div.innerHTML = `
+            <div class="meta-card-header"><span>Cặp xưng hô ${idx + 1}</span><button class="btn-card-del">🗑️</button></div>
+            ${['A:c1', 'B:c2', 'A-B:c3', 'B-A:c4', 'Ghi chú:c5'].map(f => {
+                const [l, k] = f.split(':'); return `<div class="meta-field-row"><span class="meta-field-label">${l}:</span><div class="meta-field-value" contenteditable="true" data-f="${k}">${pro[k]}</div></div>`;
+            }).join('')}
+        `;
+        div.querySelectorAll('.meta-field-value').forEach(el => el.addEventListener('input', e => { metadata.pronouns[idx][e.target.dataset.f] = e.target.innerHTML; handleMetaTypingInput(); debounceMetaSave(); }));
+        div.querySelector('.btn-card-del').addEventListener('click', e => { e.stopPropagation(); deletePronounRow(idx); });
+        c.appendChild(div);
+    });
+    if (match===0 && metadata.pronouns.length>0) c.innerHTML = '<div class="meta-no-result">🔍 Không tìm thấy cặp xưng hô.</div>';
 }
+
+function renderTerms() {
+    const c = document.getElementById('body-terms'); if (!c) return;
+    c.innerHTML = ''; let match = 0;
+    (metadata.terms||[]).forEach((term, idx) => {
+        const q = searchTermsQuery || metaSearchQuery;
+        if (q && !matchSearch(term.c1,q) && !matchSearch(term.c2,q)) return;
+        match++;
+        const div = document.createElement('div'); div.className = `term-line-item ${activeInfoRows.terms === idx ? 'active-info-card' : ''}`;
+        div.onclick = () => selectInfoCard(div, 'terms', idx);
+        div.innerHTML = `
+            <div class="term-part-cn" contenteditable="true" data-f="c1">${term.c1}</div><span class="term-equal-sign">=</span>
+            <div class="term-part-vi" contenteditable="true" data-f="c2">${term.c2}</div><button class="btn-card-del">🗑️</button>
+        `;
+        div.querySelectorAll('[contenteditable]').forEach(el => el.addEventListener('input', e => { metadata.terms[idx][e.target.dataset.f] = e.target.innerHTML; handleMetaTypingInput(); debounceMetaSave(); }));
+        div.querySelector('.btn-card-del').addEventListener('click', e => { e.stopPropagation(); deleteTermRow(idx); });
+        c.appendChild(div);
+    });
+    if (match===0 && metadata.terms.length>0) c.innerHTML = '<div class="meta-no-result">🔍 Không tìm thấy từ ngữ.</div>';
+}
+
+function addCharacterRow() { saveMetaUndoState(); metadata.characters.push({c1:'',c2:'',c3:'',c4:'',c5:''}); activeInfoRows.characters = metadata.characters.length - 1; debounceMetaSave(); renderCharacters(); const c = document.getElementById('body-characters'); if(c) c.scrollTop = c.scrollHeight; }
+function addPronounRow() { saveMetaUndoState(); metadata.pronouns.push({c1:'',c2:'',c3:'',c4:'',c5:''}); activeInfoRows.pronouns = metadata.pronouns.length - 1; debounceMetaSave(); renderPronouns(); const c = document.getElementById('body-pronouns'); if(c) c.scrollTop = c.scrollHeight; }
+function addTermRow() { saveMetaUndoState(); metadata.terms.push({c1:'',c2:''}); activeInfoRows.terms = metadata.terms.length - 1; debounceMetaSave(); renderTerms(); const c = document.getElementById('body-terms'); if(c) c.scrollTop = c.scrollHeight; }
 
 function deleteCharacterRow(targetIndex = null) {
-    const idx = (targetIndex !== null && typeof targetIndex === 'number') ? targetIndex : activeInfoRows.characters;
-    if (idx >= 0 && metadata.characters && idx < metadata.characters.length) {
-        const charName = metadata.characters[idx].c2 || metadata.characters[idx].c1 || `Nhân vật ${idx + 1}`;
-        if (confirm(`Xóa "${charName}"?`)) {
-            saveMetaUndoState();
-            addMetaHistoryEntry();
-            metadata.characters.splice(idx, 1);
-            if (metadata.characters.length === 0) {
-                metadata.characters.push({ c1: '', c2: '', c3: '', c4: '', c5: '' });
-            }
-            activeInfoRows.characters = -1;
-            debounceMetaSave();
-            renderCharacters();
-            showToast('🗑️ Đã xóa nhân vật!', 'var(--btn-danger)');
-        }
-    } else {
-        alert('Vui lòng click chọn một nhân vật trong danh sách để xóa!');
+    const idx = targetIndex !== null ? targetIndex : activeInfoRows.characters;
+    if (idx >= 0 && idx < metadata.characters.length && confirm(`Xóa "${metadata.characters[idx].c2 || metadata.characters[idx].c1 || 'Nhân vật '+(idx+1)}"?`)) {
+        saveMetaUndoState(); metadata.characters.splice(idx, 1);
+        if (metadata.characters.length === 0) metadata.characters.push({c1:'',c2:'',c3:'',c4:'',c5:''});
+        activeInfoRows.characters = -1; debounceMetaSave(); renderCharacters();
     }
 }
-
-// =========================================================================
-// 2. RENDER XƯNG HÔ (DANH SÁCH KHỐI DỌC) - TÌM KIẾM ĐA TRƯỜNG & CHỐNG XÓA NHẦM
-// =========================================================================
-function renderPronouns() {
-    const container = document.getElementById('body-pronouns');
-    if (!container) return;
-    container.innerHTML = '';
-
-    const list = metadata.pronouns || [];
-    let matchCount = 0;
-
-    list.forEach((pro, origIndex) => {
-        const query = searchPronounsQuery || metaSearchQuery;
-        const isMatch = !query || 
-            matchSearch(pro.c1, query) ||
-            matchSearch(pro.c2, query) ||
-            matchSearch(pro.c3, query) ||
-            matchSearch(pro.c4, query) ||
-            matchSearch(pro.c5, query);
-
-        if (!isMatch) return;
-        matchCount++;
-
-        const card = document.createElement('div');
-        card.className = `meta-card-block ${activeInfoRows.pronouns === origIndex ? 'active-info-card' : ''}`;
-        card.dataset.index = origIndex;
-        card.onclick = () => selectInfoCard(card, 'pronouns', origIndex);
-
-        card.innerHTML = `
-            <div class="meta-card-header">
-                <span>Cặp xưng hô ${origIndex + 1}</span>
-                <button class="btn-card-del" title="Xóa cặp xưng hô này">🗑️</button>
-            </div>
-            <div class="meta-field-row">
-                <span class="meta-field-label">A:</span>
-                <div class="meta-field-value" contenteditable="true" data-field="c1">${pro.c1 || ''}</div>
-            </div>
-            <div class="meta-field-row">
-                <span class="meta-field-label">B:</span>
-                <div class="meta-field-value" contenteditable="true" data-field="c2">${pro.c2 || ''}</div>
-            </div>
-            <div class="meta-field-row">
-                <span class="meta-field-label">A-B:</span>
-                <div class="meta-field-value" contenteditable="true" data-field="c3">${pro.c3 || ''}</div>
-            </div>
-            <div class="meta-field-row">
-                <span class="meta-field-label">B-A:</span>
-                <div class="meta-field-value" contenteditable="true" data-field="c4">${pro.c4 || ''}</div>
-            </div>
-            <div class="meta-field-row">
-                <span class="meta-field-label">Ghi chú:</span>
-                <div class="meta-field-value" contenteditable="true" data-field="c5">${pro.c5 || ''}</div>
-            </div>
-        `;
-
-        card.querySelectorAll('.meta-field-value').forEach(fieldEl => {
-            fieldEl.addEventListener('input', (e) => {
-                const f = e.target.dataset.field;
-                metadata.pronouns[origIndex][f] = e.target.innerHTML;
-                handleMetaTypingInput();
-                debounceMetaSave();
-            });
-        });
-
-        // BẢO ĐẢM XÓA CHUẨN XÁC BẢN GHI NGUỒN THEO origIndex
-        card.querySelector('.btn-card-del')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            deletePronounRow(origIndex);
-        });
-
-        container.appendChild(card);
-    });
-
-    if (matchCount === 0 && list.length > 0) {
-        container.innerHTML = '<div class="meta-no-result">🔍 Không tìm thấy cặp xưng hô phù hợp.</div>';
-    } else if (list.length === 0) {
-        container.innerHTML = '<div class="meta-no-result">Chưa có xưng hô nào. Bấm "+ Thêm xưng hô" để tạo mới.</div>';
-    }
-}
-
-function addPronounRow() {
-    if (!metadata.pronouns) metadata.pronouns = [];
-    metadata.pronouns.push({ c1: '', c2: '', c3: '', c4: '', c5: '' });
-    activeInfoRows.pronouns = metadata.pronouns.length - 1;
-    debounceMetaSave();
-    renderPronouns();
-    const container = document.getElementById('body-pronouns');
-    if (container) container.scrollTop = container.scrollHeight;
-}
-
 function deletePronounRow(targetIndex = null) {
-    const idx = (targetIndex !== null && typeof targetIndex === 'number') ? targetIndex : activeInfoRows.pronouns;
-    if (idx >= 0 && metadata.pronouns && idx < metadata.pronouns.length) {
-        const pairLabel = (metadata.pronouns[idx].c1 && metadata.pronouns[idx].c2) 
-            ? `${metadata.pronouns[idx].c1} - ${metadata.pronouns[idx].c2}` 
-            : `Cặp xưng hô ${idx + 1}`;
-        if (confirm(`Xóa "${pairLabel}"?`)) {
-            saveMetaUndoState();
-            addMetaHistoryEntry();
-            metadata.pronouns.splice(idx, 1);
-            if (metadata.pronouns.length === 0) {
-                metadata.pronouns.push({ c1: '', c2: '', c3: '', c4: '', c5: '' });
-            }
-            activeInfoRows.pronouns = -1;
-            debounceMetaSave();
-            renderPronouns();
-            showToast('🗑️ Đã xóa cặp xưng hô!', 'var(--btn-danger)');
-        }
-    } else {
-        alert('Vui lòng click chọn một cặp xưng hô trong danh sách để xóa!');
+    const idx = targetIndex !== null ? targetIndex : activeInfoRows.pronouns;
+    if (idx >= 0 && idx < metadata.pronouns.length && confirm(`Xóa "${metadata.pronouns[idx].c1 ? metadata.pronouns[idx].c1 + ' - ' + metadata.pronouns[idx].c2 : 'Cặp xưng hô '+(idx+1)}"?`)) {
+        saveMetaUndoState(); metadata.pronouns.splice(idx, 1);
+        if (metadata.pronouns.length === 0) metadata.pronouns.push({c1:'',c2:'',c3:'',c4:'',c5:''});
+        activeInfoRows.pronouns = -1; debounceMetaSave(); renderPronouns();
     }
 }
-
-// =========================================================================
-// 3. RENDER THỐNG NHẤT TỪ NGỮ (Hán = Tên đổi) - TÌM KIẾM ĐA TRƯỜNG & CHỐNG XÓA NHẦM
-// =========================================================================
-function renderTerms() {
-    const container = document.getElementById('body-terms');
-    if (!container) return;
-    container.innerHTML = '';
-
-    const list = metadata.terms || [];
-    let matchCount = 0;
-
-    list.forEach((term, origIndex) => {
-        const query = searchTermsQuery || metaSearchQuery;
-        const isMatch = !query || 
-            matchSearch(term.c1, query) ||
-            matchSearch(term.c2, query);
-
-        if (!isMatch) return;
-        matchCount++;
-
-        const item = document.createElement('div');
-        item.className = `term-line-item ${activeInfoRows.terms === origIndex ? 'active-info-card' : ''}`;
-        item.dataset.index = origIndex;
-        item.onclick = () => selectInfoCard(item, 'terms', origIndex);
-
-        item.innerHTML = `
-            <div class="term-part-cn" contenteditable="true" data-field="c1" placeholder="Tiếng Hán">${term.c1 || ''}</div>
-            <span class="term-equal-sign">=</span>
-            <div class="term-part-vi" contenteditable="true" data-field="c2" placeholder="Tên đổi">${term.c2 || ''}</div>
-            <button class="btn-card-del" title="Xóa từ ngữ này">🗑️</button>
-        `;
-
-        item.querySelectorAll('[contenteditable="true"]').forEach(partEl => {
-            partEl.addEventListener('input', (e) => {
-                const f = e.target.dataset.field;
-                metadata.terms[origIndex][f] = e.target.innerHTML;
-                handleMetaTypingInput();
-                debounceMetaSave();
-            });
-        });
-
-        // BẢO ĐẢM XÓA CHUẨN XÁC BẢN GHI NGUỒN THEO origIndex
-        item.querySelector('.btn-card-del')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            deleteTermRow(origIndex);
-        });
-
-        container.appendChild(item);
-    });
-
-    if (matchCount === 0 && list.length > 0) {
-        container.innerHTML = '<div class="meta-no-result">🔍 Không tìm thấy từ ngữ phù hợp.</div>';
-    } else if (list.length === 0) {
-        container.innerHTML = '<div class="meta-no-result">Chưa có từ ngữ nào. Bấm "+ Thêm từ ngữ" để tạo mới.</div>';
-    }
-}
-
-function addTermRow() {
-    if (!metadata.terms) metadata.terms = [];
-    metadata.terms.push({ c1: '', c2: '' });
-    activeInfoRows.terms = metadata.terms.length - 1;
-    debounceMetaSave();
-    renderTerms();
-    const container = document.getElementById('body-terms');
-    if (container) container.scrollTop = container.scrollHeight;
-}
-
 function deleteTermRow(targetIndex = null) {
-    const idx = (targetIndex !== null && typeof targetIndex === 'number') ? targetIndex : activeInfoRows.terms;
-    if (idx >= 0 && metadata.terms && idx < metadata.terms.length) {
-        const termLabel = (metadata.terms[idx].c1 || metadata.terms[idx].c2) 
-            ? `${metadata.terms[idx].c1} = ${metadata.terms[idx].c2}` 
-            : `Dòng ${idx + 1}`;
-        if (confirm(`Xóa từ ngữ "${termLabel}"?`)) {
-            saveMetaUndoState();
-            addMetaHistoryEntry();
-            metadata.terms.splice(idx, 1);
-            if (metadata.terms.length === 0) {
-                metadata.terms.push({ c1: '', c2: '' });
-            }
-            activeInfoRows.terms = -1;
-            debounceMetaSave();
-            renderTerms();
-            showToast('🗑️ Đã xóa thuật ngữ!', 'var(--btn-danger)');
-        }
-    } else {
-        alert('Vui lòng click chọn một thuật ngữ trong danh sách để xóa!');
+    const idx = targetIndex !== null ? targetIndex : activeInfoRows.terms;
+    if (idx >= 0 && idx < metadata.terms.length && confirm(`Xóa từ ngữ này?`)) {
+        saveMetaUndoState(); metadata.terms.splice(idx, 1);
+        if (metadata.terms.length === 0) metadata.terms.push({c1:'',c2:''});
+        activeInfoRows.terms = -1; debounceMetaSave(); renderTerms();
     }
 }
 
-// =========================================================================
-// HÀM SAO CHÉP THÔNG TIN (CLIPBOARD API CÓ BẢO VỆ FALLBACK)
-// =========================================================================
-function extractCleanText(val) {
-    if (!val) return '';
-    const temp = document.createElement('div');
-    temp.innerHTML = String(val).replace(/<br\s*[\/]?>/gi, ' ').replace(/<\/?[^>]+(>|$)/g, '');
-    return (temp.textContent || temp.innerText || '').trim();
-}
-
-async function copyTextSafely(text, successMsg) {
-    if (!text || !text.trim()) {
-        showToast('⚠️ Không có dữ liệu để sao chép!', 'var(--btn-warning)');
-        return;
-    }
+// ================= SAO CHÉP TEXT =================
+function extractCleanText(val) { const t=document.createElement('div'); t.innerHTML=String(val||'').replace(/<br\s*[\/]?>/gi, ' ').replace(/<\/?[^>]+(>|$)/g, ''); return (t.textContent||t.innerText||'').trim(); }
+async function copyTextSafely(text, msg) {
+    if(!text) return;
     try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(text);
-        } else {
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.style.position = 'fixed';
-            textarea.style.opacity = '0';
-            document.body.appendChild(textarea);
-            textarea.focus();
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
-        }
-        showToast(successMsg, 'var(--btn-success)');
-    } catch (err) {
-        console.error('Lỗi copy:', err);
-        showToast('❌ Trình duyệt từ chối quyền sao chép!', 'var(--btn-danger)');
-    }
+        if(navigator.clipboard) await navigator.clipboard.writeText(text);
+        else { const t = document.createElement('textarea'); t.value=text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); }
+        if(typeof showToast === 'function') showToast(msg, 'var(--btn-success)');
+    } catch(e){}
 }
-
-// 1. FORMAT MỤC NHÂN VẬT (SAO CHÉP TOÀN BỘ)
-function getFormattedCharactersText() {
-    const list = metadata.characters || [];
-    let lines = ['1. Nhân vật trong truyện\n'];
-    list.forEach((char, i) => {
-        lines.push(`Nhân vật ${i + 1}`);
-        lines.push(`Tên tiếng Trung: ${extractCleanText(char.c1)}`);
-        lines.push(`Tên tiếng Việt: ${extractCleanText(char.c2)}`);
-        lines.push(`Ngôi thứ 3 người khác gọi: ${extractCleanText(char.c3)}`);
-        lines.push(`Miêu tả nhân vật: ${extractCleanText(char.c4)}`);
-        lines.push(`Ngôi thứ ba: ${extractCleanText(char.c5)}\n`);
-    });
-    return lines.join('\n').trim();
-}
-
-// 2. FORMAT MỤC XƯNG HÔ (SAO CHÉP TOÀN BỘ)
-function getFormattedPronounsText() {
-    const list = metadata.pronouns || [];
-    let lines = ['2. Xưng hô\n'];
-    list.forEach((pro, i) => {
-        lines.push(`Cặp xưng hô ${i + 1}`);
-        lines.push(`A: ${extractCleanText(pro.c1)}`);
-        lines.push(`B: ${extractCleanText(pro.c2)}`);
-        lines.push(`A-B: ${extractCleanText(pro.c3)}`);
-        lines.push(`B-A: ${extractCleanText(pro.c4)}`);
-        if (pro.c5) lines.push(`Ghi chú: ${extractCleanText(pro.c5)}`);
-        lines.push('');
-    });
-    return lines.join('\n').trim();
-}
-
-// 3. FORMAT MỤC THUẬT NGỮ (SAO CHÉP TOÀN BỘ THEO DẠNG Hán = Tên đổi)
-function getFormattedTermsText() {
-    const list = metadata.terms || [];
-    let lines = ['3. Thống nhất từ ngữ\n'];
-    list.forEach(term => {
-        const cn = extractCleanText(term.c1);
-        const vi = extractCleanText(term.c2);
-        lines.push(`${cn} = ${vi}`);
-    });
-    return lines.join('\n').trim();
-}
-
-// 4. FORMAT TOÀN BỘ THÔNG TIN TRUYỆN
 function getFormattedAllMetadataText() {
-    const titleStr = metadata.title ? metadata.title.trim() : 'Chưa đặt tên';
-    return [
-        `Tên truyện: ${titleStr}`,
-        '',
-        getFormattedCharactersText(),
-        '',
-        getFormattedPronounsText(),
-        '',
-        getFormattedTermsText()
-    ].join('\n');
+    let ls = [`Tên truyện: ${metadata.title||'Chưa đặt tên'}\n\n1. Nhân vật trong truyện\n`];
+    (metadata.characters||[]).forEach((c,i) => ls.push(`Nhân vật ${i+1}\nTên tiếng Trung: ${extractCleanText(c.c1)}\nTên tiếng Việt: ${extractCleanText(c.c2)}\nNgôi thứ 3 người khác gọi: ${extractCleanText(c.c3)}\nMiêu tả nhân vật: ${extractCleanText(c.c4)}\nNgôi thứ ba: ${extractCleanText(c.c5)}\n`));
+    ls.push(`\n2. Xưng hô\n`);
+    (metadata.pronouns||[]).forEach((p,i) => { ls.push(`Cặp xưng hô ${i+1}\nA: ${extractCleanText(p.c1)}\nB: ${extractCleanText(p.c2)}\nA-B: ${extractCleanText(p.c3)}\nB-A: ${extractCleanText(p.c4)}`); if(p.c5) ls.push(`Ghi chú: ${extractCleanText(p.c5)}`); ls.push(''); });
+    ls.push(`3. Thống nhất từ ngữ\n`);
+    (metadata.terms||[]).forEach(t => ls.push(`${extractCleanText(t.c1)} = ${extractCleanText(t.c2)}`));
+    return ls.join('\n').trim();
 }
 
-// =========================================================================
-// TÍNH NĂNG 2: THUẬT TOÁN PHÂN TÍCH VĂN XUÔI & TỰ ĐỘNG TẠO BẢNG
-// =========================================================================
+// ================= TÍNH NĂNG 2: 📄 TEXT TẠO BẢNG (PARSER MẠNH MẼ) =================
 function parseMetadataProse(text) {
-    if (!text || !text.trim()) {
-        return { success: false, message: 'Nội dung dán vào đang trống!' };
-    }
-
+    if (!text || !text.trim()) return { success: false, message: 'Nội dung đang trống!' };
     const lines = text.replace(/\r\n/g, '\n').split('\n');
-    let title = '';
-    const characters = [];
-    const pronouns = [];
-    const terms = [];
-    const warnings = [];
-
-    let currentSection = 0; // 0: Tiêu đề, 1: Nhân vật, 2: Xưng hô, 3: Thống nhất từ ngữ
-    let currentChar = null;
-    let currentPro = null;
+    let title = '', chars = [], pros = [], terms = [], warns = [];
+    let sec = 0, cChar = null, cPro = null;
 
     for (let i = 0; i < lines.length; i++) {
-        const rawLine = lines[i];
-        const trimmed = rawLine.trim();
+        const raw = lines[i], trm = raw.trim();
+        if (!trm) continue;
+        
+        if (/^Tên truyện\s*:/i.test(trm)) { title = trm.slice(trm.indexOf(':') + 1).trim(); continue; }
+        if (/^1\.\s*Nhân vật trong truyện/i.test(trm)) { sec = 1; cChar = null; continue; }
+        if (/^2\.\s*Xưng hô/i.test(trm)) { sec = 2; cPro = null; continue; }
+        if (/^3\.\s*Thống nhất từ ngữ/i.test(trm)) { sec = 3; continue; }
 
-        if (!trimmed) continue;
-
-        // 1. Nhận diện Tên truyện
-        if (/^Tên truyện\s*:/i.test(trimmed)) {
-            const colonIdx = trimmed.indexOf(':');
-            title = trimmed.slice(colonIdx + 1).trim();
-            continue;
+        if (sec === 1) {
+            if (/^Nhân vật\s+\d+/i.test(trm)) { cChar = {c1:'',c2:'',c3:'',c4:'',c5:''}; chars.push(cChar); continue; }
+            if (!cChar && /^Tên tiếng Trung\s*:/i.test(trm)) { cChar = {c1:'',c2:'',c3:'',c4:'',c5:''}; chars.push(cChar); }
+            const col = raw.indexOf(':');
+            if (col !== -1 && cChar) {
+                const l = raw.slice(0, col).trim().toLowerCase(), v = raw.slice(col + 1).trim();
+                if (l.includes('tiếng trung')) cChar.c1 = v; else if (l.includes('tiếng việt')) cChar.c2 = v;
+                else if (l.includes('người khác gọi')) cChar.c3 = v; else if (l.includes('miêu tả')) cChar.c4 = v;
+                else if (l.includes('ngôi thứ 3') || l.includes('ngôi thứ ba')) cChar.c5 = v;
+                else warns.push({ line: i+1, msg: `Nhãn trường không xác định: "${trm}"` });
+            } continue;
         }
 
-        // 2. Nhận diện các tiêu đề mục lớn
-        if (/^1\.\s*Nhân vật trong truyện/i.test(trimmed)) {
-            currentSection = 1;
-            currentChar = null;
-            continue;
-        }
-        if (/^2\.\s*Xưng hô/i.test(trimmed)) {
-            currentSection = 2;
-            currentPro = null;
-            continue;
-        }
-        if (/^3\.\s*Thống nhất từ ngữ/i.test(trimmed)) {
-            currentSection = 3;
-            continue;
+        if (sec === 2) {
+            if (/^Cặp xưng hô\s+\d+/i.test(trm)) { cPro = {c1:'',c2:'',c3:'',c4:'',c5:''}; pros.push(cPro); continue; }
+            if (!cPro && /^A\s*:/i.test(trm)) { cPro = {c1:'',c2:'',c3:'',c4:'',c5:''}; pros.push(cPro); }
+            const col = raw.indexOf(':');
+            if (col !== -1 && cPro) {
+                const l = raw.slice(0, col).trim().toUpperCase(), v = raw.slice(col + 1).trim();
+                if (l === 'A') cPro.c1 = v; else if (l === 'B') cPro.c2 = v;
+                else if (l === 'A-B' || l === 'A - B') cPro.c3 = v; else if (l === 'B-A' || l === 'B - A') cPro.c4 = v;
+                else if (l.includes('GHI CHÚ') || l.includes('GHI CHU')) cPro.c5 = v;
+                else warns.push({ line: i+1, msg: `Nhãn trường không xác định: "${trm}"` });
+            } continue;
         }
 
-        // 3. Mục 1: Nhân vật trong truyện
-        if (currentSection === 1) {
-            if (/^Nhân vật\s+\d+/i.test(trimmed)) {
-                currentChar = { c1: '', c2: '', c3: '', c4: '', c5: '' };
-                characters.push(currentChar);
-                continue;
-            }
-
-            if (!currentChar) {
-                if (/^Tên tiếng Trung\s*:/i.test(trimmed)) {
-                    currentChar = { c1: '', c2: '', c3: '', c4: '', c5: '' };
-                    characters.push(currentChar);
-                } else {
-                    continue;
-                }
-            }
-
-            const colonIdx = rawLine.indexOf(':');
-            if (colonIdx !== -1) {
-                const label = rawLine.slice(0, colonIdx).trim().toLowerCase();
-                const val = rawLine.slice(colonIdx + 1).trim();
-
-                if (label === 'tên tiếng trung' || label === 'tiếng trung') currentChar.c1 = val;
-                else if (label === 'tên tiếng việt' || label === 'tiếng việt') currentChar.c2 = val;
-                else if (label === 'ngôi thứ 3 người khác gọi' || label === 'người khác gọi') currentChar.c3 = val;
-                else if (label === 'miêu tả nhân vật' || label === 'miêu tả') currentChar.c4 = val;
-                else if (label === 'ngôi thứ ba' || label === 'ngôi thứ 3') currentChar.c5 = val;
-                else {
-                    warnings.push(`Dòng không rõ trường ở mục Nhân vật: "${trimmed}"`);
-                }
-            }
+        if (sec === 3) {
+            const eq = trm.indexOf('=');
+            if (eq > 0) { terms.push({ c1: trm.slice(0, eq).trim(), c2: trm.slice(eq + 1).trim() }); }
+            else warns.push({ line: i+1, msg: `Thiếu dấu "=" phân tách Hán Việt: "${trm}"` });
             continue;
         }
-
-        // 4. Mục 2: Xưng hô
-        if (currentSection === 2) {
-            if (/^Cặp xưng hô\s+\d+/i.test(trimmed)) {
-                currentPro = { c1: '', c2: '', c3: '', c4: '', c5: '' };
-                pronouns.push(currentPro);
-                continue;
-            }
-
-            if (!currentPro) {
-                if (/^A\s*:/i.test(trimmed)) {
-                    currentPro = { c1: '', c2: '', c3: '', c4: '', c5: '' };
-                    pronouns.push(currentPro);
-                } else {
-                    continue;
-                }
-            }
-
-            // CHỈ CẮT Ở DẤU HAI CHẤM ĐẦU TIÊN (BẢO VỆ DẤU HAI CHẤM TRONG NỘI DUNG)
-            const colonIdx = rawLine.indexOf(':');
-            if (colonIdx !== -1) {
-                const label = rawLine.slice(0, colonIdx).trim().toUpperCase();
-                const val = rawLine.slice(colonIdx + 1).trim();
-
-                if (label === 'A') currentPro.c1 = val;
-                else if (label === 'B') currentPro.c2 = val;
-                else if (label === 'A-B' || label === 'A - B') currentPro.c3 = val;
-                else if (label === 'B-A' || label === 'B - A') currentPro.c4 = val;
-                else if (label === 'GHI CHÚ' || label === 'GHI CHU') currentPro.c5 = val;
-                else {
-                    warnings.push(`Dòng không rõ trường ở mục Xưng hô: "${trimmed}"`);
-                }
-            }
-            continue;
-        }
-
-        // 5. Mục 3: Thống nhất từ ngữ (Dạng Hán = Việt)
-        if (currentSection === 3) {
-            const eqIdx = trimmed.indexOf('=');
-            if (eqIdx > 0) {
-                const cn = trimmed.slice(0, eqIdx).trim();
-                const vi = trimmed.slice(eqIdx + 1).trim();
-                if (cn || vi) {
-                    terms.push({ c1: cn, c2: vi });
-                }
-            } else {
-                warnings.push(`Dòng không có dấu "=" ở mục Từ ngữ: "${trimmed}"`);
-            }
-            continue;
-        }
-
-        warnings.push(`Dòng nằm ngoài các mục: "${trimmed}"`);
+        
+        warns.push({ line: i+1, msg: `Dòng nằm ngoài các phân vùng mục 1, 2, 3: "${trm}"` });
     }
 
-    if (!title && characters.length === 0 && pronouns.length === 0 && terms.length === 0) {
-        return {
-            success: false,
-            message: 'Không nhận diện được nội dung phù hợp với định dạng thông tin truyện!'
-        };
-    }
-
-    return {
-        success: true,
-        data: {
-            title,
-            characters: characters.length > 0 ? characters : [{ c1: '', c2: '', c3: '', c4: '', c5: '' }],
-            pronouns: pronouns.length > 0 ? pronouns : [{ c1: '', c2: '', c3: '', c4: '', c5: '' }],
-            terms: terms.length > 0 ? terms : [{ c1: '', c2: '' }]
-        },
-        counts: {
-            hasTitle: !!title,
-            charactersCount: characters.length,
-            pronounsCount: pronouns.length,
-            termsCount: terms.length
-        },
-        warnings
-    };
+    if (!title && chars.length===0 && pros.length===0 && terms.length===0) return { success: false, message: 'Định dạng văn bản không khớp với chuẩn cấu trúc công cụ edit.' };
+    return { success: true, data: { title, characters: chars, pronouns: pros, terms }, warnings };
 }
 
-// TỰ ĐỘNG CHÈN NÚT "Nhập văn xuôi → Tạo bảng" TRÊN THANH CÔNG CỤ
+// CHÈN NÚT "📄 Text tạo bảng" VÀ GÁN SỰ KIỆN MỞ MODAL BẰNG EVENT DELEGATION
 function ensureProseImportButton() {
     if (document.getElementById('btn-import-prose-meta')) return;
     const copyAllBtn = document.getElementById('btn-copy-all-meta');
     if (!copyAllBtn) return;
-
     const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.id = 'btn-import-prose-meta';
+    btn.type = 'button'; btn.id = 'btn-import-prose-meta';
     btn.className = `${copyAllBtn.className || ''} btn-prose-import-trigger`;
     btn.style.marginLeft = '8px';
-    btn.innerHTML = '📋 Nhập văn xuôi → Tạo bảng';
-
-    btn.onclick = () => openProseImportModal();
-
+    btn.innerHTML = '📄 Text tạo bảng';
+    btn.onclick = openProseImportModal;
     copyAllBtn.parentNode.insertBefore(btn, copyAllBtn.nextSibling);
 }
 
-// MODAL QUY TRÌNH 2 BƯỚC: DÁN -> PHÂN TÍCH XEM TRƯỚC -> TẠO BẢNG
+function scrollToTextareaLine(ta, line) {
+    const lines = ta.value.split('\n'); let chars = 0;
+    for (let i = 0; i < line - 1; i++) chars += lines[i].length + 1;
+    ta.focus(); ta.setSelectionRange(chars, chars + lines[line - 1].length);
+}
+
+// Hàm gộp dữ liệu: Bổ sung vs Thay thế toàn bộ
+function mergeData(mode, newData) {
+    if (mode === 'replace') {
+        metadata.title = newData.title || metadata.title;
+        metadata.characters = newData.characters.length ? newData.characters : [{ c1:'', c2:'', c3:'', c4:'', c5:'' }];
+        metadata.pronouns = newData.pronouns.length ? newData.pronouns : [{ c1:'', c2:'', c3:'', c4:'', c5:'' }];
+        metadata.terms = newData.terms.length ? newData.terms : [{ c1:'', c2:'' }];
+    } else { // Append & Update
+        if(newData.title) metadata.title = newData.title;
+        
+        newData.characters.forEach(nc => {
+            if(!nc.c1 && !nc.c2) return;
+            const ex = metadata.characters.find(c => c.c1 && nc.c1 && c.c1 === nc.c1);
+            if (ex) Object.assign(ex, nc); else metadata.characters.push(nc);
+        });
+        
+        newData.pronouns.forEach(np => {
+            if(!np.c1 || !np.c2) return;
+            const ex = metadata.pronouns.find(p => p.c1===np.c1 && p.c2===np.c2);
+            if (ex) Object.assign(ex, np); else metadata.pronouns.push(np);
+        });
+        
+        newData.terms.forEach(nt => {
+            if(!nt.c1) return;
+            const ex = metadata.terms.find(t => t.c1===nt.c1);
+            if (ex) ex.c2 = nt.c2; else metadata.terms.push(nt);
+        });
+        
+        // Dọn dẹp dòng rỗng đầu tiên nếu có dữ liệu thật được thêm vào
+        if(metadata.characters.length>1 && !metadata.characters[0].c1 && !metadata.characters[0].c2) metadata.characters.shift();
+        if(metadata.pronouns.length>1 && !metadata.pronouns[0].c1 && !metadata.pronouns[0].c2) metadata.pronouns.shift();
+        if(metadata.terms.length>1 && !metadata.terms[0].c1 && !metadata.terms[0].c2) metadata.terms.shift();
+    }
+}
+
+// KHỞI TẠO MODAL VÀ LUỒNG SỰ KIỆN AUTO-PARSE
 function openProseImportModal() {
     let modal = document.getElementById('modal-import-prose');
     if (!modal) {
         modal = document.createElement('div');
-        modal.id = 'modal-import-prose';
-        modal.className = 'modal-overlay';
+        modal.id = 'modal-import-prose'; modal.className = 'modal-overlay';
         modal.innerHTML = `
-            <div class="modal-box" role="dialog" aria-modal="true" style="max-width: 680px; width: 92%; max-height: 90vh; display: flex; flex-direction: column; background: var(--bg-card, #ffffff); border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); overflow: hidden;">
-                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--border-color, #e2e8f0); background: var(--bg-header, rgba(241, 245, 249, 0.5));">
-                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
-                        <span>📋</span> Nhập văn xuôi → Tự động tạo bảng thông tin
-                    </h3>
-                    <button type="button" class="btn-close-prose-modal" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted, #64748b); line-height: 1;">&times;</button>
+            <div class="modal-box" style="width: 780px; max-width: 95%; max-height: 92vh; display: flex; flex-direction: column; background: var(--bg-card, #fff); border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+                <div style="padding: 14px 18px; border-bottom: 1px solid var(--border-color); background: var(--header-bg); display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin:0; font-size:16px;">📄 Text tạo bảng thông tin</h3>
+                    <button class="btn-close-prose-modal" style="background:none; border:none; font-size:22px; cursor:pointer; color:var(--text-muted);">&times;</button>
                 </div>
-                <div class="modal-body" style="padding: 16px 18px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px;">
-                    <div style="font-size: 13px; color: var(--text-muted, #475569); line-height: 1.5;">
-                        Dán nội dung văn bản (được copy từ nút <b>"Copy toàn bộ thông tin"</b> của dự án khác hoặc tệp ghi chú) vào khung dưới đây. Hệ thống sẽ tự động bóc tách thành các mục <b>Nhân vật</b>, <b>Xưng hô</b> và <b>Thống nhất từ ngữ</b>.
+                <div style="padding: 16px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display:flex; justify-content: space-between; align-items:flex-end;">
+                        <span style="font-size:13px; color:gray;">Hỗ trợ dán (Ctrl+V) hoặc kéo thả file (.txt, .md)</span>
+                        <div style="display:flex; gap:15px; font-size:13px; font-weight:600; color:var(--text-color);">
+                            <label style="cursor:pointer;"><input type="radio" name="importMode" value="append" checked> Nhập bổ sung (Cập nhật mục trùng)</label>
+                            <label style="cursor:pointer;"><input type="radio" name="importMode" value="replace"> Thay thế toàn bộ</label>
+                        </div>
                     </div>
-                    <textarea id="prose-import-textarea" style="width: 100%; height: 210px; box-sizing: border-box; font-family: monospace; font-size: 13px; padding: 10px; border: 1px solid var(--border-color, #cbd5e1); border-radius: 8px; resize: vertical; outline: none; background: var(--bg-input, #ffffff); color: inherit;" placeholder="Dán văn bản vào đây...
-Ví dụ:
-Tên truyện: Át Bích 黑桃A
-
-1. Nhân vật trong truyện
-Nhân vật 1
-Tên tiếng Trung: 许爻
-Tên tiếng Việt: Hứa Hào
-..."></textarea>
-
-                    <div style="display: flex; justify-content: flex-end;">
-                        <button type="button" id="btn-prose-preview" style="padding: 7px 16px; font-size: 13px; font-weight: 600; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; transition: background 0.15s;">🔍 Phân tích / Xem trước</button>
+                    <div class="prose-textarea-wrap">
+                        <textarea id="prose-import-textarea" class="prose-textarea" placeholder="Dán văn bản có cấu trúc chuẩn vào đây..."></textarea>
+                        <button id="btn-clear-textarea" class="btn-clear-textarea" title="Xóa trắng ô nhập liệu">🗑 Xóa text</button>
                     </div>
-
-                    <!-- Khu vực hiển thị bảng xem trước kết quả phân tích -->
-                    <div id="prose-preview-result" style="display: none; background: var(--bg-tool-group, rgba(248, 250, 252, 0.9)); border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px; padding: 12px; font-size: 13px;">
+                    <div style="display:flex; justify-content: flex-end;">
+                        <button id="btn-prose-preview" style="padding: 6px 16px; background:#2563eb; color:#fff; border:none; border-radius:6px; font-weight:600; cursor:pointer; transition:0.15s;">🔄 Phân tích lại</button>
                     </div>
+                    <div id="prose-preview-result" class="prose-preview-box" style="display:none;"></div>
                 </div>
-                <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--border-color, #e2e8f0); background: var(--bg-footer, rgba(248, 250, 252, 0.5));">
-                    <button type="button" class="btn-cancel-prose" style="padding: 8px 16px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 6px; background: transparent; cursor: pointer; color: var(--text-muted, #64748b);">Hủy</button>
-                    <button type="button" id="btn-prose-create" disabled style="padding: 8px 20px; font-size: 13px; font-weight: 600; border: none; border-radius: 6px; background: #10b981; color: #fff; cursor: not-allowed; opacity: 0.5; transition: all 0.15s;">✨ Tạo bảng</button>
+                <div style="padding: 12px 18px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px; background: var(--th-bg);">
+                    <button class="btn-close-prose-modal" style="padding: 8px 16px; font-weight:600; border: 1px solid #cbd5e1; border-radius: 6px; background: transparent; color: var(--text-color); cursor: pointer;">Hủy</button>
+                    <button id="btn-prose-create" disabled style="padding: 8px 20px; font-weight: 600; border: none; border-radius: 6px; background: #10b981; color: #fff; cursor: not-allowed; opacity: 0.5;">✨ Tạo bảng</button>
                 </div>
-            </div>
-        `;
+            </div>`;
         document.body.appendChild(modal);
 
-        const textarea = modal.querySelector('#prose-import-textarea');
-        const previewBtn = modal.querySelector('#btn-prose-preview');
+        const ta = modal.querySelector('#prose-import-textarea');
+        const prvBtn = modal.querySelector('#btn-prose-preview');
         const createBtn = modal.querySelector('#btn-prose-create');
-        const previewResult = modal.querySelector('#prose-preview-result');
-        const closeBtns = modal.querySelectorAll('.btn-close-prose-modal, .btn-cancel-prose');
+        const resBox = modal.querySelector('#prose-preview-result');
+        const clrBtn = modal.querySelector('#btn-clear-textarea');
 
-        let lastParsedData = null;
+        let lastData = null; 
+        let debounce = null;
 
-        const doPreview = () => {
-            const text = textarea.value.trim();
-            if (!text) {
-                if (typeof showToast === 'function') showToast('⚠️ Vui lòng dán văn bản vào khung trước khi phân tích!', 'var(--btn-warning)');
-                return;
+        // Hàm vẽ bảng Preview
+        const renderPreview = () => {
+            const text = ta.value.trim();
+            if (!text) { 
+                resBox.style.display='none'; 
+                createBtn.disabled=true; createBtn.style.opacity='0.5'; createBtn.style.cursor='not-allowed'; 
+                lastData=null; 
+                return; 
             }
-
+            
             const res = parseMetadataProse(text);
+            resBox.style.display = 'block';
+            
             if (!res.success) {
-                previewResult.style.display = 'block';
-                previewResult.innerHTML = `<div style="color: #ef4444; font-weight: 600;">❌ ${res.message}</div>`;
-                createBtn.disabled = true;
-                createBtn.style.cursor = 'not-allowed';
-                createBtn.style.opacity = '0.5';
-                lastParsedData = null;
+                resBox.innerHTML = `<div style="color:#ef4444; font-weight:bold; padding: 10px;">❌ ${res.message}</div>`;
+                createBtn.disabled=true; createBtn.style.opacity='0.5'; createBtn.style.cursor='not-allowed'; 
+                lastData=null; 
                 return;
             }
 
-            lastParsedData = res.data;
-            const c = res.counts;
+            lastData = res.data;
+            const d = res.data;
+            const w = res.warnings;
+            
+            let html = `<div style="color:#059669; font-weight:bold; margin-bottom:12px; font-size: 14px;">✅ Thống kê dữ liệu phân tích:</div>`;
+            html += `<ul class="preview-list">`;
+            html += `<li><b>Tên truyện:</b> <span style="color:var(--btn-primary);">${d.title ? `✓ ${d.title}` : '<i style="color:gray;">Chưa thiết lập</i>'}</span></li>`;
+            
+            if (d.characters.length) {
+                html += `<li><b>Nhân vật (${d.characters.length}):</b><ul style="color:gray; font-size:12px; margin-top:2px;">`;
+                d.characters.slice(0, 3).forEach(c => html += `<li>• ${c.c1 || c.c2 || 'Chưa rõ'}</li>`);
+                if(d.characters.length > 3) html += `<li>... và ${d.characters.length - 3} nhân vật khác</li>`;
+                html += `</ul></li>`;
+            }
+            if (d.pronouns.length) {
+                html += `<li><b>Xưng hô (${d.pronouns.length}):</b><ul style="color:gray; font-size:12px; margin-top:2px;">`;
+                d.pronouns.slice(0, 3).forEach(p => html += `<li>• ${p.c1} ↔ ${p.c2}</li>`);
+                if(d.pronouns.length > 3) html += `<li>... và ${d.pronouns.length - 3} xưng hô khác</li>`;
+                html += `</ul></li>`;
+            }
+            if (d.terms.length) {
+                html += `<li><b>Từ ngữ (${d.terms.length}):</b><ul style="color:gray; font-size:12px; margin-top:2px;">`;
+                d.terms.slice(0, 3).forEach(t => html += `<li>• ${t.c1} → ${t.c2}</li>`);
+                if(d.terms.length > 3) html += `<li>... và ${d.terms.length - 3} từ ngữ khác</li>`;
+                html += `</ul></li>`;
+            }
+            html += `</ul>`;
 
-            let warnHtml = '';
-            if (res.warnings && res.warnings.length > 0) {
-                warnHtml = `
-                    <div style="margin-top: 8px; color: #b45309; font-size: 12px; background: rgba(245, 158, 11, 0.1); padding: 8px; border-radius: 6px;">
-                        <b>⚠️ Lưu ý (${res.warnings.length} dòng không khớp nhãn trường):</b>
-                        <ul style="margin: 4px 0 0 16px; padding: 0;">
-                            ${res.warnings.slice(0, 4).map(w => `<li>${w}</li>`).join('')}
-                            ${res.warnings.length > 4 ? `<li>...và ${res.warnings.length - 4} dòng khác</li>` : ''}
-                        </ul>
-                    </div>
-                `;
+            if (w.length > 0) {
+                html += `<div style="margin-top:12px; border-top:1px dashed #cbd5e1; padding-top:10px;">
+                            <b style="color: #b45309;">⚠️ Bỏ qua (${w.length} dòng không hợp lệ):</b> 
+                            <span style="font-size:11px; color:gray;">(Click vào để cuộn tới vị trí lỗi)</span>
+                            <div style="display:flex; flex-direction:column; gap:4px; margin-top:6px;">`;
+                w.forEach(warn => {
+                    html += `<a class="warning-item" data-line="${warn.line}"><b>Dòng ${warn.line}:</b> ${warn.msg}</a>`;
+                });
+                html += `</div></div>`;
             }
 
-            previewResult.style.display = 'block';
-            previewResult.innerHTML = `
-                <div style="color: #047857; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                    <span>✅</span> Phân tích thành công cấu trúc thông tin:
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-bottom: 6px;">
-                    <div style="background: #ffffff; padding: 8px 10px; border-radius: 6px; border: 1px solid #cbd5e1;">
-                        <span style="color: #64748b; font-size: 11px;">TÊN TRUYỆN:</span><br/>
-                        <b>${res.data.title || '(Chưa đặt tên)'}</b>
-                    </div>
-                    <div style="background: #ffffff; padding: 8px 10px; border-radius: 6px; border: 1px solid #cbd5e1;">
-                        <span style="color: #64748b; font-size: 11px;">1. NHÂN VẬT:</span><br/>
-                        <b>${c.charactersCount} mục</b>
-                    </div>
-                    <div style="background: #ffffff; padding: 8px 10px; border-radius: 6px; border: 1px solid #cbd5e1;">
-                        <span style="color: #64748b; font-size: 11px;">2. XƯNG HÔ:</span><br/>
-                        <b>${c.pronounsCount} cặp</b>
-                    </div>
-                    <div style="background: #ffffff; padding: 8px 10px; border-radius: 6px; border: 1px solid #cbd5e1;">
-                        <span style="color: #64748b; font-size: 11px;">3. TỪ NGỮ:</span><br/>
-                        <b>${c.termsCount} mục</b>
-                    </div>
-                </div>
-                ${warnHtml}
-            `;
+            resBox.innerHTML = html;
+            resBox.querySelectorAll('.warning-item').forEach(el => {
+                el.onclick = () => scrollToTextareaLine(ta, parseInt(el.dataset.line));
+            });
 
-            createBtn.disabled = false;
-            createBtn.style.cursor = 'pointer';
-            createBtn.style.opacity = '1';
+            createBtn.disabled=false; createBtn.style.opacity='1'; createBtn.style.cursor='pointer';
         };
 
-        previewBtn.onclick = doPreview;
+        // AUTO-PARSE KHI DÁN HOẶC GÕ CHỮ (DEBOUNCE 300MS)
+        ta.addEventListener('input', () => { 
+            clearTimeout(debounce); 
+            debounce = setTimeout(renderPreview, 300); 
+        });
+        
+        prvBtn.onclick = renderPreview;
+        
+        clrBtn.onclick = () => { 
+            ta.value = ''; 
+            renderPreview(); 
+            ta.focus(); 
+        };
 
+        // HỖ TRỢ KÉO THẢ FILE (.txt, .md) VÀO Ô TEXTAREA
+        ta.addEventListener('dragover', e => { e.preventDefault(); ta.classList.add('drag-over'); });
+        ta.addEventListener('dragleave', () => ta.classList.remove('drag-over'));
+        ta.addEventListener('drop', e => {
+            e.preventDefault(); 
+            ta.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file && (file.name.endsWith('.txt') || file.name.endsWith('.md'))) {
+                const reader = new FileReader();
+                reader.onload = ev => { 
+                    ta.value = ev.target.result; 
+                    renderPreview(); 
+                };
+                reader.readAsText(file);
+            } else {
+                if (typeof showToast === 'function') showToast('⚠️ Chỉ hỗ trợ kéo thả file .txt hoặc .md', 'var(--btn-warning)');
+            }
+        });
+
+        // XỬ LÝ LƯU VÀO BẢNG
         createBtn.onclick = () => {
-            if (!lastParsedData) return;
-
-            // Kiểm tra cảnh báo nếu đang có dữ liệu
-            const hasExisting = (metadata.title && metadata.title.trim()) ||
-                (metadata.characters && metadata.characters.some(c => c.c1 || c.c2)) ||
-                (metadata.pronouns && metadata.pronouns.some(p => p.c1 || p.c2)) ||
-                (metadata.terms && metadata.terms.some(t => t.c1 || t.c2));
-
-            if (hasExisting) {
-                if (!confirm("⚠️ Toàn bộ dữ liệu hiện tại trong tab 'Thông tin truyện' sẽ được thay thế bằng dữ liệu vừa phân tích.\n\nBạn có chắc chắn muốn tạo bảng không?")) {
-                    return;
-                }
-            }
-
+            if (!lastData) return;
+            const mode = modal.querySelector('input[name="importMode"]:checked').value;
+            if (mode === 'replace' && !confirm("⚠️ Chế độ THAY THẾ TOÀN BỘ:\nDữ liệu cũ trong tab này sẽ BỊ XÓA HOÀN TOÀN và ghi đè bằng dữ liệu vừa phân tích.\n\nBạn có chắc chắn tiếp tục?")) return;
+            
             saveMetaUndoState();
-            metadata = normalizeMetadata(lastParsedData);
-            activeInfoRows = { characters: -1, pronouns: -1, terms: -1 };
-
-            saveMetadata();
-            renderMetadata();
+            mergeData(mode, lastData);
+            saveMetadata(); 
+            renderMetadata(); 
             addMetaHistoryEntry();
-
+            
             modal.classList.remove('show');
-            if (typeof showToast === 'function') {
-                showToast(`✅ Đã tạo bảng thành công từ văn xuôi!`, 'var(--btn-success)');
-            }
+            if(typeof showToast === 'function') showToast(`✅ Đã nạp thành công (Chế độ: ${mode === 'replace' ? 'Thay thế' : 'Bổ sung'})`, 'var(--btn-success)');
         };
 
-        closeBtns.forEach(btn => {
-            btn.onclick = () => modal.classList.remove('show');
-        });
-
-        modal.addEventListener('mousedown', (e) => {
-            if (e.target === modal) modal.classList.remove('show');
-        });
+        // SỰ KIỆN ĐÓNG MODAL
+        modal.querySelectorAll('.btn-close-prose-modal').forEach(b => b.onclick = () => modal.classList.remove('show'));
     }
 
-    modal.classList.add('show');
-    const ta = modal.querySelector('#prose-import-textarea');
-    if (ta) {
-        ta.focus();
-    }
+    const m = document.getElementById('modal-import-prose');
+    m.classList.add('show');
+    m.querySelector('#prose-import-textarea').focus();
 }
 
-// =========================================================================
-// KHỞI CHẠY SỰ KIỆN MỤC 2
-// =========================================================================
+// ================= RENDER TOÀN BỘ SỰ KIỆN KHỞI TẠO =================
 function resetMetadata() {
-    if (confirm("⚠️ Bạn có chắc chắn muốn XÓA TOÀN BỘ thông tin truyện (Tên truyện, Nhân vật, Xưng hô, Từ ngữ)?")) {
+    if (confirm("⚠️ Bạn có chắc chắn muốn XÓA TOÀN BỘ thông tin truyện?")) {
         saveMetaUndoState();
         if (typeof addMetaHistoryEntry === 'function') addMetaHistoryEntry();
-
-        metadata = {
-            title: '',
-            characters: [{ c1: '', c2: '', c3: '', c4: '', c5: '' }],
-            pronouns: [{ c1: '', c2: '', c3: '', c4: '', c5: '' }],
-            terms: [{ c1: '', c2: '' }]
-        };
-
+        metadata = { title: '', characters: [{ c1: '', c2: '', c3: '', c4: '', c5: '' }], pronouns: [{ c1: '', c2: '', c3: '', c4: '', c5: '' }], terms: [{ c1: '', c2: '' }] };
         activeInfoRows = { characters: -1, pronouns: -1, terms: -1 };
-
-        saveMetadata();
-        renderMetadata();
+        saveMetadata(); renderMetadata();
         if (typeof showToast === 'function') showToast('🔄 Đã làm mới toàn bộ thông tin truyện!', 'var(--btn-warning)');
     }
 }
 
 function exportMetadata() {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(metadata, null, 2));
-    const dlAnchor = document.createElement('a');
-    dlAnchor.setAttribute("href", dataStr);
-
+    const dlAnchor = document.createElement('a'); dlAnchor.setAttribute("href", dataStr);
     let safeTitle = metadata.title ? metadata.title.trim().replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_') : "export";
     let fileName = "thong_tin_truyen_" + safeTitle + ".json";
-
-    dlAnchor.setAttribute("download", fileName);
-    dlAnchor.click();
-    showToast(`💾 Đã xuất file [ ${fileName} ]!`, 'var(--btn-success)');
+    dlAnchor.setAttribute("download", fileName); dlAnchor.click();
+    if(typeof showToast === 'function') showToast(`💾 Đã xuất file [ ${fileName} ]!`, 'var(--btn-success)');
 }
 
 function handleMetadataImport(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+    const file = event.target.files[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = function(evt) {
         try {
             const imported = JSON.parse(evt.target.result);
             if (imported && (imported.characters || imported.pronouns || imported.terms)) {
-                saveMetaUndoState();
-                metadata = normalizeMetadata(imported);
-                debounceMetaSave();
-                renderMetadata();
+                saveMetaUndoState(); metadata = normalizeMetadata(imported);
+                debounceMetaSave(); renderMetadata();
                 if (typeof addMetaHistoryEntry === 'function') addMetaHistoryEntry();
                 showToast('📂 Nhập thông tin truyện thành công!', 'var(--btn-success)');
-            } else {
-                alert("Định dạng file không khớp!");
-            }
-        } catch (err) { alert("Lỗi đọc cấu hình: " + err); }
+            } else alert("Định dạng file không khớp!");
+        } catch (err) { alert("Lỗi đọc cấu hình JSON!"); }
     };
-    reader.readAsText(file);
-    event.target.value = ''; 
+    reader.readAsText(file); event.target.value = ''; 
 }
 
 function initMetadataEvents() {
-    document.getElementById('story-title-input')?.addEventListener('input', (e) => {
-        handleMetaTypingInput();
-        metadata.title = e.target.value;
-        debounceMetaSave();
-    });
-
-    // Thêm hàng
-    document.getElementById('btn-add-char')?.addEventListener('click', () => { saveMetaUndoState(); addCharacterRow(); });
-    document.getElementById('btn-delete-char')?.addEventListener('click', () => deleteCharacterRow());
+    document.getElementById('story-title-input')?.addEventListener('input', (e) => { handleMetaTypingInput(); metadata.title = e.target.value; debounceMetaSave(); });
     
-    document.getElementById('btn-add-pro')?.addEventListener('click', () => { saveMetaUndoState(); addPronounRow(); });
-    document.getElementById('btn-delete-pro')?.addEventListener('click', () => deletePronounRow());
-    
-    document.getElementById('btn-add-term')?.addEventListener('click', () => { saveMetaUndoState(); addTermRow(); });
-    document.getElementById('btn-delete-term')?.addEventListener('click', () => deleteTermRow());
+    document.getElementById('btn-add-char')?.addEventListener('click', () => addRow('characters'));
+    document.getElementById('btn-add-pro')?.addEventListener('click', () => addRow('pronouns'));
+    document.getElementById('btn-add-term')?.addEventListener('click', () => addRow('terms'));
 
-    // Xuất / Nhập JSON
-    document.getElementById('btn-export-meta')?.addEventListener('click', exportMetadata);
-    const metaFileIn = document.getElementById('metadata-file-input');
-    document.getElementById('btn-import-meta')?.addEventListener('click', () => metaFileIn?.click());
-    metaFileIn?.addEventListener('change', handleMetadataImport);
-
-    // Undo / Redo / Reset
     document.getElementById('btn-meta-undo')?.addEventListener('click', metaUndo);
     document.getElementById('btn-meta-redo')?.addEventListener('click', metaRedo);
-    document.getElementById('btn-reset-meta')?.addEventListener('click', (e) => { e.preventDefault(); resetMetadata(); });
-    document.getElementById('btn-history-meta-show')?.addEventListener('click', () => {
-        if (typeof openHistoryModal === 'function') openHistoryModal('meta');
-    });
+    document.getElementById('btn-reset-meta')?.addEventListener('click', resetMetadata);
 
-    // SỰ KIỆN TÌM KIẾM TỔNG THỂ (DỰ PHÒNG NẾU NGƯỜI DÙNG DÙNG Ô TÌM KIẾM CHUNG Ở ĐẦU TRANG)
+    document.getElementById('btn-export-meta')?.addEventListener('click', exportMetadata);
+    document.getElementById('btn-import-meta')?.addEventListener('click', () => document.getElementById('metadata-file-input')?.click());
+    document.getElementById('metadata-file-input')?.addEventListener('change', handleMetadataImport);
+
+    document.getElementById('btn-copy-chars')?.addEventListener('click', () => copyTextSafely(getFormattedCharactersText(), 'Đã sao chép danh sách nhân vật!'));
+    document.getElementById('btn-copy-pros')?.addEventListener('click', () => copyTextSafely(getFormattedPronounsText(), 'Đã sao chép danh sách xưng hô!'));
+    document.getElementById('btn-copy-terms')?.addEventListener('click', () => copyTextSafely(getFormattedTermsText(), 'Đã sao chép thống nhất từ ngữ!'));
+    document.getElementById('btn-copy-all-meta')?.addEventListener('click', () => copyTextSafely(getFormattedAllMetadataText(), 'Đã copy toàn bộ thông tin!'));
+
+    document.getElementById('btn-history-meta-show')?.addEventListener('click', () => { if (typeof openHistoryModal === 'function') openHistoryModal('meta'); });
+
     const searchInput = document.getElementById('meta-search-input');
     const clearSearchBtn = document.getElementById('btn-clear-meta-search');
-
     searchInput?.addEventListener('input', (e) => {
         metaSearchQuery = e.target.value.trim();
         if (clearSearchBtn) clearSearchBtn.style.display = metaSearchQuery ? 'inline-block' : 'none';
-        renderCharacters();
-        renderPronouns();
-        renderTerms();
+        renderCharacters(); renderPronouns(); renderTerms();
     });
-
     clearSearchBtn?.addEventListener('click', () => {
         if (searchInput) searchInput.value = '';
-        metaSearchQuery = '';
-        clearSearchBtn.style.display = 'none';
-        renderCharacters();
-        renderPronouns();
-        renderTerms();
-        searchInput?.focus();
+        metaSearchQuery = ''; clearSearchBtn.style.display = 'none';
+        renderCharacters(); renderPronouns(); renderTerms(); searchInput?.focus();
     });
 
-    // SỰ KIỆN CÁC NÚT COPY
-    document.getElementById('btn-copy-chars')?.addEventListener('click', () => {
-        copyTextSafely(getFormattedCharactersText(), 'Đã sao chép mục Nhân vật trong truyện!');
-    });
-
-    document.getElementById('btn-copy-pros')?.addEventListener('click', () => {
-        copyTextSafely(getFormattedPronounsText(), 'Đã sao chép mục Xưng hô!');
-    });
-
-    document.getElementById('btn-copy-terms')?.addEventListener('click', () => {
-        copyTextSafely(getFormattedTermsText(), 'Đã sao chép mục Thống nhất từ ngữ!');
-    });
-
-    document.getElementById('btn-copy-all-meta')?.addEventListener('click', () => {
-        copyTextSafely(getFormattedAllMetadataText(), 'Đã sao chép toàn bộ thông tin truyện!');
-    });
-
-    // ĐÓNG / MỞ TỪNG MỤC
-    document.addEventListener('click', (e) => {
-        const toggleBtn = e.target.closest('.section-collapse-toggle');
-        if (toggleBtn) {
-            const sectionBox = toggleBtn.closest('.story-section-box');
-            if (sectionBox) {
-                sectionBox.classList.toggle('collapsed');
-            }
-        }
+    document.addEventListener('click', e => {
+        const toggle = e.target.closest('.section-collapse-toggle');
+        if(toggle){ const box = toggle.closest('.story-section-box'); if(box) box.classList.toggle('collapsed'); }
     });
 }

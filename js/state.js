@@ -72,12 +72,22 @@ const themes = {
     peach:   { bg: '#fdf4ed', text: '#523628', active: '#f8d2be', hover: '#faeade' }, // 🍑 Mơ đào hoàng hôn
     mint:    { bg: '#eef7f6', text: '#1f4844', active: '#c7eae6', hover: '#e1f3f1' }, // 🧊 Băng ngọc tuyết
     coral:   { bg: '#fdf1f3', text: '#542834', active: '#f6cbd3', hover: '#fae3e7' }, // 🍓 Hồng trà san hô
+    aqua:    { 
+        bg: '#C6E6E8', 
+        gradient: 'linear-gradient(180deg, #C6E6E8 0%, #8ED6DD 50%, #51C4D3 100%)', 
+        text: '#234B55', 
+        active: 'rgba(81, 196, 211, 0.35)', 
+        hover: 'rgba(142, 214, 221, 0.25)',
+        border: '#B2DCE0',
+        textMuted: '#527982'
+    }, // 🌊 Mây Lam Ngọc
 
     // Tối & Dịu mắt
     dark:    { bg: '#1e293b', text: '#cbd5e1', active: '#334155', hover: '#24304a' },
     night:   { bg: '#0d1b2a', text: '#e0e1dd', active: '#1b2d42', hover: '#12253b' },
     oled:    { bg: '#000000', text: '#e2e8f0', active: '#2d2d30', hover: '#161618' }
 };
+
 function showToast(message, bgColor = '#10b981') {
     const toast = document.getElementById('toast');
     if (!toast) return;

@@ -73,22 +73,53 @@ function initSettings() {
 
 function applyTheme(themeKey) {
     const selected = themes[themeKey] || themes.light;
-    document.documentElement.style.setProperty('--bg-color', selected.bg);
+
+    // 1. Xử lý nền Gradient chuyển màu mềm mại (Theme aqua - Mây Lam Ngọc)
+    if (selected.gradient) {
+        document.documentElement.style.setProperty('--bg-color', selected.bg);
+        document.documentElement.style.setProperty('--bg-gradient', selected.gradient);
+        document.body.style.background = selected.gradient;
+        document.body.style.backgroundAttachment = 'fixed'; // Giữ gradient cố định khi cuộn trang dài
+    } else {
+        document.documentElement.style.setProperty('--bg-color', selected.bg);
+        document.documentElement.style.removeProperty('--bg-gradient');
+        document.body.style.background = '';
+        document.body.style.backgroundColor = selected.bg;
+        document.body.style.backgroundAttachment = '';
+    }
+
+    // 2. Cập nhật các biến CSS màu sắc
     document.documentElement.style.setProperty('--text-color', selected.text);
     document.documentElement.style.setProperty('--row-active', selected.active);
     document.documentElement.style.setProperty('--row-hover', selected.hover);
     document.documentElement.style.setProperty('--selection-bg', selected.active);
-    
+
+    if (selected.border) {
+        document.documentElement.style.setProperty('--border-color', selected.border);
+    } else {
+        document.documentElement.style.removeProperty('--border-color');
+    }
+
+    if (selected.headerBg) {
+        document.documentElement.style.setProperty('--header-bg', selected.headerBg);
+    } else {
+        document.documentElement.style.removeProperty('--header-bg');
+    }
+
+    // 3. Quản lý trạng thái theme tối / sáng
     if (['dark', 'night', 'oled'].includes(themeKey)) {
         document.body.setAttribute('data-theme', 'dark');
     } else {
         document.body.removeAttribute('data-theme');
     }
-    
+    document.body.setAttribute('data-current-theme', themeKey);
+
+    // 4. Lưu vào LocalStorage
     const themeSelect = document.getElementById('theme-select');
     if (themeSelect) themeSelect.value = themeKey;
     localStorage.setItem('appTheme', themeKey);
 }
+
 function initTabEvents() {
     document.getElementById('tab-edit')?.addEventListener('click', () => switchTab('edit-tool'));
     document.getElementById('tab-story')?.addEventListener('click', () => switchTab('story-info'));

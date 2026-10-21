@@ -72,12 +72,12 @@ const themes = {
     peach:   { bg: '#fdf4ed', text: '#523628', active: '#f8d2be', hover: '#faeade' }, // 🍑 Mơ đào hoàng hôn
     mint:    { bg: '#eef7f6', text: '#1f4844', active: '#c7eae6', hover: '#e1f3f1' }, // 🧊 Băng ngọc tuyết
     coral:   { bg: '#fdf1f3', text: '#542834', active: '#f6cbd3', hover: '#fae3e7' }, // 🍓 Hồng trà san hô
-    aqua:    { 
-        bg: '#C6E6E8', 
-        gradient: 'linear-gradient(180deg, #C6E6E8 0%, #8ED6DD 50%, #51C4D3 100%)', 
-        text: '#234B55', 
-        active: 'rgba(81, 196, 211, 0.35)', 
-        hover: 'rgba(142, 214, 221, 0.25)',
+   aqua: { 
+        bg: '#EBF8FA', 
+        gradient: 'linear-gradient(175deg, #EBF8FA 0%, #D2F0F3 25%, #C6E6E8 55%, #88D7E0 85%, #51C4D3 100%)', 
+        text: '#18434D', 
+        active: 'rgba(182, 238, 245, 0.55)', 
+        hover: 'rgba(255, 255, 255, 0.94)',
         border: '#B2DCE0',
         textMuted: '#527982'
     }, // 🌊 Mây Lam Ngọc

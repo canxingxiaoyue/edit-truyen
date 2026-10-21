@@ -357,18 +357,28 @@ function parseMetadataProse(text) {
 
 // CHÈN NÚT "📄 Text tạo bảng" VÀ GÁN SỰ KIỆN MỞ MODAL BẰNG EVENT DELEGATION
 function ensureProseImportButton() {
-    if (document.getElementById('btn-import-prose-meta')) return;
+    let btn = document.getElementById('btn-import-prose-meta');
+    if (btn) {
+        btn.innerHTML = '📄 Text tạo bảng';
+        btn.title = 'Tự động tạo bảng thông tin từ văn bản';
+        btn.onclick = openProseImportModal; // Gán lại sự kiện click chắc chắn 100%
+        return;
+    }
+
     const copyAllBtn = document.getElementById('btn-copy-all-meta');
     if (!copyAllBtn) return;
-    const btn = document.createElement('button');
-    btn.type = 'button'; btn.id = 'btn-import-prose-meta';
+
+    btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'btn-import-prose-meta';
     btn.className = `${copyAllBtn.className || ''} btn-prose-import-trigger`;
     btn.style.marginLeft = '8px';
     btn.innerHTML = '📄 Text tạo bảng';
+    btn.title = 'Tự động tạo bảng thông tin từ văn bản';
     btn.onclick = openProseImportModal;
+
     copyAllBtn.parentNode.insertBefore(btn, copyAllBtn.nextSibling);
 }
-
 function scrollToTextareaLine(ta, line) {
     const lines = ta.value.split('\n'); let chars = 0;
     for (let i = 0; i < line - 1; i++) chars += lines[i].length + 1;

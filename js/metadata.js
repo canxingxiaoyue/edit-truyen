@@ -2,14 +2,17 @@
 // QUẢN LÝ THÔNG TIN TRUYỆN (MỤC 2) - TÌM KIẾM ĐỘC LẬP & TEXT TẠO BẢNG CHUYÊN SÂU
 // =========================================================================
 
-// KHỞI TẠO STATE AN TOÀN (CHỐNG CRASH BỞI LỖI "Unexpected token u in JSON")
-let metadata;
+// 1. SỬ DỤNG TRỰC TIẾP BIẾN ĐÃ KHAI BÁO TỪ js/state.js (CHỐNG LỖI SyntaxError DUPLICATE)
 try {
-    const rawData = localStorage.getItem('storyMetadata');
-    metadata = rawData ? JSON.parse(rawData) : null;
-    if (!metadata || typeof metadata !== 'object') throw new Error("Data invalid");
+    if (typeof metadata === 'undefined' || !metadata || typeof metadata !== 'object') {
+        const rawData = localStorage.getItem('storyMetadata');
+        metadata = rawData ? JSON.parse(rawData) : null;
+    }
 } catch (e) {
-    console.warn("Dữ liệu Thông tin truyện trống hoặc lỗi định dạng, khởi tạo mới.");
+    metadata = null;
+}
+
+if (!metadata || typeof metadata !== 'object') {
     metadata = {
         title: '',
         characters: [{ c1: '', c2: '', c3: '', c4: '', c5: '' }],
@@ -18,20 +21,21 @@ try {
     };
 }
 
-// CÁC BIẾN STATE
-let activeInfoRows = { characters: -1, pronouns: -1, terms: -1 };
-let metaUndoStack = [];
-let metaRedoStack = [];
-let metaTypingUndoTimeout = null;
-let metaIsTyping = false;
-let lastMetaHistoryTime = 0;
+if (typeof activeInfoRows === 'undefined' || !activeInfoRows) {
+    activeInfoRows = { characters: -1, pronouns: -1, terms: -1 };
+}
+if (typeof metaUndoStack === 'undefined') metaUndoStack = [];
+if (typeof metaRedoStack === 'undefined') metaRedoStack = [];
+if (typeof metaTypingUndoTimeout === 'undefined') metaTypingUndoTimeout = null;
+if (typeof metaIsTyping === 'undefined') metaIsTyping = false;
+if (typeof lastMetaHistoryTime === 'undefined') lastMetaHistoryTime = 0;
 
-let searchCharsQuery = '';
-let searchPronounsQuery = '';
-let searchTermsQuery = '';
-let metaSearchQuery = ''; 
+var searchCharsQuery = '';
+var searchPronounsQuery = '';
+var searchTermsQuery = '';
+var metaSearchQuery = ''; 
 
-// 1. TỰ ĐỘNG TIÊM CSS CHO THANH TÌM KIẾM TỪNG MỤC VÀ MODAL NHẬP VĂN XUÔI
+// 2. TỰ ĐỘNG TIÊM CSS CHO THANH TÌM KIẾM TỪNG MỤC VÀ MODAL NHẬP VĂN XUÔI
 (function injectMetadataStyles() {
     const STYLE_ID = 'metadata-custom-styles';
     let style = document.getElementById(STYLE_ID);
@@ -205,7 +209,7 @@ function renderCharacters() {
         div.querySelector('.btn-card-del').addEventListener('click', e => { e.stopPropagation(); deleteCharacterRow(idx); });
         c.appendChild(div);
     });
-    if (match===0 && metadata.characters.length>0) c.innerHTML = '<div class="meta-no-result">🔍 Không tìm thấy nhân vật.</div>';
+    if (match===0 && metadata.characters.length>0) c.innerHTML = '<div class="meta-no-result">🔍 Không tìm thấy nhân vật phù hợp.</div>';
 }
 
 function renderPronouns() {
@@ -227,7 +231,7 @@ function renderPronouns() {
         div.querySelector('.btn-card-del').addEventListener('click', e => { e.stopPropagation(); deletePronounRow(idx); });
         c.appendChild(div);
     });
-    if (match===0 && metadata.pronouns.length>0) c.innerHTML = '<div class="meta-no-result">🔍 Không tìm thấy cặp xưng hô.</div>';
+    if (match===0 && metadata.pronouns.length>0) c.innerHTML = '<div class="meta-no-result">🔍 Không tìm thấy cặp xưng hô phù hợp.</div>';
 }
 
 function renderTerms() {
@@ -247,7 +251,7 @@ function renderTerms() {
         div.querySelector('.btn-card-del').addEventListener('click', e => { e.stopPropagation(); deleteTermRow(idx); });
         c.appendChild(div);
     });
-    if (match===0 && metadata.terms.length>0) c.innerHTML = '<div class="meta-no-result">🔍 Không tìm thấy từ ngữ.</div>';
+    if (match===0 && metadata.terms.length>0) c.innerHTML = '<div class="meta-no-result">🔍 Không tìm thấy từ ngữ phù hợp.</div>';
 }
 
 function addCharacterRow() { saveMetaUndoState(); metadata.characters.push({c1:'',c2:'',c3:'',c4:'',c5:''}); activeInfoRows.characters = metadata.characters.length - 1; debounceMetaSave(); renderCharacters(); const c = document.getElementById('body-characters'); if(c) c.scrollTop = c.scrollHeight; }
@@ -289,14 +293,23 @@ async function copyTextSafely(text, msg) {
         if(typeof showToast === 'function') showToast(msg, 'var(--btn-success)');
     } catch(e){}
 }
+function getFormattedCharactersText() {
+    let lines = ['1. Nhân vật trong truyện\n'];
+    (metadata.characters||[]).forEach((c, i) => lines.push(`Nhân vật ${i+1}\nTên tiếng Trung: ${extractCleanText(c.c1)}\nTên tiếng Việt: ${extractCleanText(c.c2)}\nNgôi thứ 3 người khác gọi: ${extractCleanText(c.c3)}\nMiêu tả nhân vật: ${extractCleanText(c.c4)}\nNgôi thứ ba: ${extractCleanText(c.c5)}\n`));
+    return lines.join('\n').trim();
+}
+function getFormattedPronounsText() {
+    let lines = ['2. Xưng hô\n'];
+    (metadata.pronouns||[]).forEach((p, i) => { lines.push(`Cặp xưng hô ${i+1}\nA: ${extractCleanText(p.c1)}\nB: ${extractCleanText(p.c2)}\nA-B: ${extractCleanText(p.c3)}\nB-A: ${extractCleanText(p.c4)}`); if(p.c5) lines.push(`Ghi chú: ${extractCleanText(p.c5)}`); lines.push(''); });
+    return lines.join('\n').trim();
+}
+function getFormattedTermsText() {
+    let lines = ['3. Thống nhất từ ngữ\n'];
+    (metadata.terms||[]).forEach(t => lines.push(`${extractCleanText(t.c1)} = ${extractCleanText(t.c2)}`));
+    return lines.join('\n').trim();
+}
 function getFormattedAllMetadataText() {
-    let ls = [`Tên truyện: ${metadata.title||'Chưa đặt tên'}\n\n1. Nhân vật trong truyện\n`];
-    (metadata.characters||[]).forEach((c,i) => ls.push(`Nhân vật ${i+1}\nTên tiếng Trung: ${extractCleanText(c.c1)}\nTên tiếng Việt: ${extractCleanText(c.c2)}\nNgôi thứ 3 người khác gọi: ${extractCleanText(c.c3)}\nMiêu tả nhân vật: ${extractCleanText(c.c4)}\nNgôi thứ ba: ${extractCleanText(c.c5)}\n`));
-    ls.push(`\n2. Xưng hô\n`);
-    (metadata.pronouns||[]).forEach((p,i) => { ls.push(`Cặp xưng hô ${i+1}\nA: ${extractCleanText(p.c1)}\nB: ${extractCleanText(p.c2)}\nA-B: ${extractCleanText(p.c3)}\nB-A: ${extractCleanText(p.c4)}`); if(p.c5) ls.push(`Ghi chú: ${extractCleanText(p.c5)}`); ls.push(''); });
-    ls.push(`3. Thống nhất từ ngữ\n`);
-    (metadata.terms||[]).forEach(t => ls.push(`${extractCleanText(t.c1)} = ${extractCleanText(t.c2)}`));
-    return ls.join('\n').trim();
+    return [`Tên truyện: ${metadata.title||'Chưa đặt tên'}\n\n1. Nhân vật trong truyện\n` + getFormattedCharactersText(), getFormattedPronounsText(), getFormattedTermsText()].join('\n\n');
 }
 
 // ================= TÍNH NĂNG 2: 📄 TEXT TẠO BẢNG (PARSER MẠNH MẼ) =================
@@ -355,37 +368,33 @@ function parseMetadataProse(text) {
     return { success: true, data: { title, characters: chars, pronouns: pros, terms }, warnings };
 }
 
-// CHÈN NÚT "📄 Text tạo bảng" VÀ GÁN SỰ KIỆN MỞ MODAL BẰNG EVENT DELEGATION
+// BẢO ĐẢM GÁN ONCLICK CHO NÚT "📄 Text tạo bảng"
 function ensureProseImportButton() {
     let btn = document.getElementById('btn-import-prose-meta');
     if (btn) {
         btn.innerHTML = '📄 Text tạo bảng';
         btn.title = 'Tự động tạo bảng thông tin từ văn bản';
-        btn.onclick = openProseImportModal; // Gán lại sự kiện click chắc chắn 100%
+        btn.onclick = openProseImportModal;
         return;
     }
-
     const copyAllBtn = document.getElementById('btn-copy-all-meta');
     if (!copyAllBtn) return;
-
     btn = document.createElement('button');
-    btn.type = 'button';
-    btn.id = 'btn-import-prose-meta';
+    btn.type = 'button'; btn.id = 'btn-import-prose-meta';
     btn.className = `${copyAllBtn.className || ''} btn-prose-import-trigger`;
     btn.style.marginLeft = '8px';
     btn.innerHTML = '📄 Text tạo bảng';
     btn.title = 'Tự động tạo bảng thông tin từ văn bản';
     btn.onclick = openProseImportModal;
-
     copyAllBtn.parentNode.insertBefore(btn, copyAllBtn.nextSibling);
 }
+
 function scrollToTextareaLine(ta, line) {
     const lines = ta.value.split('\n'); let chars = 0;
     for (let i = 0; i < line - 1; i++) chars += lines[i].length + 1;
     ta.focus(); ta.setSelectionRange(chars, chars + lines[line - 1].length);
 }
 
-// Hàm gộp dữ liệu: Bổ sung vs Thay thế toàn bộ
 function mergeData(mode, newData) {
     if (mode === 'replace') {
         metadata.title = newData.title || metadata.title;
@@ -413,14 +422,12 @@ function mergeData(mode, newData) {
             if (ex) ex.c2 = nt.c2; else metadata.terms.push(nt);
         });
         
-        // Dọn dẹp dòng rỗng đầu tiên nếu có dữ liệu thật được thêm vào
         if(metadata.characters.length>1 && !metadata.characters[0].c1 && !metadata.characters[0].c2) metadata.characters.shift();
         if(metadata.pronouns.length>1 && !metadata.pronouns[0].c1 && !metadata.pronouns[0].c2) metadata.pronouns.shift();
         if(metadata.terms.length>1 && !metadata.terms[0].c1 && !metadata.terms[0].c2) metadata.terms.shift();
     }
 }
 
-// KHỞI TẠO MODAL VÀ LUỒNG SỰ KIỆN AUTO-PARSE
 function openProseImportModal() {
     let modal = document.getElementById('modal-import-prose');
     if (!modal) {
@@ -465,7 +472,6 @@ function openProseImportModal() {
         let lastData = null; 
         let debounce = null;
 
-        // Hàm vẽ bảng Preview
         const renderPreview = () => {
             const text = ta.value.trim();
             if (!text) { 
@@ -532,7 +538,6 @@ function openProseImportModal() {
             createBtn.disabled=false; createBtn.style.opacity='1'; createBtn.style.cursor='pointer';
         };
 
-        // AUTO-PARSE KHI DÁN HOẶC GÕ CHỮ (DEBOUNCE 300MS)
         ta.addEventListener('input', () => { 
             clearTimeout(debounce); 
             debounce = setTimeout(renderPreview, 300); 
@@ -546,7 +551,6 @@ function openProseImportModal() {
             ta.focus(); 
         };
 
-        // HỖ TRỢ KÉO THẢ FILE (.txt, .md) VÀO Ô TEXTAREA
         ta.addEventListener('dragover', e => { e.preventDefault(); ta.classList.add('drag-over'); });
         ta.addEventListener('dragleave', () => ta.classList.remove('drag-over'));
         ta.addEventListener('drop', e => {
@@ -565,7 +569,6 @@ function openProseImportModal() {
             }
         });
 
-        // XỬ LÝ LƯU VÀO BẢNG
         createBtn.onclick = () => {
             if (!lastData) return;
             const mode = modal.querySelector('input[name="importMode"]:checked').value;
@@ -581,7 +584,6 @@ function openProseImportModal() {
             if(typeof showToast === 'function') showToast(`✅ Đã nạp thành công (Chế độ: ${mode === 'replace' ? 'Thay thế' : 'Bổ sung'})`, 'var(--btn-success)');
         };
 
-        // SỰ KIỆN ĐÓNG MODAL
         modal.querySelectorAll('.btn-close-prose-modal').forEach(b => b.onclick = () => modal.classList.remove('show'));
     }
 
@@ -631,9 +633,9 @@ function handleMetadataImport(event) {
 function initMetadataEvents() {
     document.getElementById('story-title-input')?.addEventListener('input', (e) => { handleMetaTypingInput(); metadata.title = e.target.value; debounceMetaSave(); });
     
-    document.getElementById('btn-add-char')?.addEventListener('click', () => addRow('characters'));
-    document.getElementById('btn-add-pro')?.addEventListener('click', () => addRow('pronouns'));
-    document.getElementById('btn-add-term')?.addEventListener('click', () => addRow('terms'));
+    document.getElementById('btn-add-char')?.addEventListener('click', () => addCharacterRow());
+    document.getElementById('btn-add-pro')?.addEventListener('click', () => addPronounRow());
+    document.getElementById('btn-add-term')?.addEventListener('click', () => addTermRow());
 
     document.getElementById('btn-meta-undo')?.addEventListener('click', metaUndo);
     document.getElementById('btn-meta-redo')?.addEventListener('click', metaRedo);
@@ -647,6 +649,8 @@ function initMetadataEvents() {
     document.getElementById('btn-copy-pros')?.addEventListener('click', () => copyTextSafely(getFormattedPronounsText(), 'Đã sao chép danh sách xưng hô!'));
     document.getElementById('btn-copy-terms')?.addEventListener('click', () => copyTextSafely(getFormattedTermsText(), 'Đã sao chép thống nhất từ ngữ!'));
     document.getElementById('btn-copy-all-meta')?.addEventListener('click', () => copyTextSafely(getFormattedAllMetadataText(), 'Đã copy toàn bộ thông tin!'));
+
+    document.getElementById('btn-import-prose-meta')?.addEventListener('click', openProseImportModal);
 
     document.getElementById('btn-history-meta-show')?.addEventListener('click', () => { if (typeof openHistoryModal === 'function') openHistoryModal('meta'); });
 
@@ -668,3 +672,9 @@ function initMetadataEvents() {
         if(toggle){ const box = toggle.closest('.story-section-box'); if(box) box.classList.toggle('collapsed'); }
     });
 }
+
+// 3. GẮN CÁC HÀM ĐIỀU KHIỂN VÀO WINDOW ĐẢM BẢO KHÔNG BAO GIỜ BỊ ReferenceError
+window.renderMetadata = renderMetadata;
+window.initMetadataEvents = initMetadataEvents;
+window.openProseImportModal = openProseImportModal;
+window.parseMetadataProse = parseMetadataProse;

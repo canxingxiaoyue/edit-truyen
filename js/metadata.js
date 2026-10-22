@@ -312,11 +312,12 @@ function getFormattedAllMetadataText() {
     return [`Tên truyện: ${metadata.title||'Chưa đặt tên'}\n\n1. Nhân vật trong truyện\n` + getFormattedCharactersText(), getFormattedPronounsText(), getFormattedTermsText()].join('\n\n');
 }
 
-// ================= TÍNH NĂNG 2: 📄 TEXT TẠO BẢNG (PARSER MẠNH MẼ) =================
+// ================= TÍNH NĂNG 2: 📄 TEXT TẠO BẢNG (PARSER MẠNH MẼ - ĐÃ SỬA warnings) =================
 function parseMetadataProse(text) {
     if (!text || !text.trim()) return { success: false, message: 'Nội dung đang trống!' };
     const lines = text.replace(/\r\n/g, '\n').split('\n');
-    let title = '', chars = [], pros = [], terms = [], warns = [];
+    let title = '', chars = [], pros = [], terms = [];
+    let warnings = []; // KHỞI TẠO ĐÚNG TÊN BIẾN warnings
     let sec = 0, cChar = null, cPro = null;
 
     for (let i = 0; i < lines.length; i++) {
@@ -337,7 +338,7 @@ function parseMetadataProse(text) {
                 if (l.includes('tiếng trung')) cChar.c1 = v; else if (l.includes('tiếng việt')) cChar.c2 = v;
                 else if (l.includes('người khác gọi')) cChar.c3 = v; else if (l.includes('miêu tả')) cChar.c4 = v;
                 else if (l.includes('ngôi thứ 3') || l.includes('ngôi thứ ba')) cChar.c5 = v;
-                else warns.push({ line: i+1, msg: `Nhãn trường không xác định: "${trm}"` });
+                else warnings.push({ line: i+1, msg: `Nhãn trường không xác định: "${trm}"` });
             } continue;
         }
 
@@ -350,18 +351,18 @@ function parseMetadataProse(text) {
                 if (l === 'A') cPro.c1 = v; else if (l === 'B') cPro.c2 = v;
                 else if (l === 'A-B' || l === 'A - B') cPro.c3 = v; else if (l === 'B-A' || l === 'B - A') cPro.c4 = v;
                 else if (l.includes('GHI CHÚ') || l.includes('GHI CHU')) cPro.c5 = v;
-                else warns.push({ line: i+1, msg: `Nhãn trường không xác định: "${trm}"` });
+                else warnings.push({ line: i+1, msg: `Nhãn trường không xác định: "${trm}"` });
             } continue;
         }
 
         if (sec === 3) {
             const eq = trm.indexOf('=');
             if (eq > 0) { terms.push({ c1: trm.slice(0, eq).trim(), c2: trm.slice(eq + 1).trim() }); }
-            else warns.push({ line: i+1, msg: `Thiếu dấu "=" phân tách Hán Việt: "${trm}"` });
+            else warnings.push({ line: i+1, msg: `Thiếu dấu "=" phân tách Hán Việt: "${trm}"` });
             continue;
         }
         
-        warns.push({ line: i+1, msg: `Dòng nằm ngoài các phân vùng mục 1, 2, 3: "${trm}"` });
+        warnings.push({ line: i+1, msg: `Dòng nằm ngoài các phân vùng mục 1, 2, 3: "${trm}"` });
     }
 
     if (!title && chars.length===0 && pros.length===0 && terms.length===0) return { success: false, message: 'Định dạng văn bản không khớp với chuẩn cấu trúc công cụ edit.' };

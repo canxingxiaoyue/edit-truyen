@@ -206,7 +206,7 @@
                 border-radius: 4px;
                 background: rgba(59, 130, 246, 0.12);
                 color: var(--btn-primary, #2563eb);
-                margin-bottom: 5px;
+                margin-bottom: 6px;
             }
             .dict-entry-card.is-priority .dict-entry-badge {
                 background: rgba(245, 158, 11, 0.15);
@@ -214,8 +214,8 @@
             }
 
             .dict-entry-content {
-                font-size: 13px;
-                line-height: 1.55;
+                font-size: 13.5px;
+                line-height: 1.6;
                 color: var(--text-color, #1e293b);
                 white-space: pre-wrap;
                 word-break: break-word;
@@ -227,7 +227,7 @@
             .dict-copy-hint {
                 font-size: 10px;
                 color: var(--text-muted, #94a3b8);
-                margin-top: 4px;
+                margin-top: 6px;
                 text-align: right;
             }
 
@@ -285,7 +285,6 @@
             }];
         }
 
-        // Lấy thứ tự ưu tiên (Cao nhất xếp trước)
         const sortedFiles = [...nameQTEngine.files].sort((a, b) => {
             const pA = typeof getDictionaryPriority === 'function' ? getDictionaryPriority(a.fileName) : 0;
             const pB = typeof getDictionaryPriority === 'function' ? getDictionaryPriority(b.fileName) : 0;
@@ -332,19 +331,53 @@
         return results;
     }
 
-    // 4. ĐỊNH DẠNG VĂN BẢN NGHĨA (ĐẶC BIỆT LÀ LẠC VIỆT & VIETPHRASE)
+    // 4. ĐỊNH DẠNG VĂN BẢN NGHĨA (CHUẨN HÓA LẠC VIỆT & VIETPHRASE NHƯ QUICKTRANSLATOR)
     function formatDefinitionText(val, fileName) {
         if (!val) return '';
         let text = val.trim();
 
-        // Định dạng phân tách dấu gạch chéo của Vietphrase
-        if (fileName && fileName.toLowerCase().includes('vietphrase') && text.includes('/')) {
-            return text.split('/').map((s, i) => `${i + 1}. ${s.trim()}`).join('\n');
+        // Bước A: Giải mã triệt để các chuỗi escape literal \r, \n, \t
+        text = text.replace(/\\r\\n/g, '\n')
+                   .replace(/\\n/g, '\n')
+                   .replace(/\\r/g, '\n')
+                   .replace(/\\t/g, '\t');
+
+        const fn = (fileName || '').toLowerCase();
+
+        // Bước B: Định dạng chuyên biệt cho Lạc Việt (khớp chuẩn Ảnh 3)
+        if (fn.includes('lacviet')) {
+            const rawLines = text.split('\n');
+            const formattedLines = [];
+
+            for (let i = 0; i < rawLines.length; i++) {
+                let line = rawLines[i].replace(/\t/g, '').trim();
+                if (!line) continue;
+
+                // Nếu là dòng mục con (1. ..., 2. ...) -> Thụt đầu dòng 4 khoảng trắng
+                if (/^[0-9]+[\.\)]\s*/.test(line)) {
+                    formattedLines.push('    ' + line);
+                } 
+                // Nếu là dòng tiêu đề âm đọc / Hán Việt
+                else if (line.startsWith('◆') || line.startsWith('✚') || line.startsWith('+') || line.includes('Hán Việt:')) {
+                    if (line.startsWith('+[')) {
+                        line = '✚' + line.slice(1);
+                    }
+                    formattedLines.push(line);
+                } 
+                // Các dòng giải thích phụ còn lại
+                else {
+                    formattedLines.push('    ' + line);
+                }
+            }
+            return formattedLines.join('\n');
         }
 
-        // Định dạng thụt dòng cho từ điển Lạc Việt
-        if (fileName && fileName.toLowerCase().includes('lacviet')) {
-            text = text.replace(/([0-9]+\.\s)/g, '\n$1');
+        // Bước C: Định dạng phân tách dấu gạch chéo của Vietphrase (nhiều nghĩa)
+        if (fn.includes('vietphrase') && text.includes('/')) {
+            const parts = text.split('/').map(s => s.trim()).filter(Boolean);
+            if (parts.length > 1) {
+                return parts.map((s, i) => `${i + 1}. ${s}`).join('\n');
+            }
         }
 
         return text;
@@ -406,7 +439,7 @@
         entries.forEach((entry) => {
             const formattedVal = formatDefinitionText(entry.value, entry.fileName);
             html += `
-                <div class="dict-entry-card ${entry.isPriority ? 'is-priority' : ''}" data-val="${escapeHtml(entry.value)}">
+                <div class="dict-entry-card ${entry.isPriority ? 'is-priority' : ''}" data-val="${escapeHtml(formattedVal)}">
                     <div class="dict-entry-badge">
                         <span>${entry.isPriority ? '⭐' : '📖'}</span>
                         <span>${escapeHtml(entry.fileName)}</span>
@@ -420,14 +453,14 @@
 
         resultsContainerEl.innerHTML = html;
 
-        // Bắt sự kiện click vào nghĩa để copy nhanh
+        // Bắt sự kiện click vào nghĩa để copy văn bản đã format sạch sẽ
         resultsContainerEl.querySelectorAll('.dict-entry-card').forEach((card) => {
             card.addEventListener('click', () => {
                 const valToCopy = card.dataset.val || '';
                 if (valToCopy && navigator.clipboard) {
                     navigator.clipboard.writeText(valToCopy);
                     if (typeof showToast === 'function') {
-                        showToast(`📋 Đã copy nghĩa: "${valToCopy}"`, 'var(--btn-success)');
+                        showToast(`📋 Đã copy nghĩa vào clipboard!`, 'var(--btn-success)');
                     }
                 }
             });
@@ -526,7 +559,6 @@
     function handleSelectionChangeForDictionary() {
         clearTimeout(lookupDebounce);
         lookupDebounce = setTimeout(() => {
-            // Không tra cứu nếu khung đang bị ẩn
             if (dictPanelEl && dictPanelEl.style.display === 'none') return;
 
             const selection = window.getSelection();
@@ -535,7 +567,6 @@
             const selectedText = selection.toString().trim();
             if (!selectedText) return;
 
-            // Kiểm tra xem vị trí bôi đen có nằm trong bảng dịch không
             const range = selection.getRangeAt(0);
             const container = range.commonAncestorContainer;
             const node = container.nodeType === Node.ELEMENT_NODE ? container : container.parentElement;
@@ -543,14 +574,11 @@
             // NẾU BÔI ĐEN BÊN TRONG CHÍNH KHUNG TRA TỪ ĐIỂN THÌ BỎ QUA (Để người dùng tự do copy nghĩa)
             if (dictPanelEl && dictPanelEl.contains(node)) return;
 
-            // Chỉ tra cứu khi bôi đen trong bảng chính hoặc bảng thông tin
             const isInTable = node && (node.closest('#table-body') || node.closest('.story-tables-wrapper'));
             if (!isInTable) return;
 
-            // Giới hạn độ dài để tránh quét cả trang
             if (selectedText.length > 50) return;
 
-            // Mở khung nếu đang bị thu nhỏ
             if (dictPanelEl) {
                 if (dictPanelEl.style.display === 'none') dictPanelEl.style.display = 'flex';
                 if (dictPanelEl.classList.contains('collapsed')) {
@@ -609,7 +637,6 @@
         initDictionaryLookupModule();
     }
 
-    // Mở API toàn cục nếu cần gọi từ module khác
     window.lookupWordInDictionary = function (word) {
         if (!dictPanelEl) createDictLookupPanel();
         dictPanelEl.style.display = 'flex';

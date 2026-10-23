@@ -954,7 +954,7 @@ td.batch-intersection-selected {
     border-radius: 4px !important;
 }
 
-/* Giao diện Lịch sử dịch gập/mở theo ngày */
+/* Giao diện Lịch sử gập/mở theo ngày */
 .history-date-group { margin-bottom: 10px; }
 .history-date-header {
     font-weight: 700;

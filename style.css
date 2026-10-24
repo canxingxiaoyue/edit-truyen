@@ -567,48 +567,86 @@ td.batch-intersection-selected { background-color: rgba(239, 68, 68, 0.2) !impor
 
 /* ================= CHỦ ĐỀ: 🌊 MÂY LAM NGỌC ================= */
 body[data-current-theme="aqua"] {
-    background: linear-gradient(175deg, #EBF8FA 0%, #D2F0F3 25%, #C6E6E8 55%, #88D7E0 85%, #51C4D3 100%) fixed !important;
-    color: #18434D;
+    /* Sử dụng chính xác 2 mã màu từ ảnh của bạn tạo dải màu dọc mềm mại */
+    background: linear-gradient(180deg, #C6E6E8 0%, #51C4D3 100%) fixed !important;
+    color: #0c383e; /* Xanh cổ vịt rất đậm để tương phản tốt khi đọc văn bản */
 }
+
+/* Thanh Header, Toolbar và Tabs làm hiệu ứng kính mờ (Glassmorphism) */
 body[data-current-theme="aqua"] header,
 body[data-current-theme="aqua"] .top-nav-bar,
 body[data-current-theme="aqua"] .story-title-bar,
 body[data-current-theme="aqua"] .toolbar,
-body[data-current-theme="aqua"] .format-toolbar {
-    background: rgba(235, 248, 250, 0.85) !important;
-    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-color: #B2DCE0 !important;
+body[data-current-theme="aqua"] .format-toolbar,
+body[data-current-theme="aqua"] .nav-tabs {
+    background: rgba(255, 255, 255, 0.55) !important; /* Trắng trong suốt */
+    backdrop-filter: blur(12px); 
+    -webkit-backdrop-filter: blur(12px); 
+    border-color: rgba(81, 196, 211, 0.4) !important; /* Viền mỏng màu #51C4D3 */
 }
 
+/* Tiêu đề cột của bảng dịch */
 body[data-current-theme="aqua"] table thead th {
-    background: #E2F6F8 !important; color: #18434D !important; border-color: #B2DCE0 !important; font-weight: 700;
+    background: rgba(198, 230, 232, 0.8) !important; /* Nền màu #C6E6E8 trong suốt */
+    color: #0c383e !important; 
+    border-color: rgba(81, 196, 211, 0.4) !important; 
+    font-weight: 700;
 }
+
+/* Ô nhập liệu trong bảng dịch */
 body[data-current-theme="aqua"] table tbody td[data-col] {
-    background: rgba(255, 255, 255, 0.82) !important; color: #18434D !important;
-    border-color: rgba(81, 196, 211, 0.28) !important; vertical-align: top !important;
-    text-align: left !important; height: auto !important;
+    background: rgba(255, 255, 255, 0.82) !important; /* Giữ nền trắng đủ để đọc chữ, nhưng vẫn hơi mờ */
+    color: #123136 !important;
+    border-color: rgba(81, 196, 211, 0.25) !important; 
+    vertical-align: top !important;
+    text-align: left !important; 
+    height: auto !important;
 }
+
+/* Xóa màu nền thừa bên trong thẻ div, span của ô */
 body[data-current-theme="aqua"] table tbody td[data-col] div,
 body[data-current-theme="aqua"] table tbody td[data-col] p,
 body[data-current-theme="aqua"] table tbody td[data-col] span:not(.sync-highlight):not(.search-highlight) {
     background-color: transparent !important;
 }
 
-body[data-current-theme="aqua"] tr:hover:not(.active-row) td { background: rgba(255, 255, 255, 0.94) !important; }
-body[data-current-theme="aqua"] tr.active-row td { background: rgba(182, 238, 245, 0.55) !important; }
-body[data-current-theme="aqua"] table tbody td:focus {
-    background: #ffffff !important; box-shadow: inset 0 0 0 2px #51C4D3 !important; outline: none !important;
+/* Hiệu ứng khi di chuột (Hover) và khi chọn hàng (Active) */
+body[data-current-theme="aqua"] tr:hover:not(.active-row) td { 
+    background: rgba(255, 255, 255, 0.95) !important; 
 }
+body[data-current-theme="aqua"] tr.active-row td { 
+    background: rgba(198, 230, 232, 0.6) !important; /* Sáng màu #C6E6E8 khi click vào hàng */
+}
+body[data-current-theme="aqua"] table tbody td:focus {
+    background: #ffffff !important; 
+    box-shadow: inset 0 0 0 2px #51C4D3 !important; /* Viền màu ngọc #51C4D3 khi gõ chữ */
+    outline: none !important;
+}
+
+/* Ô input, ô chọn, khung text phụ */
 body[data-current-theme="aqua"] .font-select,
 body[data-current-theme="aqua"] input[type="text"],
 body[data-current-theme="aqua"] textarea {
-    background: rgba(255, 255, 255, 0.9) !important; border-color: #B2DCE0 !important; color: #18434D !important;
+    background: rgba(255, 255, 255, 0.75) !important; 
+    border-color: #79d2df !important; 
+    color: #0c383e !important;
 }
+body[data-current-theme="aqua"] .font-select:focus,
+body[data-current-theme="aqua"] input[type="text"]:focus,
+body[data-current-theme="aqua"] textarea:focus {
+    background: #ffffff !important;
+    border-color: #51C4D3 !important;
+    box-shadow: 0 0 0 3px rgba(81, 196, 211, 0.25) !important;
+}
+
+/* Bảng thông tin truyện Mục 2 */
 body[data-current-theme="aqua"] .meta-card-block,
 body[data-current-theme="aqua"] .term-line-item,
 body[data-current-theme="aqua"] .story-section-box {
-    background: rgba(255, 255, 255, 0.88) !important; border-color: #B2DCE0 !important; color: #18434D !important;
+    background: rgba(255, 255, 255, 0.75) !important; 
+    border-color: rgba(81, 196, 211, 0.4) !important; 
+    color: #0c383e !important;
 }
-
 /* =========================================================================
    GIAO DIỆN QUẢN LÝ VIẾT TẮT (SHORTCUTS) - PHONG CÁCH TỐI GIẢN & ĐỒNG BỘ
    ========================================================================= */

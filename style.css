@@ -610,72 +610,88 @@ body[data-current-theme="aqua"] .story-section-box {
 }
 
 /* =========================================================================
-   GIAO DIỆN QUẢN LÝ VIẾT TẮT (SHORTCUTS) - PHONG CÁCH TỐI GIẢN & DỄ THƯƠNG
+   GIAO DIỆN QUẢN LÝ VIẾT TẮT (SHORTCUTS) - PHONG CÁCH TỐI GIẢN & ĐỒNG BỘ
    ========================================================================= */
 .shortcut-modal-box {
     width: 660px !important;
     max-width: 95vw !important;
-    border-radius: 20px !important;
-    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.15) !important;
-    padding: 22px 24px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+    padding: 20px 24px !important;
     background: var(--header-bg) !important;
-    border: 1.5px solid var(--border-color) !important;
+    border: 1px solid var(--border-color) !important;
 }
 
+/* 1. Header (Biểu tượng & Tiêu đề trên cùng 1 hàng) */
 .shortcut-modal-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 14px;
+    margin-bottom: 15px;
     padding-bottom: 10px;
-    border-bottom: 1.5px dashed var(--border-color);
+    border-bottom: 1px solid var(--border-color);
 }
-.shortcut-modal-title {
-    font-size: 1.2rem;
-    font-weight: 800;
-    color: var(--text-color);
+.shortcut-header-title-wrap {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 0;
 }
-.shortcut-modal-subtitle {
-    font-size: 0.82rem;
+.shortcut-header-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+}
+.shortcut-header-title {
+    margin: 0 !important;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-color);
+}
+.btn-modal-close-icon {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
     color: var(--text-muted, #64748b);
-    margin: 2px 0 0 0;
+    cursor: pointer;
+    padding: 0 4px;
+    transition: color 0.15s;
+}
+.btn-modal-close-icon:hover {
+    color: var(--btn-danger);
 }
 
-/* Thanh điều khiển trên cùng (Toggle + Sync + JSON) */
-.shortcut-top-bar {
+/* 2. Cài đặt tự động thay thế */
+.shortcut-setting-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: var(--bg-color);
     padding: 10px 14px;
-    border-radius: 14px;
+    border-radius: 8px;
     border: 1px solid var(--border-color);
-    margin-bottom: 14px;
-    gap: 10px;
-    flex-wrap: wrap;
+    margin-bottom: 15px;
 }
-
-.shortcut-toggle-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 0.88rem;
+.shortcut-setting-text {
+    display: flex;
+    flex-direction: column;
+}
+.setting-title {
     font-weight: 700;
+    font-size: 0.95rem;
     color: var(--text-color);
-    cursor: pointer;
-    user-select: none;
+}
+.setting-desc {
+    font-size: 0.85rem;
+    color: var(--text-muted, #64748b);
+    margin-top: 2px;
 }
 
-/* Switch Toggle kẹo ngọt */
+/* Nút Switch Bật/Tắt */
 .switch-toggle {
     position: relative;
     display: inline-block;
-    width: 44px;
-    height: 24px;
+    width: 40px;
+    height: 22px;
     flex-shrink: 0;
 }
 .switch-toggle input { opacity: 0; width: 0; height: 0; }
@@ -690,8 +706,8 @@ body[data-current-theme="aqua"] .story-section-box {
 .slider-toggle:before {
     position: absolute;
     content: "";
-    height: 18px;
-    width: 18px;
+    height: 16px;
+    width: 16px;
     left: 3px;
     bottom: 3px;
     background-color: #ffffff;
@@ -699,191 +715,270 @@ body[data-current-theme="aqua"] .story-section-box {
     border-radius: 50%;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
-.switch-toggle input:checked + .slider-toggle {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-}
-.switch-toggle input:checked + .slider-toggle:before {
-    transform: translateX(20px);
-}
+.switch-toggle input:checked + .slider-toggle { background: var(--btn-success); }
+.switch-toggle input:checked + .slider-toggle:before { transform: translateX(18px); }
 
-.shortcut-btn-group {
-    display: inline-flex;
+/* 3. Nút Thao tác Drive & JSON */
+.shortcut-actions-row {
+    display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: space-between;
+    margin-bottom: 15px;
     flex-wrap: wrap;
+    gap: 10px;
 }
-.btn-cute-pill {
-    padding: 5px 12px !important;
-    border-radius: 20px !important;
-    font-size: 0.8rem !important;
-    font-weight: 700 !important;
-    border: 1px solid var(--border-color) !important;
-    background: var(--header-bg) !important;
-    color: var(--text-color) !important;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 4px !important;
-}
-.btn-cute-pill:hover {
-    background: var(--row-hover) !important;
-    border-color: var(--btn-primary) !important;
-    color: var(--btn-primary) !important;
-    transform: translateY(-1px);
-}
-
-/* Form thêm / sửa viết tắt */
-.shortcut-form-wrap {
-    background: var(--bg-color);
-    border: 1.5px dashed var(--border-color);
-    border-radius: 14px;
-    padding: 12px 14px;
-    margin-bottom: 14px;
+.shortcut-btn-group {
     display: flex;
     gap: 8px;
+    flex-wrap: wrap;
+}
+.btn-tool-sub {
+    display: inline-flex;
     align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: var(--header-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    cursor: pointer;
+    transition: all 0.2s;
 }
-.shortcut-input-cute {
-    border: 1.5px solid var(--border-color) !important;
-    border-radius: 10px !important;
-    background: var(--header-bg) !important;
-    color: var(--text-color) !important;
-    padding: 8px 12px !important;
-    font-size: 0.88rem !important;
-    outline: none !important;
-    transition: all 0.15s ease;
+.btn-tool-sub:hover {
+    background: var(--row-hover);
+    border-color: var(--btn-primary);
+    color: var(--btn-primary);
 }
-.shortcut-input-cute:focus {
-    border-color: var(--btn-primary) !important;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+.shortcut-sync-status { font-size: 0.85rem; font-weight: 600; }
+
+/* 4. Khung Thêm / Sửa viết tắt (Giải quyết triệt để lỗi ép nhỏ input) */
+.shortcut-form-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: var(--bg-color);
+    border: 1px dashed var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 15px;
 }
-#shortcut-key-input { width: 140px; font-weight: 700; font-family: monospace; }
-#shortcut-val-input { flex: 1; }
-.btn-add-cute {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
-    color: #ffffff !important;
-    border-radius: 10px !important;
-    padding: 8px 16px !important;
-    font-weight: 700 !important;
-    border: none !important;
-    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
-    white-space: nowrap;
+.form-inputs-wrap {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+    min-width: 0; /* Ràng buộc chống tràn/vỡ form cho Flexbox */
 }
-.btn-add-cute:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
+.shortcut-input-field {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 0.9rem;
+    outline: none;
+    background: var(--header-bg);
+    color: var(--text-color);
+    min-width: 0; /* Khắc phục lỗi input bị co lại còn vài kí tự */
+    transition: border-color 0.15s, box-shadow 0.15s;
+    font-family: inherit;
+}
+.shortcut-input-field:focus {
+    border-color: var(--btn-primary);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+.key-field {
+    width: 140px;
+    flex-shrink: 0;
+    font-family: monospace;
+    font-weight: 600;
+}
+.val-field { flex: 1; }
+.form-btns-wrap {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.shortcut-submit-btn, .shortcut-cancel-btn {
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.shortcut-submit-btn { background: var(--btn-primary); color: white; }
+.shortcut-submit-btn:hover { background: var(--btn-primary-hover); }
+.shortcut-cancel-btn { background: var(--btn-secondary); color: white; border: 1px solid var(--border-color); }
+.shortcut-cancel-btn:hover { background: var(--btn-secondary-hover); }
+
+/* 5. Khung Danh sách và Tìm kiếm */
+.shortcut-list-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+.shortcut-search-bar {
+    display: flex;
+    align-items: center;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0 10px;
+    transition: all 0.2s;
+}
+.shortcut-search-bar:focus-within {
+    border-color: var(--btn-primary);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+.shortcut-search-bar .search-icon {
+    color: var(--text-muted, #64748b);
+    font-size: 0.9rem;
+    margin-right: 8px;
+}
+#shortcut-search-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 8px 0;
+    font-size: 0.9rem;
+    color: var(--text-color);
+    outline: none;
+    min-width: 0;
+    font-family: inherit;
 }
 
-/* Danh sách thẻ viết tắt */
-.shortcut-list-container {
-    max-height: 44vh;
+.shortcut-list-scroll {
+    max-height: 300px;
     overflow-y: auto;
     border: 1px solid var(--border-color);
-    border-radius: 14px;
+    border-radius: 6px;
     background: var(--bg-color);
     padding: 8px;
     display: flex;
     flex-direction: column;
     gap: 6px;
 }
-.shortcut-list-container::-webkit-scrollbar { width: 6px; }
-.shortcut-list-container::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 10px;
-}
+.shortcut-list-scroll::-webkit-scrollbar { width: 6px; }
+.shortcut-list-scroll::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
+.shortcut-list-scroll.is-empty { padding: 0; justify-content: center; }
 
-/* Từng thẻ phím tắt (Cute Card) */
-.shortcut-card-item {
+/* Item Phím Tắt */
+.shortcut-item-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     background: var(--header-bg);
     border: 1px solid var(--border-color);
-    border-radius: 10px;
+    border-radius: 6px;
     padding: 8px 12px;
-    transition: all 0.15s ease;
+    transition: border-color 0.15s, box-shadow 0.15s;
 }
-.shortcut-card-item:hover {
+.shortcut-item-row:hover {
     border-color: var(--btn-primary);
-    transform: translateY(-1.5px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
 }
-.shortcut-card-left {
+.shortcut-item-main {
     display: flex;
     align-items: center;
     gap: 10px;
     flex: 1;
-    overflow: hidden;
+    min-width: 0;
 }
-
-/* Huy hiệu phím tắt pastel */
-.shortcut-badge-pill {
+.shortcut-pill {
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--btn-primary);
+    padding: 2px 8px;
+    border-radius: 4px;
     font-family: monospace;
-    font-weight: 800;
-    font-size: 0.9rem;
-    color: #0284c7;
-    background: #e0f2fe;
-    padding: 3px 9px;
-    border-radius: 8px;
-    border: 1px solid #bae6fd;
+    font-weight: 700;
+    font-size: 0.85rem;
+    border: 1px solid rgba(59, 130, 246, 0.2);
     white-space: nowrap;
 }
-[data-theme="dark"] .shortcut-badge-pill {
-    background: #0c4a6e;
-    color: #38bdf8;
-    border-color: #0369a1;
+[data-theme="dark"] .shortcut-pill {
+    background: rgba(56, 189, 248, 0.1); color: #38bdf8; border-color: rgba(56, 189, 248, 0.2);
 }
-
-.shortcut-arrow-icon {
-    color: #f472b6;
+.shortcut-arrow {
+    color: var(--text-muted, #94a3b8);
     font-size: 0.85rem;
-    font-weight: bold;
 }
-.shortcut-val-text {
+.shortcut-replacement {
     font-weight: 600;
+    font-size: 0.9rem;
     color: var(--text-color);
-    font-size: 0.92rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    user-select: text !important;
+    flex: 1;
 }
-
-.shortcut-card-actions {
-    display: inline-flex;
-    align-items: center;
+.shortcut-item-actions {
+    display: flex;
     gap: 4px;
     flex-shrink: 0;
 }
-.btn-icon-cute {
+.btn-action-icon {
     background: transparent;
     border: none;
-    color: var(--text-muted, #94a3b8);
-    font-size: 13px;
+    color: var(--text-muted, #64748b);
     padding: 4px 6px;
-    border-radius: 6px;
+    border-radius: 4px;
     cursor: pointer;
-    transition: all 0.15s ease;
+    font-size: 0.95rem;
+    transition: all 0.15s;
+    line-height: 1;
 }
-.btn-icon-cute:hover {
-    color: var(--text-color);
-    background: var(--row-hover);
-}
-.btn-icon-cute.danger:hover {
-    color: var(--btn-danger);
-    background: rgba(239, 68, 68, 0.1);
-}
+.btn-action-icon:hover { background: var(--row-hover); color: var(--text-color); }
+.btn-action-icon.danger:hover { background: rgba(239, 68, 68, 0.1); color: var(--btn-danger); }
 
-/* Trạng thái trống (Empty State) */
-.shortcut-empty-box {
+/* Khóa chặn Emoji/Icon khổng lồ */
+.shortcut-empty-compact {
     text-align: center;
-    padding: 35px 15px;
+    padding: 40px 20px;
     color: var(--text-muted, #64748b);
 }
-.shortcut-empty-icon { font-size: 2.2rem; display: block; margin-bottom: 6px; }
-.shortcut-empty-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; }
-.shortcut-empty-desc { font-size: 0.82rem; opacity: 0.85; margin: 0; }
+.shortcut-empty-compact .empty-icon {
+    font-size: 2.2rem; /* Giới hạn tuyệt đối cỡ chữ của icon */
+    display: block;
+    margin-bottom: 10px;
+    line-height: 1;
+}
+.shortcut-empty-compact .empty-title {
+    font-weight: 700;
+    font-size: 1.05rem;
+    margin-bottom: 6px;
+    color: var(--text-color);
+}
+.shortcut-empty-compact .empty-hint { font-size: 0.9rem; }
+.shortcut-empty-compact code {
+    background: rgba(0, 0, 0, 0.05);
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-family: monospace;
+    color: var(--text-color);
+    font-weight: 600;
+}
+[data-theme="dark"] .shortcut-empty-compact code { background: rgba(255, 255, 255, 0.1); }
+
+/* 6. Footer Modal */
+.shortcut-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 5px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+}
+.shortcut-summary-text {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-muted, #64748b);
+}
 
 /* ========================================================================= */
 /* 📱 THIẾT KẾ CARD XẾP DỌC TRÊN MOBILE & TỐI ƯU HÓA ĐIỆN THOẠI (≤ 768px)   */
@@ -1005,11 +1100,15 @@ body[data-current-theme="aqua"] .story-section-box {
 
     /* 6. MODAL VIẾT TẮT TRÊN MOBILE */
     .shortcut-modal-box { padding: 16px !important; }
-    .shortcut-top-bar { flex-direction: column; align-items: stretch; gap: 8px; }
-    .shortcut-btn-group { justify-content: space-between; }
-    .shortcut-form-wrap { flex-direction: column; align-items: stretch; }
-    #shortcut-key-input { width: 100% !important; }
-    .btn-add-cute { width: 100%; text-align: center; justify-content: center; }
+    .shortcut-setting-row { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .shortcut-actions-row { flex-direction: column; align-items: stretch; }
+    .shortcut-btn-group { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+    .btn-tool-sub { justify-content: center; }
+    .shortcut-form-row { flex-direction: column; align-items: stretch; }
+    .form-inputs-wrap { flex-direction: column; }
+    .key-field, .val-field { width: 100% !important; }
+    .form-btns-wrap { width: 100%; display: flex; }
+    .shortcut-submit-btn, .shortcut-cancel-btn { flex: 1; }
 
     /* MODAL CHUNG */
     .modal-content, .sage-gdrive-card, .sage-auth-card, .modal-name-editor, .modal-projects-box {

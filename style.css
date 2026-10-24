@@ -282,20 +282,33 @@ button {
 .color-input-wrapper:hover { border-color: var(--text-color); }
 .color-picker-box { width: 18px; height: 18px; border: none; border-radius: 3px; cursor: pointer; background: transparent; }
 
-/* ================= BẢNG CHÍNH (TAB 1 - DESKTOP VIEW) ================= */
+/* =========================================================================
+   BẢNG CHÍNH (TAB 1 - DESKTOP VIEW) - KHÔI PHỤC CHIỀU CAO TỰ NHIÊN 100%
+   ========================================================================= */
 #table-container { 
     flex-grow: 1; 
     overflow: auto; 
-    position: relative; 
+    position: relative;
+    display: block !important; 
 }
+
 table { 
     width: 100%; 
     min-width: 1200px; 
     table-layout: fixed; 
-    border-collapse: collapse; 
+    border-collapse: collapse;
+    height: auto !important;     /* NGĂN CHẶN BẢNG TỰ KÉO GIÃN THEO CONTAINER */
 }
 
-/* ĐẦU CỘT DÍNH (STICKY TH): NỀN ĐẶC HOÀN TOÀN ĐỂ KHÔNG BỊ LỘ CHỮ KHI CUỘN */
+tbody {
+    height: auto !important;
+}
+
+tbody tr {
+    height: auto !important;     /* CHIỀU CAO TỰ ĐỘNG THEO Ô DÀI NHẤT TRONG HÀNG */
+}
+
+/* ĐẦU CỘT DÍNH (STICKY TH): NỀN ĐẶC ĐỂ CHỐNG LỘ MỜ CHỮ KHI CUỘN */
 th {
     position: sticky; 
     top: 0; 
@@ -333,22 +346,15 @@ th {
 .col-action-btn:hover { background-color: var(--btn-primary-hover); transform: scale(1.05); }
 
 /* =========================================================================
-   CĂN CHỈNH NỘI DUNG TẤT CẢ CÁC Ô TRÊN DESKTOP:
-   LUÔN LUÔN CĂN TRÊN CÙNG (TOP) VÀ CĂN TRÁI (LEFT) - KHÔNG BAO GIỜ BỊ DỒN GIỮA
+   CĂN CHỈNH NỘI DUNG 6 CỘT CHÍNH TRÊN DESKTOP:
+   LUÔN LUÔN CĂN TRÊN CÙNG (TOP) & CĂN TRÁI (LEFT) - KHÔNG CĂN GIỮA CHIỀU DỌC
    ========================================================================= */
-tbody tr {
-    height: auto !important;
-}
-
-td,
-td[data-col],
-#table-body td,
 #table-body td[data-col] {
     display: table-cell !important;
     vertical-align: top !important;   /* CĂN TRÊN CÙNG 100% */
     text-align: left !important;      /* CĂN TRÁI 100% */
-    padding: 10px 12px !important;    /* Khoảng cách đệm chuẩn mực */
-    height: auto !important;          /* Chiều cao co giãn tự nhiên theo ô dài nhất */
+    padding: 10px 12px !important;    /* Padding chuẩn vừa vặn */
+    height: auto !important;          /* Chiều cao co giãn tự nhiên */
     min-height: 0 !important;
     border: 1px solid var(--border-color);
     outline: none;
@@ -361,13 +367,38 @@ tr:hover td { background-color: var(--row-hover); }
 tr.active-row td { background-color: var(--row-active); }
 td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var(--bg-color) !important; }
 
-/* CÔ LẬP CÁC THÀNH PHẦN MOBILE TRÊN MÀN HÌNH MÁY TÍNH (DESKTOP ISOLATION) */
+/* =========================================================================
+   ẨN TRIỆT ĐỂ CÁC THÀNH PHẦN MOBILE TRÊN MÀN HÌNH MÁY TÍNH (DESKTOP ISOLATION)
+   ========================================================================= */
+#table-body tr td.mobile-row-meta,
+td.mobile-row-meta,
 .mobile-row-meta,
 .cell-header,
 .mobile-view-bar {
     display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    margin: 0 !important;
 }
 
+/* Ô CHECKBOX CHỈ HIỆN KHI BẬT CHẾ ĐỘ XÓA LOẠT */
+#table-body tr td.batch-select-cell {
+    width: 45px !important;
+    min-width: 45px !important;
+    text-align: center;
+    vertical-align: middle !important;
+    padding: 6px !important;
+    background-color: var(--th-bg);
+    border: 1px solid var(--border-color);
+    user-select: none;
+}
+#table-body tr td.batch-select-cell[style*="display: none"] {
+    display: none !important;
+}
+
+/* VÙNG CHỨA VĂN BẢN .cell-content LUÔN CĂN TRÊN CÙNG BÊN TRÁI */
 .cell-content {
     display: block !important;
     width: 100% !important;
@@ -383,7 +414,7 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
 }
 
 .col-collapsed .cell-content {
-    display: block !important; /* Trên máy tính luôn luôn mở 100% các cột */
+    display: block !important; /* Trên Desktop luôn luôn mở 100% cột */
 }
 
 /* ================= HIỆU ỨNG BÔI ĐEN ĐỒNG THỜI REAL-TIME (RAW ↔ QT) ================= */
@@ -467,21 +498,6 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
 }
 
 .batch-col-toggle input { cursor: pointer; }
-
-.batch-select-cell {
-    width: 45px !important;
-    min-width: 45px !important;
-    text-align: center;
-    vertical-align: middle !important;
-    padding: 6px !important;
-    background-color: var(--th-bg);
-    border: 1px solid var(--border-color);
-    user-select: none;
-}
-.batch-select-cell input[type="checkbox"] {
-    cursor: pointer;
-    transform: scale(1.15);
-}
 
 tr.batch-row-selected td:not(.batch-select-cell) {
     background-color: rgba(59, 130, 246, 0.08) !important;
@@ -918,13 +934,14 @@ body[data-current-theme="aqua"] table thead th {
     font-weight: 700;
 }
 
-/* ĐẢM BẢO CĂN TRÊN CÙNG & CĂN TRÁI CHO TẤT CẢ CÁC Ô THEME AQUA */
-body[data-current-theme="aqua"] table tbody td {
+/* CĂN TRÊN CÙNG & CĂN TRÁI CHO TẤT CẢ Ô THEME AQUA TRÊN DESKTOP */
+body[data-current-theme="aqua"] table tbody td[data-col] {
     background: rgba(255, 255, 255, 0.82) !important; 
     color: #18434D !important;
     border-color: rgba(81, 196, 211, 0.28) !important; 
     vertical-align: top !important;
     text-align: left !important;
+    height: auto !important;
     transition: background 0.15s ease;
 }
 body[data-current-theme="aqua"] tr:hover:not(.active-row) td { background: rgba(255, 255, 255, 0.94) !important; }
@@ -1064,6 +1081,7 @@ body[data-current-theme="aqua"] .story-section-box {
         width: 100% !important;
         display: block !important;
         border: none !important;
+        height: auto !important;
     }
 
     thead {
@@ -1075,6 +1093,7 @@ body[data-current-theme="aqua"] .story-section-box {
         flex-direction: column !important;
         gap: 12px !important;
         width: 100% !important;
+        height: auto !important;
     }
 
     tr {
@@ -1095,7 +1114,9 @@ body[data-current-theme="aqua"] .story-section-box {
         box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
     }
 
-    .mobile-row-meta {
+    /* THANH SỐ DÒNG VÀ NÚT TRÊN MOBILE: HIỆN GỌN GÀNG TRÊN 1 HÀNG DUY NHẤT */
+    #table-body tr td.mobile-row-meta,
+    td.mobile-row-meta {
         display: flex !important;
         align-items: center !important;
         justify-content: space-between !important;
@@ -1105,12 +1126,16 @@ body[data-current-theme="aqua"] .story-section-box {
         border-bottom: 1px solid var(--border-color, #cbd5e1) !important;
         order: 0 !important;
         width: 100% !important;
+        height: auto !important;
+        min-height: 40px !important;
     }
     .mobile-row-bar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        width: 100%;
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+        height: auto !important;
     }
     .mobile-row-number {
         font-weight: 800;
@@ -1118,14 +1143,20 @@ body[data-current-theme="aqua"] .story-section-box {
         color: var(--text-color);
     }
     .mobile-row-actions {
-        display: flex;
-        gap: 6px;
+        display: inline-flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 6px !important;
     }
     .btn-m-row-add, .btn-m-row-del {
-        padding: 3px 8px !important;
-        font-size: 0.72rem !important;
+        padding: 4px 8px !important;
+        font-size: 0.75rem !important;
         border-radius: 6px !important;
         cursor: pointer;
+        height: 28px !important;
+        line-height: 1 !important;
+        display: inline-flex !important;
+        align-items: center !important;
     }
     .btn-m-row-add {
         background: rgba(59, 130, 246, 0.12) !important;
@@ -1150,8 +1181,8 @@ body[data-current-theme="aqua"] .story-section-box {
     td[data-col] {
         display: flex !important;
         flex-direction: column !important;
-        align-items: stretch !important;       /* Căng đều lề ngang, không dồn giữa */
-        justify-content: flex-start !important; /* Căn trên cùng */
+        align-items: stretch !important;
+        justify-content: flex-start !important;
         text-align: left !important;
         width: 100% !important;
         height: auto !important;

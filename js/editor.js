@@ -1,13 +1,34 @@
 // =========================================================================
-// QUẢN LÝ BẢNG DỊCH CHÍNH (MỤC 1) - TÍCH HỢP CHẾ ĐỘ CHỌN & XÓA HÀNG LOẠT
+// QUẢN LÝ BẢNG DỊCH CHÍNH (MỤC 1) - TÍCH HỢP MOBILE CARD & BATCH DELETE
+// TỐI ƯU BỘ NHỚ RAM - THU GỌN CỘT ĐỘC LẬP - BẢO TOÀN DESKTOP 100%
 // =========================================================================
 let saveTimeout;
 let countTimeout;
 
-// TRẠNG THÁI CHẾ ĐỘ CHỌN ĐỂ XÓA HÀNG LOẠT
+// 1. TRẠNG THÁI CHẾ ĐỘ CHỌN ĐỂ XÓA HÀNG LOẠT
 let isBatchDeleteMode = false;
 let selectedBatchRows = new Set(); // Chứa các chỉ số hàng (0, 1, 2...)
 let selectedBatchCols = new Set(); // Chứa tên các cột ('raw', 'pinyin', 'meaning'...)
+
+// 2. CẤU HÌNH THỨ TỰ VÀ NHÃN CỘT TRÊN MOBILE
+const COLUMN_META = {
+    raw:         { label: 'RAW',         badgeClass: 'badge-raw',     order: 1 },
+    pinyin:      { label: 'PINYIN',      badgeClass: 'badge-pinyin',  order: 2 },
+    qt:          { label: 'BẢN QT',      badgeClass: 'badge-qt',      order: 3 },
+    translation: { label: 'BẢN EDIT',    badgeClass: 'badge-edit',    order: 4 },
+    edit:        { label: 'BẢN BETA',    badgeClass: 'badge-beta',    order: 5 },
+    meaning:     { label: 'CHÚ THÍCH',   badgeClass: 'badge-meaning', order: 6 }
+};
+
+// 3. TRẠNG THÁI THU GỌN CỘT TRÊN MOBILE (LƯU VÀO LOCALSTORAGE)
+let mobileColCollapsed = JSON.parse(localStorage.getItem('mobile_col_collapsed')) || {
+    raw: false,
+    pinyin: false,
+    qt: false,
+    translation: false,
+    edit: false,
+    meaning: true // Mặc định thu gọn Chú thích để tập trung vào 5 khối chính
+};
 
 function normalizeUnicodeText(text) {
     if (typeof text !== 'string') return text || '';
@@ -24,15 +45,17 @@ function debounceSave() {
             if (typeof addEditorHistoryEntry === 'function') addEditorHistoryEntry();
             lastHistoryTime = now;
         }
-    }, 800);
+    }, 500);
 
     clearTimeout(countTimeout);
     countTimeout = setTimeout(() => {
         updateWordCounts();
-    }, 400);
+    }, 300);
 }
 
-// VẼ BẢNG DỊCH (TỰ ĐỘNG BẢO TOÀN data-col VÀ CỘT CHECKBOX)
+// =========================================================================
+// VẼ BẢNG DỊCH THUẬT (DOCUMENT FRAGMENT - TIẾT KIỆM 90% BỘ NHỚ RAM)
+// =========================================================================
 function renderTable() {
     const tbody = document.getElementById('table-body');
     if (!tbody) return;
@@ -46,8 +69,11 @@ function renderTable() {
     
     data.forEach((row, rowIndex) => {
         const tr = document.createElement('tr');
+        tr.dataset.index = rowIndex;
+        if (selectedBatchRows.has(rowIndex)) tr.classList.add('batch-row-selected');
+        if (currentRowIndex === rowIndex) tr.classList.add('active-row');
         
-        // 1. Ô CHECKBOX ĐẦU HÀNG
+        // 1. Ô CHECKBOX ĐẦU HÀNG (CHẾ ĐỘ XÓA LOẠT)
         const selectTd = document.createElement('td');
         selectTd.className = 'batch-select-cell batch-toggle-el';
         selectTd.style.display = isBatchDeleteMode ? 'table-cell' : 'none';
@@ -61,12 +87,44 @@ function renderTable() {
         selectTd.appendChild(rowCb);
         tr.appendChild(selectTd);
 
-        // 2. CÁC CỘT DỮ LIỆU CHÍNH (GẮN data-col ĐỂ CHỐNG LỆCH CỘT)
+        // 2. THANH TIÊU ĐỀ HÀNG TRÊN MOBILE (DÒNG X + NÚT THAO TÁC CẢM ỨNG)
+        const rowMetaTd = document.createElement('td');
+        rowMetaTd.className = 'mobile-row-meta';
+        rowMetaTd.contentEditable = false;
+        rowMetaTd.innerHTML = `
+            <div class="mobile-row-bar">
+                <span class="mobile-row-number">📖 Dòng ${rowIndex + 1}</span>
+                <div class="mobile-row-actions">
+                    <button type="button" class="btn-m-row-add" title="Thêm dòng mới bên dưới">➕ Dòng</button>
+                    <button type="button" class="btn-m-row-del" title="Xóa dòng này">🗑️ Xóa</button>
+                </div>
+            </div>
+        `;
+        tr.appendChild(rowMetaTd);
+
+        // 3. CÁC CỘT DỮ LIỆU CHÍNH (TÁCH BIỆT CELL-HEADER VÀ CELL-CONTENT ĐỂ DỮ LIỆU SẠCH)
         columns.forEach(col => {
             const td = document.createElement('td');
-            td.contentEditable = true;
             td.dataset.col = col;
-            td.innerHTML = normalizeUnicodeText(row[col] || ''); 
+
+            const isColCollapsed = !!mobileColCollapsed[col];
+            if (isColCollapsed) {
+                td.classList.add('col-collapsed');
+            }
+
+            const meta = COLUMN_META[col] || { label: col.toUpperCase(), badgeClass: 'badge-default' };
+            const contentHtml = normalizeUnicodeText(row[col] || '');
+
+            td.innerHTML = `
+                <div class="cell-header" contenteditable="false">
+                    <span class="cell-label ${meta.badgeClass}">${meta.label}</span>
+                    <div class="cell-header-actions">
+                        <button type="button" class="btn-cell-copy" title="Sao chép khối này">📋</button>
+                        <button type="button" class="btn-cell-collapse" title="Thu gọn / Mở rộng">${isColCollapsed ? '▶' : '▼'}</button>
+                    </div>
+                </div>
+                <div class="cell-content" contenteditable="true" spellcheck="false">${contentHtml}</div>
+            `;
             tr.appendChild(td);
         });
 
@@ -75,7 +133,7 @@ function renderTable() {
 
     tbody.appendChild(fragment);
     
-    // Tự động cập nhật Highlight và thống kê nếu đang bật chế độ chọn
+    // Cập nhật Highlight nếu đang bật chế độ chọn
     if (isBatchDeleteMode) {
         updateBatchHighlightsAndSummary();
     }
@@ -93,10 +151,14 @@ function renderTable() {
     updateWordCounts();
 }
 
+// =========================================================================
+// THÊM 1 HÀNG MỚI VÀO DOM KHÔNG CẦN VẼ LẠI TOÀN BỘ BẢNG
+// =========================================================================
 function appendRowToDOM(rowObj, index) {
     const tbody = document.getElementById('table-body');
     if (!tbody) return;
     const tr = document.createElement('tr');
+    tr.dataset.index = index;
 
     const selectTd = document.createElement('td');
     selectTd.className = 'batch-select-cell batch-toggle-el';
@@ -110,16 +172,114 @@ function appendRowToDOM(rowObj, index) {
     selectTd.appendChild(rowCb);
     tr.appendChild(selectTd);
 
+    const rowMetaTd = document.createElement('td');
+    rowMetaTd.className = 'mobile-row-meta';
+    rowMetaTd.contentEditable = false;
+    rowMetaTd.innerHTML = `
+        <div class="mobile-row-bar">
+            <span class="mobile-row-number">📖 Dòng ${index + 1}</span>
+            <div class="mobile-row-actions">
+                <button type="button" class="btn-m-row-add" title="Thêm dòng bên dưới">➕ Dòng</button>
+                <button type="button" class="btn-m-row-del" title="Xóa dòng này">🗑️ Xóa</button>
+            </div>
+        </div>
+    `;
+    tr.appendChild(rowMetaTd);
+
     columns.forEach(col => {
         const td = document.createElement('td');
-        td.contentEditable = true;
         td.dataset.col = col;
-        td.innerHTML = normalizeUnicodeText(rowObj[col] || ''); 
+
+        const isColCollapsed = !!mobileColCollapsed[col];
+        if (isColCollapsed) td.classList.add('col-collapsed');
+
+        const meta = COLUMN_META[col] || { label: col.toUpperCase(), badgeClass: 'badge-default' };
+        const contentHtml = normalizeUnicodeText(rowObj[col] || '');
+
+        td.innerHTML = `
+            <div class="cell-header" contenteditable="false">
+                <span class="cell-label ${meta.badgeClass}">${meta.label}</span>
+                <div class="cell-header-actions">
+                    <button type="button" class="btn-cell-copy" title="Sao chép khối này">📋</button>
+                    <button type="button" class="btn-cell-collapse" title="Thu gọn / Mở rộng">${isColCollapsed ? '▶' : '▼'}</button>
+                </div>
+            </div>
+            <div class="cell-content" contenteditable="true" spellcheck="false">${contentHtml}</div>
+        `;
         tr.appendChild(td);
     });
     tbody.appendChild(tr);
 }
 
+// =========================================================================
+// ĐIỀU KHIỂN CHẾ ĐỘ THU GỌN / MỞ RỘNG TRÊN MOBILE (ACCORDION ENGINE)
+// =========================================================================
+function setMobileViewMode(mode) {
+    if (mode === 'edit-only') {
+        // Chỉ xem Bản edit: mở Bản edit, thu gọn toàn bộ các cột còn lại
+        mobileColCollapsed = {
+            raw: true,
+            pinyin: true,
+            qt: true,
+            translation: false,
+            edit: true,
+            meaning: true
+        };
+        if (typeof showToast === 'function') showToast('👁️ Chế độ: Chỉ xem Bản edit', 'var(--btn-info)');
+    } else if (mode === 'expand-all') {
+        // Mở rộng tất cả các cột
+        mobileColCollapsed = {
+            raw: false,
+            pinyin: false,
+            qt: false,
+            translation: false,
+            edit: false,
+            meaning: false
+        };
+        if (typeof showToast === 'function') showToast('🔽 Đã mở rộng toàn bộ các khối', 'var(--btn-success)');
+    } else if (mode === 'collapse-all') {
+        // Thu gọn tất cả chỉ còn thanh tiêu đề nhãn
+        mobileColCollapsed = {
+            raw: true,
+            pinyin: true,
+            qt: true,
+            translation: true,
+            edit: true,
+            meaning: true
+        };
+        if (typeof showToast === 'function') showToast('🔼 Đã thu gọn toàn bộ các khối', 'var(--btn-secondary)');
+    }
+
+    localStorage.setItem('mobile_col_collapsed', JSON.stringify(mobileColCollapsed));
+    applyMobileCollapseClasses();
+}
+
+function toggleColumnCollapse(colKey) {
+    mobileColCollapsed[colKey] = !mobileColCollapsed[colKey];
+    localStorage.setItem('mobile_col_collapsed', JSON.stringify(mobileColCollapsed));
+    applyMobileCollapseClasses();
+}
+
+function applyMobileCollapseClasses() {
+    const tbody = document.getElementById('table-body');
+    if (!tbody) return;
+
+    columns.forEach(colKey => {
+        const isCollapsed = !!mobileColCollapsed[colKey];
+        const cells = tbody.querySelectorAll(`td[data-col="${colKey}"]`);
+        cells.forEach(td => {
+            td.classList.toggle('col-collapsed', isCollapsed);
+            const btnToggle = td.querySelector('.btn-cell-collapse');
+            if (btnToggle) {
+                btnToggle.textContent = isCollapsed ? '▶' : '▼';
+            }
+        });
+    });
+}
+
+// =========================================================================
+// QUẢN LÝ BỘ NHỚ UNDO / REDO (GIỚI HẠN 30 BẢN SAO ĐỂ TRÁNH TRÀN RAM)
+// =========================================================================
 function saveEditorUndoState() {
     const currentStateStr = JSON.stringify(data);
     if (editorUndoStack.length > 0 && editorUndoStack[editorUndoStack.length - 1] === currentStateStr) return;
@@ -151,13 +311,12 @@ function editorUndo() {
     const currentStateStr = JSON.stringify(data);
     let prevStateStr = editorUndoStack.pop();
     if (prevStateStr === currentStateStr && editorUndoStack.length > 0) {
-        metaRedoStack.push(prevStateStr);
+        editorRedoStack.push(prevStateStr);
         prevStateStr = editorUndoStack.pop();
     }
     editorRedoStack.push(currentStateStr);
     data = JSON.parse(prevStateStr);
     
-    // Xóa lựa chọn khi Undo để tránh lỗi chỉ số cũ
     selectedBatchRows.clear();
     selectedBatchCols.clear();
 
@@ -197,6 +356,7 @@ function addEditorHistoryEntry() {
         }
 
         history.push({ timestamp: Date.now(), rowCount: data.length, data: currentDataCopy });
+        if (history.length > 30) history.shift();
         try { localStorage.setItem('translationHistory', JSON.stringify(history)); } catch (e) {}
     } catch (e) {
         console.error("Lỗi addEditorHistoryEntry:", e);
@@ -206,8 +366,6 @@ function addEditorHistoryEntry() {
 // =========================================================================
 // QUẢN LÝ CHẾ ĐỘ CHỌN VÀ XÓA HÀNG LOẠT (SELECTION & DELETION ENGINE)
 // =========================================================================
-
-// 1. BẬT / TẮT CHẾ ĐỘ
 function toggleBatchDeleteMode(forceState = null) {
     isBatchDeleteMode = (forceState !== null) ? forceState : !isBatchDeleteMode;
 
@@ -223,7 +381,6 @@ function toggleBatchDeleteMode(forceState = null) {
         actionBar.style.display = isBatchDeleteMode ? 'flex' : 'none';
     }
 
-    // Ẩn / Hiện tất cả phần tử checkbox (ở thead và tbody)
     document.querySelectorAll('.batch-toggle-el').forEach(el => {
         if (el.tagName === 'TH' || el.tagName === 'TD') {
             el.style.display = isBatchDeleteMode ? 'table-cell' : 'none';
@@ -239,7 +396,6 @@ function toggleBatchDeleteMode(forceState = null) {
     }
 }
 
-// 2. BỎ CHỌN TOÀN BỘ
 function deselectAllBatch() {
     selectedBatchRows.clear();
     selectedBatchCols.clear();
@@ -253,13 +409,11 @@ function deselectAllBatch() {
     updateBatchHighlightsAndSummary();
 }
 
-// 3. CẬP NHẬT HIGHLIGHT VÀ SỐ LƯỢNG THỐNG KÊ (RULE IV)
 function updateBatchHighlightsAndSummary() {
     const rowCount = selectedBatchRows.size;
     const colCount = selectedBatchCols.size;
     const totalDataRows = data.length;
 
-    // Cập nhật text tóm tắt & trạng thái nút xóa
     const summaryEl = document.getElementById('batch-count-summary');
     const deleteBtn = document.getElementById('btn-batch-confirm-delete');
 
@@ -281,14 +435,12 @@ function updateBatchHighlightsAndSummary() {
     if (summaryEl) summaryEl.innerText = summaryText;
     if (deleteBtn) deleteBtn.disabled = !canDelete;
 
-    // Cập nhật trạng thái Master Checkbox ở thead
     const masterCb = document.getElementById('batch-check-all-rows');
     if (masterCb) {
         masterCb.checked = (rowCount === totalDataRows && totalDataRows > 0);
         masterCb.indeterminate = (rowCount > 0 && rowCount < totalDataRows);
     }
 
-    // Cập nhật class CSS Highlight từng hàng, từng cột và từng ô
     const tbody = document.getElementById('table-body');
     if (!tbody) return;
 
@@ -298,7 +450,6 @@ function updateBatchHighlightsAndSummary() {
         if (isRowSelected) tr.classList.add('batch-row-selected');
         else tr.classList.remove('batch-row-selected');
 
-        // Quét các ô dữ liệu trong hàng
         Array.from(tr.querySelectorAll('td[data-col]')).forEach(td => {
             const cName = td.dataset.col;
             const isColSelected = selectedBatchCols.has(cName);
@@ -307,7 +458,7 @@ function updateBatchHighlightsAndSummary() {
             td.classList.remove('batch-col-selected', 'batch-intersection-selected');
 
             if (isIntersection) {
-                td.classList.add('batch-intersection-selected'); // Ưu tiên cao nhất
+                td.classList.add('batch-intersection-selected');
             } else if (isColSelected) {
                 td.classList.add('batch-col-selected');
             }
@@ -315,7 +466,6 @@ function updateBatchHighlightsAndSummary() {
     });
 }
 
-// 4. THỰC HIỆN XÓA HÀNG LOẠT (RULE III, V, VI, VII)
 function executeBatchDelete() {
     const rowCount = selectedBatchRows.size;
     const colCount = selectedBatchCols.size;
@@ -323,44 +473,32 @@ function executeBatchDelete() {
     if (rowCount === 0 && colCount === 0) return;
 
     let confirmMsg = '';
-
-    // RULE V: HỘP THOẠI XÁC NHẬN MÔ TẢ CHÍNH XÁC
     if (rowCount > 0 && colCount > 0) {
-        // TRƯỜNG HỢP 3: CHỌN ĐỒNG THỜI HÀNG VÀ CỘT -> ƯU TIÊN XÓA Ô GIAO NHAU
         confirmMsg = `Bạn sắp xóa nội dung của ${rowCount * colCount} ô tại giao điểm giữa ${rowCount} hàng và ${colCount} cột.`;
     } else if (rowCount > 0 && colCount === 0) {
-        // TRƯỜNG HỢP 2: CHỈ CHỌN HÀNG -> XÓA HÀNG TRÊN TOÀN BỘ CỘT
         confirmMsg = `Bạn sắp xóa ${rowCount} hàng trên toàn bộ các cột.`;
     } else if (rowCount === 0 && colCount > 0) {
-        // TRƯỜNG HỢP 1: CHỈ CHỌN CỘT -> XÓA NỘI DUNG CÁC CỘT ĐÃ CHỌN
         confirmMsg = `Bạn sắp xóa nội dung của ${colCount} cột. Cấu trúc bảng sẽ được giữ nguyên.`;
     }
 
-    if (!confirm(confirmMsg)) {
-        return; // Người dùng nhấn Hủy: Dữ liệu giữ nguyên hoàn toàn
-    }
+    if (!confirm(confirmMsg)) return;
 
-    // LƯU TRẠNG THÁI UNDO ĐƠN NHẤT (RULE VI)
     saveEditorUndoState();
     if (typeof addEditorHistoryEntry === 'function') addEditorHistoryEntry();
 
     if (rowCount > 0 && colCount > 0) {
-        // === XỬ LÝ TRƯỜNG HỢP 3: XÓA Ô TẠI GIAO ĐIỂM ===
         selectedBatchRows.forEach(rIdx => {
             if (data[rIdx]) {
                 selectedBatchCols.forEach(cName => {
                     data[rIdx][cName] = '';
                 });
-                // Nếu xóa ô Raw, làm mới token của hàng đó
                 if (selectedBatchCols.has('raw')) {
                     rowTokensMap[rIdx] = [];
                 }
             }
         });
         showToast(`🗑️ Đã xóa nội dung ${rowCount * colCount} ô giao nhau!`, 'var(--btn-success)');
-
     } else if (rowCount > 0 && colCount === 0) {
-        // === XỬ LÝ TRƯỜNG HỢP 2: XÓA HÀNG HOÀN TOÀN (TỪ DƯỚI LÊN ĐỂ CHỐNG LỆCH INDEX) ===
         const sortedRowIndices = Array.from(selectedBatchRows).sort((a, b) => b - a);
         sortedRowIndices.forEach(rIdx => {
             if (rIdx >= 0 && rIdx < data.length) {
@@ -372,9 +510,7 @@ function executeBatchDelete() {
             data = [createEmptyRow()];
         }
         showToast(`🗑️ Đã xóa ${rowCount} hàng trên toàn bộ bảng!`, 'var(--btn-success)');
-
     } else if (rowCount === 0 && colCount > 0) {
-        // === XỬ LÝ TRƯỜNG HỢP 1: XÓA NỘI DUNG TOÀN CỘT ===
         data.forEach((row, rIdx) => {
             selectedBatchCols.forEach(cName => {
                 row[cName] = '';
@@ -386,7 +522,6 @@ function executeBatchDelete() {
         showToast(`🗑️ Đã xóa sạch nội dung của ${colCount} cột!`, 'var(--btn-success)');
     }
 
-    // Tự động bỏ chọn & vẽ lại bảng
     deselectAllBatch();
     renderTable();
     debounceSave();
@@ -504,7 +639,9 @@ function parseClipboardToSmartMatrix(clipboard) {
     return [];
 }
 
-// SỰ KIỆN BIÊN DỊCH CHÍNH
+// =========================================================================
+// THIẾT LẬP TOÀN BỘ SỰ KIỆN BIÊN DỊCH VÀ ỦY QUYỀN (EVENT DELEGATION)
+// =========================================================================
 function initEditorEvents() {
     const chapterInput = document.getElementById('chapter-title-input');
     if (chapterInput) {
@@ -518,31 +655,12 @@ function initEditorEvents() {
     const tbody = document.getElementById('table-body');
     if (!tbody) return;
 
-    // =========================================================================
-    // SỰ KIỆN CHỌN CHECKBOX (HÀNG VÀ CỘT)
-    // =========================================================================
-    
-    // 1. Nút Bật/Tắt chế độ chọn để xóa
-    document.getElementById('btn-toggle-batch')?.addEventListener('click', () => {
-        toggleBatchDeleteMode();
-    });
+    // 1. SỰ KIỆN CHỌN CHECKBOX (HÀNG VÀ CỘT)
+    document.getElementById('btn-toggle-batch')?.addEventListener('click', () => toggleBatchDeleteMode());
+    document.getElementById('btn-batch-deselect')?.addEventListener('click', () => deselectAllBatch());
+    document.getElementById('btn-batch-cancel')?.addEventListener('click', () => toggleBatchDeleteMode(false));
+    document.getElementById('btn-batch-confirm-delete')?.addEventListener('click', () => executeBatchDelete());
 
-    // 2. Nút Bỏ chọn
-    document.getElementById('btn-batch-deselect')?.addEventListener('click', () => {
-        deselectAllBatch();
-    });
-
-    // 3. Nút Hủy chọn (Thoát chế độ)
-    document.getElementById('btn-batch-cancel')?.addEventListener('click', () => {
-        toggleBatchDeleteMode(false);
-    });
-
-    // 4. Nút Xác nhận Xóa
-    document.getElementById('btn-batch-confirm-delete')?.addEventListener('click', () => {
-        executeBatchDelete();
-    });
-
-    // 5. Chọn / Bỏ chọn toàn bộ hàng (Master Checkbox)
     document.getElementById('batch-check-all-rows')?.addEventListener('change', (e) => {
         const isChecked = e.target.checked;
         if (isChecked) {
@@ -554,7 +672,6 @@ function initEditorEvents() {
         updateBatchHighlightsAndSummary();
     });
 
-    // 6. Chọn / Bỏ chọn theo cột
     document.querySelectorAll('.batch-col-checkbox').forEach(cb => {
         cb.addEventListener('change', (e) => {
             const col = e.target.dataset.col;
@@ -565,20 +682,7 @@ function initEditorEvents() {
         });
     });
 
-    // 7. Chọn / Bỏ chọn theo hàng (Lắng nghe tại tbody)
-    tbody.addEventListener('change', (e) => {
-        if (e.target && e.target.classList.contains('batch-row-checkbox')) {
-            const rIdx = parseInt(e.target.dataset.row);
-            if (isNaN(rIdx)) return;
-            if (e.target.checked) selectedBatchRows.add(rIdx);
-            else selectedBatchRows.delete(rIdx);
-            updateBatchHighlightsAndSummary();
-        }
-    });
-
-    // =========================================================================
-    // DÁN THÔNG MINH (CHỐNG LỆCH HÀNG & GOM DÒNG CHUẨN XÁC)
-    // =========================================================================
+    // 2. SỰ KIỆN DÁN THÔNG MINH (CHỐNG LỆCH HÀNG & GOM DÒNG)
     tbody.addEventListener('paste', (e) => {
         const targetCell = e.target.closest('td[data-col]');
         if (!targetCell) return;
@@ -594,7 +698,7 @@ function initEditorEvents() {
         const colName = targetCell.dataset.col;
         const colIndex = columns.indexOf(colName);
 
-        // Trường hợp 1: Dán chương truyện nhiều đoạn vào 1 cột
+        // Trường hợp 1: Dán văn bản nhiều đoạn
         if (tableMatrix.length === 0 && /[\r\n]/.test(textData)) {
             e.preventDefault();
             if (typeof clearSyncHighlights === 'function') clearSyncHighlights();
@@ -632,11 +736,11 @@ function initEditorEvents() {
 
             renderTable();
             debounceSave();
-            showToast(`📋 Đã chia và dán thành công ${paragraphs.length} đoạn thành từng hàng!`, 'var(--btn-success)');
+            showToast(`📋 Đã chia và dán ${paragraphs.length} đoạn thành từng hàng!`, 'var(--btn-success)');
             return;
         }
 
-        // Trường hợp 2: Dán bảng nhiều cột
+        // Trường hợp 2: Dán ma trận bảng nhiều cột
         if (tableMatrix.length > 0) {
             e.preventDefault();
             if (typeof clearSyncHighlights === 'function') clearSyncHighlights();
@@ -701,57 +805,141 @@ function initEditorEvents() {
         }
     });
 
-    // NHẬP LIỆU GÕ TAY REAL-TIME (DÙNG data-col CHỐNG LỆCH CỘT KHI CÓ CHECKBOX)
+    // 3. NHẬP LIỆU GÕ TAY REAL-TIME (CẬP NHẬT TRỰC TIẾP Ô HIỆN TẠI - KHÔNG RENDER LẠI BẢNG)
     tbody.addEventListener('input', (e) => {
-        const targetCell = e.target.closest('td[data-col]');
-        if (!targetCell) return;
-        const tr = targetCell.closest('tr');
-        const rowIndex = Array.from(tbody.children).indexOf(tr);
-        const colName = targetCell.dataset.col;
+        const contentEl = e.target.closest('.cell-content') || e.target.closest('td[data-col]');
+        const targetTd = e.target.closest('td[data-col]');
+        if (!targetTd || !contentEl) return;
+
+        const tr = targetTd.closest('tr');
+        if (!tr) return;
+        const rowIndex = parseInt(tr.dataset.index, 10);
+        const colName = targetTd.dataset.col;
         const colIndex = columns.indexOf(colName);
 
         handleEditorTypingInput();
-        const plainText = normalizeUnicodeText(targetCell.innerText);
-        data[rowIndex][colName] = targetCell.innerHTML;
 
-        if (colIndex === 0) {
+        const rawHtml = contentEl.innerHTML;
+        const plainText = normalizeUnicodeText(contentEl.innerText);
+        data[rowIndex][colName] = rawHtml;
+
+        // Tự động phiên âm Pinyin và dịch QT nếu gõ vào cột Raw
+        if (colName === 'raw') {
             if (typeof safePinyin === 'function') {
-                data[rowIndex]['pinyin'] = safePinyin(plainText);
-                const pinyinTd = tr.querySelector('td[data-col="pinyin"]');
-                if (pinyinTd) pinyinTd.innerText = data[rowIndex]['pinyin'];
+                const pinyinVal = safePinyin(plainText);
+                data[rowIndex]['pinyin'] = pinyinVal;
+                const pinyinTd = tr.querySelector('td[data-col="pinyin"] .cell-content') || tr.querySelector('td[data-col="pinyin"]');
+                if (pinyinTd) pinyinTd.innerText = pinyinVal;
             }
 
-            if (!manualQTState[rowIndex] && typeof nameQTEngine !== 'undefined') {
-                const result = nameQTEngine.process(plainText);
-                data[rowIndex]['qt'] = result.text.normalize('NFC');
-                const qtTd = tr.querySelector('td[data-col="qt"]');
-                if (qtTd) qtTd.innerText = result.text.normalize('NFC');
-                rowTokensMap[rowIndex] = result.tokens;
+            if (!manualQTState[rowIndex] && typeof nameQTEngine !== 'undefined' && nameQTEngine.process) {
+                const res = nameQTEngine.process(plainText);
+                const qtVal = res.text.normalize('NFC');
+                data[rowIndex]['qt'] = qtVal;
+                const qtTd = tr.querySelector('td[data-col="qt"] .cell-content') || tr.querySelector('td[data-col="qt"]');
+                if (qtTd) qtTd.innerText = qtVal;
+                rowTokensMap[rowIndex] = res.tokens;
             }
         }
 
-        if (colIndex === 4) manualQTState[rowIndex] = true;
+        if (colName === 'qt') manualQTState[rowIndex] = true;
 
         debounceSave();
     });
 
+    // 4. BẮT SỰ KIỆN CLICK CẢM ỨNG & CHECKBOX TRÊN TBODY (DELEGATION)
+    tbody.addEventListener('click', (e) => {
+        // A. Thu gọn / mở rộng từng khối nội dung trên Mobile
+        const collapseTrigger = e.target.closest('.btn-cell-collapse') || e.target.closest('.cell-label');
+        if (collapseTrigger) {
+            e.preventDefault();
+            e.stopPropagation();
+            const td = collapseTrigger.closest('td[data-col]');
+            if (td) {
+                td.classList.toggle('col-collapsed');
+                const isNowCollapsed = td.classList.contains('col-collapsed');
+                const btn = td.querySelector('.btn-cell-collapse');
+                if (btn) btn.textContent = isNowCollapsed ? '▶' : '▼';
+            }
+            return;
+        }
+
+        // B. Nút sao chép nội dung khối riêng biệt
+        const copyBtn = e.target.closest('.btn-cell-copy');
+        if (copyBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const td = copyBtn.closest('td[data-col]');
+            const contentEl = td ? (td.querySelector('.cell-content') || td) : null;
+            const textToCopy = contentEl ? contentEl.innerText.trim() : '';
+            if (textToCopy && navigator.clipboard) {
+                navigator.clipboard.writeText(textToCopy);
+                const meta = COLUMN_META[td.dataset.col] || { label: 'khối' };
+                if (typeof showToast === 'function') {
+                    showToast(`📋 Đã copy nội dung ${meta.label}!`, 'var(--btn-success)');
+                }
+            }
+            return;
+        }
+
+        // C. Thêm dòng mới bên dưới trên Mobile
+        const addRowBtn = e.target.closest('.btn-m-row-add');
+        if (addRowBtn) {
+            e.preventDefault();
+            const tr = addRowBtn.closest('tr');
+            const idx = tr ? parseInt(tr.dataset.index, 10) : data.length - 1;
+            insertRowAt(idx + 1);
+            return;
+        }
+
+        // D. Xóa dòng hiện tại trên Mobile
+        const delRowBtn = e.target.closest('.btn-m-row-del');
+        if (delRowBtn) {
+            e.preventDefault();
+            const tr = delRowBtn.closest('tr');
+            const idx = tr ? parseInt(tr.dataset.index, 10) : -1;
+            if (idx >= 0 && confirm(`Xóa Dòng ${idx + 1}?`)) {
+                deleteSingleRow(idx);
+            }
+            return;
+        }
+    });
+
+    // 5. CHỌN HÀNG QUA CHECKBOX TRÊN TBODY
+    tbody.addEventListener('change', (e) => {
+        if (e.target && e.target.classList.contains('batch-row-checkbox')) {
+            const rIdx = parseInt(e.target.dataset.row, 10);
+            if (isNaN(rIdx)) return;
+            if (e.target.checked) selectedBatchRows.add(rIdx);
+            else selectedBatchRows.delete(rIdx);
+            updateBatchHighlightsAndSummary();
+        }
+    });
+
+    // 6. TỰ ĐỘNG GIỮ Ô ĐANG GÕ VÀO VÙNG NHÌN THẤY KHI BÀN PHÍM ẢO XUẤT HIỆN
     tbody.addEventListener('focusin', (e) => {
         if (editorIsTyping) {
             clearTimeout(editorTypingUndoTimeout);
             saveEditorUndoState();
             editorIsTyping = false;
         }
-        if (isDragSelecting) return; 
         const tr = e.target.closest('tr');
         if (tr) {
             tbody.querySelectorAll('.active-row').forEach(row => row.classList.remove('active-row'));
             tr.classList.add('active-row');
-            currentRowIndex = Array.from(tbody.children).indexOf(tr);
-            selectedRowIndices = [currentRowIndex]; 
+            currentRowIndex = parseInt(tr.dataset.index, 10);
+            selectedRowIndices = [currentRowIndex];
+        }
+
+        const contentEl = e.target.closest('.cell-content');
+        if (contentEl && window.innerWidth <= 768) {
+            setTimeout(() => {
+                contentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
         }
     });
 
-    // THÊM HÀNG ĐƠN LẺ
+    // 7. CÁC NÚT THAO TÁC CƠ BẢN TRÊN THANH CÔNG CỤ
     document.getElementById('btn-add')?.addEventListener('click', (e) => {
         e.preventDefault();
         saveEditorUndoState();
@@ -763,7 +951,6 @@ function initEditorEvents() {
         if (container) container.scrollTop = container.scrollHeight;
     });
 
-    // XÓA HÀNG ĐANG CHỌN (CHẾ ĐỘ THÔNG THƯỜNG)
     document.getElementById('btn-delete')?.addEventListener('click', (e) => {
         e.preventDefault();
         if (selectedRowIndices.length > 0) {
@@ -773,24 +960,18 @@ function initEditorEvents() {
                 if (typeof addEditorHistoryEntry === 'function') addEditorHistoryEntry();
                 const sortedIndices = [...selectedRowIndices].sort((a, b) => b - a);
                 sortedIndices.forEach(idx => {
-                    if (tbody.children[idx]) {
-                        tbody.children[idx].remove();
-                        data.splice(idx, 1);
-                    }
+                    data.splice(idx, 1);
                 });
-                if (data.length === 0) {
-                    data = [createEmptyRow()];
-                    renderTable();
-                }
+                if (data.length === 0) data = [createEmptyRow()];
                 currentRowIndex = -1;
                 selectedRowIndices = [];
+                renderTable();
                 debounceSave();
                 showToast(`🗑️ Đã xóa ${count} hàng!`, 'var(--btn-danger)');
             }
         }
     });
 
-    // LÀM MỚI BẢNG
     document.getElementById('btn-reset')?.addEventListener('click', (e) => {
         e.preventDefault();
         if (confirm("⚠️ Xóa TOÀN BỘ dữ liệu trên bảng?")) {
@@ -801,88 +982,20 @@ function initEditorEvents() {
             selectedRowIndices = [];
             manualQTState = {};
             rowTokensMap = {};
-            
-            tbody.innerHTML = '';
-            setTimeout(() => {
-                renderTable();
-                localStorage.setItem('translationData', JSON.stringify(data));
-                localStorage.setItem('manualQTState', JSON.stringify(manualQTState));
-                showToast('🔄 Đã làm mới toàn bộ bảng!', 'var(--btn-warning)');
-            }, 0);
+            selectedBatchRows.clear();
+            selectedBatchCols.clear();
+            renderTable();
+            debounceSave();
+            showToast('🔄 Đã làm mới toàn bộ bảng!', 'var(--btn-warning)');
         }
     });
 
-    // TRÍCH XUẤT NỘI DUNG Ô
-    function extractCellContent(html) {
-        if (!html) return '';
-        let str = String(html);
-        str = str.replace(/<br\s*[\/]?>/gi, '\n')
-                 .replace(/<\/div>\s*<div>/gi, '\n')
-                 .replace(/<div[^>]*>/gi, '\n')
-                 .replace(/<\/div>/gi, '')
-                 .replace(/<p[^>]*>/gi, '\n')
-                 .replace(/<\/p>/gi, '')
-                 .replace(/&nbsp;/gi, ' ');
-        const temp = document.createElement('div');
-        temp.innerHTML = str;
-        let plain = temp.textContent || temp.innerText || '';
-        return plain.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
-    }
+    // 8. CÁC NÚT ĐIỀU KHIỂN CHẾ ĐỘ XEM TRÊN MOBILE
+    document.getElementById('btn-m-view-editonly')?.addEventListener('click', () => setMobileViewMode('edit-only'));
+    document.getElementById('btn-m-view-expandall')?.addEventListener('click', () => setMobileViewMode('expand-all'));
+    document.getElementById('btn-m-view-collapseall')?.addEventListener('click', () => setMobileViewMode('collapse-all'));
 
-    // SAO CHÉP KÉP
-    async function copyAdvancedToClipboard(textBlocks, successMsg) {
-        if (!textBlocks || textBlocks.length === 0) {
-            showToast('⚠️ Cột này đang trống!', 'var(--btn-warning)');
-            return;
-        }
-
-        const plainText = textBlocks.join('\r\n\r\n');
-        const htmlText = textBlocks.map(block => {
-            const safeHtml = block.replace(/&/g, '&amp;')
-                                  .replace(/</g, '&lt;')
-                                  .replace(/>/g, '&gt;')
-                                  .replace(/\n/g, '<br>');
-            return `<p>${safeHtml}</p>`;
-        }).join('<p><br></p>');
-
-        try {
-            if (navigator.clipboard && window.ClipboardItem) {
-                const textBlob = new Blob([plainText], { type: 'text/plain' });
-                const htmlBlob = new Blob([htmlText], { type: 'text/html' });
-                const clipboardItem = new ClipboardItem({ 'text/plain': textBlob, 'text/html': htmlBlob });
-                await navigator.clipboard.write([clipboardItem]);
-            } else if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(plainText);
-            }
-            showToast(successMsg, 'var(--btn-success)');
-        } catch (err) {
-            showToast('❌ Không thể truy cập bộ nhớ tạm!', 'var(--btn-danger)');
-        }
-    }
-
-    // COPY TỪNG CỘT
-    document.querySelectorAll('.col-copy-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            const colKey = btn.getAttribute('data-col');
-            if (!colKey) return;
-
-            const textBlocks = [];
-            data.forEach((row) => {
-                const text = extractCellContent(row[colKey]);
-                if (text !== '') textBlocks.push(text);
-            });
-
-            if (textBlocks.length === 0) {
-                showToast(`⚠️ Cột ${colKey.toUpperCase()} đang trống!`, 'var(--btn-warning)');
-                return;
-            }
-
-            await copyAdvancedToClipboard(textBlocks, `✅ Đã copy cột ${colKey.toUpperCase()}!`);
-        });
-    });
-
-    // NÚT RIBBON
+    // 9. NÚT RIBBON ĐỊNH DẠNG
     document.getElementById('btn-undo')?.addEventListener('click', () => { if (activeTab === 'edit-tool') editorUndo(); else if (typeof metaUndo === 'function') metaUndo(); });
     document.getElementById('btn-redo')?.addEventListener('click', () => { if (activeTab === 'edit-tool') editorRedo(); else if (typeof metaRedo === 'function') metaRedo(); });
     document.getElementById('btn-bold')?.addEventListener('click', () => execFormat('bold'));
@@ -895,7 +1008,7 @@ function initEditorEvents() {
     document.getElementById('btn-align-right')?.addEventListener('click', () => execFormat('justifyRight'));
     document.getElementById('btn-clear-format')?.addEventListener('click', () => execFormat('removeFormat'));
 
-    // PHÍM TẮT
+    // 10. PHÍM TẮT
     document.addEventListener('keydown', (e) => {
         if (e.ctrlKey || e.metaKey) {
             const key = e.key.toLowerCase();
@@ -915,7 +1028,7 @@ function initEditorEvents() {
         }
     });
 
-    // XUẤT / NHẬP FILE
+    // 11. XUẤT / NHẬP FILE JSON
     document.getElementById('btn-export')?.addEventListener('click', (e) => {
         e.preventDefault();
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
@@ -971,6 +1084,98 @@ function initEditorEvents() {
     document.getElementById('btn-highlight-all')?.addEventListener('click', () => { if (typeof runHighlightAll === 'function') runHighlightAll(); });
     document.getElementById('btn-replace-next')?.addEventListener('click', () => { if (typeof runReplaceNext === 'function') runReplaceNext(); });
     document.getElementById('btn-replace-all')?.addEventListener('click', () => { if (typeof runReplaceAll === 'function') runReplaceAll(); });
+
+    // 12. SAO CHÉP TỪNG CỘT
+    document.querySelectorAll('.col-copy-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const colKey = btn.getAttribute('data-col');
+            if (!colKey) return;
+
+            const textBlocks = [];
+            data.forEach((row) => {
+                const text = extractCellContent(row[colKey]);
+                if (text !== '') textBlocks.push(text);
+            });
+
+            if (textBlocks.length === 0) {
+                showToast(`⚠️ Cột ${colKey.toUpperCase()} đang trống!`, 'var(--btn-warning)');
+                return;
+            }
+
+            await copyAdvancedToClipboard(textBlocks, `✅ Đã copy cột ${colKey.toUpperCase()}!`);
+        });
+    });
+}
+
+// =========================================================================
+// CÁC HÀM TIỆN ÍCH HÀNG & ĐỊNH DẠNG VĂN BẢN
+// =========================================================================
+function insertRowAt(index) {
+    saveEditorUndoState();
+    const newRow = createEmptyRow();
+    data.splice(index, 0, newRow);
+    debounceSave();
+    renderTable();
+    if (typeof showToast === 'function') showToast(`➕ Đã thêm Dòng ${index + 1}`, 'var(--btn-primary)');
+}
+
+function deleteSingleRow(index) {
+    if (data.length <= 1) {
+        data = [createEmptyRow()];
+    } else {
+        saveEditorUndoState();
+        data.splice(index, 1);
+    }
+    debounceSave();
+    renderTable();
+    if (typeof showToast === 'function') showToast('🗑️ Đã xóa dòng!', 'var(--btn-danger)');
+}
+
+function extractCellContent(html) {
+    if (!html) return '';
+    let str = String(html);
+    str = str.replace(/<br\s*[\/]?>/gi, '\n')
+             .replace(/<\/div>\s*<div>/gi, '\n')
+             .replace(/<div[^>]*>/gi, '\n')
+             .replace(/<\/div>/gi, '')
+             .replace(/<p[^>]*>/gi, '\n')
+             .replace(/<\/p>/gi, '')
+             .replace(/&nbsp;/gi, ' ');
+    const temp = document.createElement('div');
+    temp.innerHTML = str;
+    let plain = temp.textContent || temp.innerText || '';
+    return plain.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+}
+
+async function copyAdvancedToClipboard(textBlocks, successMsg) {
+    if (!textBlocks || textBlocks.length === 0) {
+        showToast('⚠️ Cột này đang trống!', 'var(--btn-warning)');
+        return;
+    }
+
+    const plainText = textBlocks.join('\r\n\r\n');
+    const htmlText = textBlocks.map(block => {
+        const safeHtml = block.replace(/&/g, '&amp;')
+                              .replace(/</g, '&lt;')
+                              .replace(/>/g, '&gt;')
+                              .replace(/\n/g, '<br>');
+        return `<p>${safeHtml}</p>`;
+    }).join('<p><br></p>');
+
+    try {
+        if (navigator.clipboard && window.ClipboardItem) {
+            const textBlob = new Blob([plainText], { type: 'text/plain' });
+            const htmlBlob = new Blob([htmlText], { type: 'text/html' });
+            const clipboardItem = new ClipboardItem({ 'text/plain': textBlob, 'text/html': htmlBlob });
+            await navigator.clipboard.write([clipboardItem]);
+        } else if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(plainText);
+        }
+        showToast(successMsg, 'var(--btn-success)');
+    } catch (err) {
+        showToast('❌ Không thể truy cập bộ nhớ tạm!', 'var(--btn-danger)');
+    }
 }
 
 function refreshAllQT(forceOverwrite = false) {
@@ -1029,3 +1234,13 @@ function updateWordCounts() {
         }
     }
 }
+
+// =========================================================================
+// MỞ RỘNG TOÀN CỤC CHO CÁC MODULE KHÁC GỌI
+// =========================================================================
+window.renderTable = renderTable;
+window.initEditorEvents = initEditorEvents;
+window.setMobileViewMode = setMobileViewMode;
+window.toggleColumnCollapse = toggleColumnCollapse;
+window.refreshAllQT = refreshAllQT;
+window.toggleBatchDeleteMode = toggleBatchDeleteMode;

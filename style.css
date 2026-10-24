@@ -14,7 +14,7 @@
 
     --row-hover: rgba(0, 0, 0, 0.03);
     --row-active: #cbd5e1; 
-    --selection-bg: #2563eb;
+    --selection-bg: #2563eb; /* Đã đổi thành màu chuẩn, không dùng rgba mờ */
     --th-bg: #f4f4f5;
 
     /* Màu sắc bảng Mục 2 */
@@ -58,7 +58,7 @@ body {
     line-height: 1.6;
 }
 
-/* VÙNG CHỌN VĂN BẢN ĐỘ TƯƠNG PHẢN CAO - HIỂN THỊ RÕ RÀNG TRÊN MỌI THEME */
+/* ================= ĐÃ SỬA: VÙNG CHỌN VĂN BẢN ĐỘ TƯƠNG PHẢN CAO ================= */
 ::selection { 
     background-color: #2563eb !important; 
     color: #ffffff !important; 
@@ -67,7 +67,6 @@ body {
     background-color: #2563eb !important; 
     color: #ffffff !important; 
 }
-
 [data-theme="dark"] ::selection { 
     background-color: #38bdf8 !important; 
     color: #0f172a !important; 
@@ -349,7 +348,7 @@ button {
     .col-copy-btn { background-color: var(--btn-success); color: white; }
     .col-copy-btn:hover { background-color: var(--btn-success-hover); transform: scale(1.05); }
 
-    /* CĂN CHỮ SÁT TRÊN CÙNG BÊN TRÁI CHO TẤT CẢ CÁC Ô */
+    /* ĐÃ SỬA: BẬT KHẢ NĂNG BÔI ĐEN VÀ CĂN CHỮ SÁT LÊN TRÊN */
     body #table-body td,
     body[data-current-theme] #table-body td,
     body[data-current-theme] #table-body td[data-col] {
@@ -373,7 +372,7 @@ button {
     tr.active-row td { background-color: var(--row-active) !important; }
     td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary) !important; }
 
-    /* KHỬ HOÀN TOÀN TẤT CẢ CÁC KHỐI VÀ KHUNG ẨN CỦA MOBILE TRÊN DESKTOP */
+    /* KHỬ HOÀN TOÀN CÁC KHỐI MOBILE LÀM RÁC DOM TRÊN DESKTOP */
     #table-body tr td.mobile-row-meta,
     td.mobile-row-meta,
     .mobile-row-meta,
@@ -390,7 +389,6 @@ button {
         pointer-events: none !important;
     }
 
-    /* Ô CHECKBOX KHI BẬT CHẾ ĐỘ XÓA HÀNG LOẠT */
     #table-body tr td.batch-select-cell {
         width: 45px !important;
         min-width: 45px !important;
@@ -404,7 +402,7 @@ button {
         display: none !important;
     }
 
-    /* VÙNG CHỨA VĂN BẢN TRONG SUỐT VÀ ÔM SÁT TEXT */
+    /* VÙNG CHỨA VĂN BẢN: TRONG SUỐT VÀ ÔM SÁT TEXT */
     #table-body .cell-content,
     #table-body td > div {
         display: block !important;
@@ -416,7 +414,7 @@ button {
         margin: 0 !important;
         padding: 0 !important;
         border: none !important;
-        background: transparent !important;
+        background: transparent !important; 
         box-shadow: none !important;
         outline: none !important;
         word-break: break-word !important;
@@ -570,15 +568,10 @@ td.batch-intersection-selected {
     height: calc(100vh - 200px);
     overflow: hidden;
 }
-
-/* ĐÃ SỬA LỖI CÚ PHÁP: display: flex; flex-direction: column; */
 .story-section-box {
-    display: flex;
-    flex-direction: column;
-    border: 1px solid var(--border-color); 
-    border-radius: 6px;
-    background: var(--header-bg); 
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+    display: flex; flex-direction: column;
+    border: 1px solid var(--border-color); border-radius: 6px;
+    background: var(--header-bg); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
     overflow: hidden;
 }
 .green-section { grid-column: 1; grid-row: 1 / 3; width: 100% !important; min-width: 0 !important; }
@@ -688,7 +681,7 @@ td.batch-intersection-selected {
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
 .modal-desc { font-size: 0.85rem; color: gray; margin-bottom: 12px; }
 
-/* ================= LỊCH SỬ SỬA ĐỔI (DANH SÁCH PHẲNG TRỰC QUAN GỐC) ================= */
+/* ================= LỊCH SỬ SỬA ĐỔI ================= */
 .history-container { 
     flex-grow: 1; 
     overflow-y: auto; 
@@ -710,20 +703,9 @@ td.batch-intersection-selected {
 }
 .history-item:last-child { border-bottom: none; }
 .history-item:hover { background-color: var(--row-hover); }
-.history-item-info {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-.history-item-time {
-    font-weight: 700;
-    font-size: 0.9rem;
-    color: var(--text-color);
-}
-.history-item-desc {
-    font-size: 0.8rem;
-    color: var(--text-muted, #64748b);
-}
+.history-item-info { display: flex; flex-direction: column; gap: 3px; }
+.history-item-time { font-weight: 700; font-size: 0.9rem; color: var(--text-color); }
+.history-item-desc { font-size: 0.8rem; color: var(--text-muted, #64748b); }
 .history-actions { display: flex; gap: 6px; }
 
 /* ================= TOAST THÔNG BÁO ================= */
@@ -790,17 +772,10 @@ td.batch-intersection-selected {
 
 /* GIAO DIỆN DANH SÁCH FILE NAME QT TRONG MODAL */
 .nameqt-file-list { display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; margin-bottom: 12px; padding-right: 4px; }
-
-/* ĐÃ SỬA LỖI CÚ PHÁP: display: flex; align-items: center; */
 .nameqt-file-item {
-    display: flex;
-    align-items: center; 
-    justify-content: space-between;
-    background: var(--bg-color); 
-    border: 1px solid var(--border-color);
-    padding: 8px 12px; 
-    border-radius: 6px; 
-    transition: all 0.2s;
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--bg-color); border: 1px solid var(--border-color);
+    padding: 8px 12px; border-radius: 6px; transition: all 0.2s;
 }
 .nameqt-file-item:hover { border-color: var(--btn-primary); }
 .nameqt-file-item.editing { border-color: var(--btn-warning); background: rgba(245, 158, 11, 0.1); }
@@ -810,7 +785,7 @@ td.batch-intersection-selected {
 .nameqt-file-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .btn-xs { padding: 3px 8px !important; font-size: 0.75rem !important; border-radius: 4px !important; }
 
-/* ================= 📂 DỰ ÁN CỦA TÔI (BỐ CỤC RỘNG RÃI, THOÁNG ĐÃNG) ================= */
+/* ================= 📂 DỰ ÁN CỦA TÔI ================= */
 .modal-projects-box {
     width: 920px !important; 
     max-width: 96vw !important; 
@@ -992,7 +967,6 @@ body[data-current-theme="aqua"] table thead th {
     font-weight: 700;
 }
 
-/* NỀN ĐỒNG NHẤT CHO TOÀN BỘ Ô THEME AQUA (KHÔNG BỊ PHÂN MẢNG) */
 body[data-current-theme="aqua"] table tbody td[data-col] {
     background: rgba(255, 255, 255, 0.82) !important; 
     color: #18434D !important;
@@ -1002,7 +976,6 @@ body[data-current-theme="aqua"] table tbody td[data-col] {
     height: auto !important;
 }
 
-/* TRIỆT TIÊU TOÀN BỘ MÀU NỀN CỦA CÁC THẺ CON ĐỂ XÓA MẢNG TRẮNG GIẢ */
 body[data-current-theme="aqua"] table tbody td[data-col] div,
 body[data-current-theme="aqua"] table tbody td[data-col] p,
 body[data-current-theme="aqua"] table tbody td[data-col] span:not(.sync-highlight):not(.search-highlight) {

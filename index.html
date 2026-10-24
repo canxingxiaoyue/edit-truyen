@@ -28,7 +28,7 @@
     <script src="js/modals-history.js" defer></script>
     <script src="js/quick-name.js" defer></script>
     <script src="js/dict-lookup.js" defer></script>
-    <!-- ĐÃ BỔ SUNG MODULE QUẢN LÝ VIẾT TẮT & TỰ ĐỘNG THAY THẾ -->
+    <!-- ĐÃ BỔ SUNG FILE QUẢN LÝ VIẾT TẮT -->
     <script src="js/shortcuts.js" defer></script>
     <script src="js/google-drive.js" defer></script>
     <script src="js/project-manager.js" defer></script>
@@ -135,8 +135,8 @@
                 
                 <button class="btn-tool" id="btn-replace-show">🔍 Tìm & Thay thế</button>
                 <button class="btn-tool" id="btn-history-show" title="Xem lịch sử sửa đổi biên dịch">📜 Lịch sử</button>
-                <!-- ĐÃ BỔ SUNG NÚT BẬT/TẮT VÀ QUẢN LÝ VIẾT TẮT -->
-                <button type="button" class="btn-tool" id="btn-shortcuts-manager" title="Quản lý và bật/tắt viết tắt tự động (Space/Enter)">⚡ Viết tắt</button>
+                <!-- NÚT MỞ HỘP THOẠI QUẢN LÝ VIẾT TẮT -->
+                <button type="button" class="btn-tool" id="btn-shortcuts-manager" title="Quản lý và bật/tắt viết tắt tự động (Space / Enter)">⚡ Viết tắt</button>
 
                 <div class="divider"></div>
 
@@ -311,7 +311,7 @@
             </div>
 
             <div class="story-tables-wrapper">
-                <!-- 1. BẢNG NHÂN VẬT (DANH SÁCH KHỐI DỌC) -->
+                <!-- 1. BẢNG NHÂN VẬT -->
                 <div class="story-section-box green-section collapsed">
                     <div class="section-toolbar">
                         <span class="section-collapse-toggle" title="Thu gọn / Mở rộng"><i class="collapse-icon">▼</i> 1. Nhân vật trong truyện</span>
@@ -324,7 +324,7 @@
                     <div class="info-cards-scroll" id="body-characters"></div>
                 </div>
 
-                <!-- 2. BẢNG XƯNG HÔ (DANH SÁCH KHỐI DỌC) -->
+                <!-- 2. BẢNG XƯNG HÔ -->
                 <div class="story-section-box pink-section collapsed">
                     <div class="section-toolbar">
                         <span class="section-collapse-toggle" title="Thu gọn / Mở rộng"><i class="collapse-icon">▼</i> 2. Xưng hô</span>
@@ -337,7 +337,7 @@
                     <div class="info-cards-scroll" id="body-pronouns"></div>
                 </div>
 
-                <!-- 3. BẢNG THỐNG NHẤT TỪ NGỮ (DẠNG DÒNG HÁN = TÊN ĐỔI) -->
+                <!-- 3. BẢNG THỐNG NHẤT TỪ NGỮ -->
                 <div class="story-section-box yellow-section collapsed">
                     <div class="section-toolbar">
                         <span class="section-collapse-toggle" title="Thu gọn / Mở rộng"><i class="collapse-icon">▼</i> 3. Thống nhất từ ngữ</span>
@@ -495,14 +495,56 @@
     </div>
 
     <!-- =============================================================== -->
-    <!-- HỘP THOẠI MODAL: QUẢN LÝ DỰ ÁN CỦA TÔI -->
+    <!-- HỘP THOẠI MODAL: QUẢN LÝ VIẾT TẮT & SAO LƯU GOOGLE DRIVE        -->
+    <!-- =============================================================== -->
+    <div class="modal-overlay" id="modal-shortcuts">
+        <div class="modal-content shortcut-modal-box">
+            <h3>⚡ Quản lý Viết tắt</h3>
+
+            <div class="shortcut-header-actions">
+                <label class="shortcut-toggle-wrap">
+                    <label class="switch-toggle">
+                        <input type="checkbox" id="toggle-shortcut-enable" checked>
+                        <span class="slider-toggle"></span>
+                    </label>
+                    Bật tự động thay thế khi gõ (Space / Enter)
+                </label>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <button type="button" class="btn-file btn-sm" id="btn-sync-shortcuts-gdrive" title="Đồng bộ Viết tắt với Google Drive">☁️ Đồng bộ Drive</button>
+                    <button type="button" class="btn-file btn-sm" id="btn-export-shortcuts" title="Xuất file JSON lưu vào máy">💾 Xuất JSON</button>
+                    <button type="button" class="btn-file btn-sm" id="btn-import-shortcuts-btn" title="Nhập danh sách từ file JSON">📂 Nhập JSON</button>
+                    <input type="file" id="input-import-shortcuts-file" accept=".json" style="display:none">
+                </div>
+            </div>
+
+            <div class="shortcut-add-form">
+                <input type="text" id="shortcut-key-input" placeholder="Từ viết tắt (VD: dc, k, tg, trc)">
+                <input type="text" id="shortcut-val-input" placeholder="Nội dung thay thế (VD: được, không, thời gian, trước)">
+                <button type="button" class="btn-add" id="btn-add-shortcut">➕ Thêm</button>
+            </div>
+
+            <div class="modal-group">
+                <input type="text" id="shortcut-search-input" placeholder="🔍 Tìm kiếm viết tắt..." style="margin-bottom:10px;">
+                <div class="shortcut-list-container" id="shortcut-list-body">
+                    <!-- Danh sách viết tắt render tự động bằng Javascript -->
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <span id="shortcut-sync-status" style="margin-right:auto; font-size:12px; color:gray; align-self:center;"></span>
+                <button type="button" class="btn-file" id="btn-close-shortcuts-modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =============================================================== -->
+    <!-- HỘP THOẠI MODAL: QUẢN LÝ DỰ ÁN CỦA TÔI                         -->
     <!-- =============================================================== -->
     <div class="modal-overlay" id="modal-my-data">
         <div class="modal-content modal-projects-box">
             <h3>📂 Dự án của tôi</h3>
             <p class="modal-desc" id="storage-summary-info">Đang tính toán dung lượng...</p>
 
-            <!-- THANH TÌM KIẾM, SẮP XẾP & NÚT CHỌN NHIỀU -->
             <div class="project-toolbar-bar" style="display:flex; gap:8px; align-items:center; margin: 8px 0; flex-wrap:wrap;">
                 <input type="text" id="project-search-input" placeholder="🔍 Tìm kiếm dự án / chương truyện..." style="flex:1; min-width:180px; padding:6px 10px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-color); color:var(--text-color); font-size:0.88rem;">
                 <select id="project-sort-select" class="font-select" style="margin:0; padding:6px 8px; font-size:0.85rem;">
@@ -514,7 +556,6 @@
                 <button type="button" class="btn-tool btn-sm" id="btn-toggle-project-batch" onclick="toggleProjectBatchMode()" title="Bật/Tắt chế độ chọn nhiều dự án">☑️ Chọn nhiều</button>
             </div>
 
-            <!-- THANH THAO TÁC HÀNG LOẠT -->
             <div id="project-batch-bar" class="project-batch-bar" style="display: none;">
                 <span id="project-batch-summary">Đã chọn: 0 dự án</span>
                 <button type="button" class="btn-danger btn-xs" id="btn-project-batch-delete" onclick="executeProjectBatchDelete()" disabled>🗑️ Xóa dự án đã chọn</button>
@@ -565,7 +606,7 @@
     </div>
 
     <!-- =============================================================== -->
-    <!-- CỬA SỔ RIÊNG GOOGLE DRIVE -->
+    <!-- CỬA SỔ RIÊNG GOOGLE DRIVE                                      -->
     <!-- =============================================================== -->
     <div class="modal-overlay" id="modal-gdrive-auth">
         <div class="modal-content sage-gdrive-card">

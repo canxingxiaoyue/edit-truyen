@@ -28,7 +28,6 @@
     <script src="js/modals-history.js" defer></script>
     <script src="js/quick-name.js" defer></script>
     <script src="js/dict-lookup.js" defer></script>
-    <!-- ĐÃ BỔ SUNG FILE QUẢN LÝ VIẾT TẮT -->
     <script src="js/shortcuts.js" defer></script>
     <script src="js/google-drive.js" defer></script>
     <script src="js/project-manager.js" defer></script>
@@ -495,44 +494,78 @@
     </div>
 
     <!-- =============================================================== -->
-    <!-- HỘP THOẠI MODAL: QUẢN LÝ VIẾT TẮT & SAO LƯU GOOGLE DRIVE        -->
+    <!-- HỘP THOẠI MODAL: QUẢN LÝ VIẾT TẮT (GIAO DIỆN MỚI CHUẨN ĐỒNG BỘ)  -->
     <!-- =============================================================== -->
     <div class="modal-overlay" id="modal-shortcuts">
         <div class="modal-content shortcut-modal-box">
-            <h3>⚡ Quản lý Viết tắt</h3>
+            <!-- 1. Tiêu đề và nút Đóng trên cùng 1 hàng -->
+            <div class="shortcut-modal-header">
+                <div class="shortcut-header-title-wrap">
+                    <span class="shortcut-header-icon">⚡</span>
+                    <h3 class="shortcut-header-title">Quản lý Viết tắt</h3>
+                </div>
+                <button type="button" class="btn-modal-close-icon btn-close-modal-trigger" title="Đóng">&times;</button>
+            </div>
 
-            <div class="shortcut-header-actions">
-                <label class="shortcut-toggle-wrap">
-                    <label class="switch-toggle">
-                        <input type="checkbox" id="toggle-shortcut-enable" checked>
-                        <span class="slider-toggle"></span>
-                    </label>
-                    Bật tự động thay thế khi gõ (Space / Enter)
+            <!-- 2. Hàng cài đặt: Công tắc Bật/Tắt tự động thay thế riêng biệt -->
+            <div class="shortcut-setting-row">
+                <div class="shortcut-setting-text">
+                    <span class="setting-title">Tự động thay thế khi gõ</span>
+                    <span class="setting-desc">Tự động bung chữ khi nhấn phím Space hoặc Enter trong bảng dịch</span>
+                </div>
+                <label class="switch-toggle" title="Bật/Tắt viết tắt">
+                    <input type="checkbox" id="toggle-shortcut-enable" checked>
+                    <span class="slider-toggle"></span>
                 </label>
-                <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                    <button type="button" class="btn-file btn-sm" id="btn-sync-shortcuts-gdrive" title="Đồng bộ Viết tắt với Google Drive">☁️ Đồng bộ Drive</button>
-                    <button type="button" class="btn-file btn-sm" id="btn-export-shortcuts" title="Xuất file JSON lưu vào máy">💾 Xuất JSON</button>
-                    <button type="button" class="btn-file btn-sm" id="btn-import-shortcuts-btn" title="Nhập danh sách từ file JSON">📂 Nhập JSON</button>
+            </div>
+
+            <!-- 3. Nhóm nút thao tác phụ: Đồng bộ Drive, Tải về, Xuất/Nhập JSON -->
+            <div class="shortcut-actions-row">
+                <div class="shortcut-btn-group">
+                    <button type="button" class="btn-tool-sub" id="btn-sync-shortcuts-gdrive" title="Đồng bộ 2 chiều với tệp VietTat.json trên Google Drive">
+                        <span>☁️</span> Đồng bộ Drive
+                    </button>
+                    <button type="button" class="btn-tool-sub" id="btn-pull-shortcuts-gdrive" title="Tải dữ liệu từ VietTat.json trên Drive để khôi phục">
+                        <span>📥</span> Tải từ Drive
+                    </button>
+                    <button type="button" class="btn-tool-sub" id="btn-export-shortcuts" title="Xuất danh sách ra tệp VietTat.json trên máy">
+                        <span>💾</span> Xuất JSON
+                    </button>
+                    <button type="button" class="btn-tool-sub" id="btn-import-shortcuts-btn" title="Nhập danh sách từ tệp JSON">
+                        <span>📂</span> Nhập JSON
+                    </button>
                     <input type="file" id="input-import-shortcuts-file" accept=".json" style="display:none">
                 </div>
+                <span id="shortcut-sync-status" class="shortcut-sync-status"></span>
             </div>
 
-            <div class="shortcut-add-form">
-                <input type="text" id="shortcut-key-input" placeholder="Từ viết tắt (VD: dc, k, tg, trc)">
-                <input type="text" id="shortcut-val-input" placeholder="Nội dung thay thế (VD: được, không, thời gian, trước)">
-                <button type="button" class="btn-add" id="btn-add-shortcut">➕ Thêm</button>
-            </div>
-
-            <div class="modal-group">
-                <input type="text" id="shortcut-search-input" placeholder="🔍 Tìm kiếm viết tắt..." style="margin-bottom:10px;">
-                <div class="shortcut-list-container" id="shortcut-list-body">
-                    <!-- Danh sách viết tắt render tự động bằng Javascript -->
+            <!-- 4. Biểu mẫu thêm / sửa viết tắt (Thẳng hàng trên Desktop, cùng chiều cao) -->
+            <div class="shortcut-form-row">
+                <div class="form-inputs-wrap">
+                    <input type="text" id="shortcut-key-input" class="shortcut-input-field key-field" placeholder="Từ viết tắt (VD: dc)">
+                    <input type="text" id="shortcut-val-input" class="shortcut-input-field val-field" placeholder="Nội dung thay thế (VD: được)">
+                </div>
+                <div class="form-btns-wrap">
+                    <button type="button" class="btn-add shortcut-submit-btn" id="btn-add-shortcut">➕ Thêm</button>
+                    <button type="button" class="btn-secondary shortcut-cancel-btn" id="btn-cancel-edit-shortcut" style="display:none;">✕ Hủy</button>
                 </div>
             </div>
 
-            <div class="modal-actions">
-                <span id="shortcut-sync-status" style="margin-right:auto; font-size:12px; color:gray; align-self:center;"></span>
-                <button type="button" class="btn-file" id="btn-close-shortcuts-modal">Đóng</button>
+            <!-- 5. Tìm kiếm và Danh sách viết tắt -->
+            <div class="shortcut-list-wrap">
+                <div class="shortcut-search-bar">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="shortcut-search-input" placeholder="Tìm kiếm viết tắt hoặc nội dung thay thế...">
+                </div>
+                <div class="shortcut-list-scroll" id="shortcut-list-body">
+                    <!-- Danh sách viết tắt render tự động -->
+                </div>
+            </div>
+
+            <!-- 6. Chân modal -->
+            <div class="shortcut-modal-footer">
+                <span id="shortcut-count-summary" class="shortcut-summary-text">Tổng số: 0 viết tắt</span>
+                <button type="button" class="btn-file btn-close-modal-trigger" id="btn-close-shortcuts-modal">Đóng</button>
             </div>
         </div>
     </div>

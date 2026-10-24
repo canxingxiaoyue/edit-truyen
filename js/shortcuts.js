@@ -1,17 +1,20 @@
 // =========================================================================
-// QUẢN LÝ VIẾT TẮT & SAO LƯU GOOGLE DRIVE (GIAO DIỆN TỐI GIẢN, DỄ THƯƠNG)
+// QUẢN LÝ VIẾT TẮT & TỰ ĐỘNG THAY THẾ KHI GÕ (TÍCH HỢP TỆP VietTat.json)
 // =========================================================================
 
 (function () {
-    let shortcuts = [];
-    let isAutoReplaceEnabled = localStorage.getItem('shortcuts_enabled') !== 'false';
-    let isComposing = false; // Bảo vệ IME Unikey / Pinyin
-    let editingId = null;   // Trạng thái đang chỉnh sửa
+    const STORAGE_KEY = 'storyShortcuts';
+    const ENABLED_KEY = 'shortcuts_enabled';
 
-    // 1. NẠP DỮ LIỆU CỤC BỘ
+    let shortcuts = [];
+    let isAutoReplaceEnabled = localStorage.getItem(ENABLED_KEY) !== 'false';
+    let isComposing = false; // Bảo vệ IME Unikey / EVKey / Pinyin
+    let editingId = null;
+
+    // 1. QUẢN LÝ DỮ LIỆU CỤC BỘ
     function loadLocalShortcuts() {
         try {
-            const data = localStorage.getItem('storyShortcuts');
+            const data = localStorage.getItem(STORAGE_KEY);
             shortcuts = data ? JSON.parse(data) : [];
             if (!Array.isArray(shortcuts)) shortcuts = [];
         } catch (e) {
@@ -21,17 +24,18 @@
     }
 
     function saveLocalShortcuts() {
-        localStorage.setItem('storyShortcuts', JSON.stringify(shortcuts));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(shortcuts));
     }
 
-    // 2. RENDER DANH SÁCH THẺ VIẾT TẮT DỄ THƯƠNG
+    // 2. RENDER DANH SÁCH VIẾT TẮT
     function renderShortcutList(query = '') {
         const listBody = document.getElementById('shortcut-list-body');
+        const countSummary = document.getElementById('shortcut-count-summary');
         if (!listBody) return;
 
         let filtered = shortcuts;
-        if (query) {
-            const q = query.toLowerCase().trim();
+        const q = (query || '').toLowerCase().trim();
+        if (q) {
             filtered = shortcuts.filter(s => 
                 (s.shortcut || '').toLowerCase().includes(q) || 
                 (s.replacement || '').toLowerCase().includes(q)
@@ -40,41 +44,64 @@
 
         filtered.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
-        if (filtered.length === 0) {
+        if (countSummary) {
+            countSummary.textContent = q 
+                ? `Tìm thấy: ${filtered.length} / ${shortcuts.length} viết tắt`
+                : `Tổng số: ${shortcuts.length} viết tắt`;
+        }
+
+        // Trạng thái 1: Chưa có dữ liệu
+        if (shortcuts.length === 0) {
             listBody.innerHTML = `
-                <div class="shortcut-empty-box">
-                    <span class="shortcut-empty-icon">🌱✨</span>
-                    <div class="shortcut-empty-title">Chưa có phím tắt nào cả~</div>
-                    <p class="shortcut-empty-desc">Thử thêm <code>dc</code> ➔ <code>được</code> hoặc <code>k</code> ➔ <code>không</code> để gõ truyện siêu tốc nhé!</p>
+                <div class="shortcut-empty-compact">
+                    <span class="empty-icon">🌱✨</span>
+                    <div class="empty-title">Chưa có phím tắt nào cả~</div>
+                    <div class="empty-hint">Thêm các cặp từ thường dùng như <code>dc</code> ➔ <code>được</code> để gõ truyện siêu tốc nhé!</div>
                 </div>
             `;
+            listBody.classList.add('is-empty');
             return;
         }
 
-        listBody.innerHTML = filtered.map(s => `
-            <div class="shortcut-card-item">
-                <div class="shortcut-card-left">
-                    <span class="shortcut-badge-pill">${escapeHtml(s.shortcut)}</span>
-                    <span class="shortcut-arrow-icon">➔</span>
-                    <span class="shortcut-val-text" title="${escapeHtml(s.replacement)}">${escapeHtml(s.replacement)}</span>
+        // Trạng thái 2: Có dữ liệu nhưng tìm kiếm không khớp
+        if (filtered.length === 0 && q) {
+            listBody.innerHTML = `
+                <div class="shortcut-empty-compact">
+                    <span class="empty-icon">🔍</span>
+                    <div class="empty-title">Không tìm thấy viết tắt phù hợp</div>
+                    <div class="empty-hint">Không có mục nào chứa từ khóa "<b>${escapeHtml(q)}</b>"</div>
                 </div>
-                <div class="shortcut-card-actions">
-                    <button type="button" class="btn-icon-cute" title="Copy nội dung" onclick="window.copyShortcutVal('${s.id}')">📋</button>
-                    <button type="button" class="btn-icon-cute" title="Sửa phím tắt" onclick="window.editShortcut('${s.id}')">✏️</button>
-                    <button type="button" class="btn-icon-cute danger" title="Xóa" onclick="window.deleteShortcut('${s.id}')">🗑️</button>
+            `;
+            listBody.classList.add('is-empty');
+            return;
+        }
+
+        listBody.classList.remove('is-empty');
+        listBody.innerHTML = filtered.map(s => `
+            <div class="shortcut-item-row" data-id="${s.id}">
+                <div class="shortcut-item-main">
+                    <span class="shortcut-pill">${escapeHtml(s.shortcut)}</span>
+                    <span class="shortcut-arrow">➔</span>
+                    <span class="shortcut-replacement" title="${escapeHtml(s.replacement)}">${escapeHtml(s.replacement)}</span>
+                </div>
+                <div class="shortcut-item-actions">
+                    <button type="button" class="btn-action-icon" title="Sao chép nội dung" onclick="window.copyShortcutText('${s.id}')">📋</button>
+                    <button type="button" class="btn-action-icon" title="Sửa viết tắt" onclick="window.editShortcutItem('${s.id}')">✏️</button>
+                    <button type="button" class="btn-action-icon danger" title="Xóa viết tắt" onclick="window.deleteShortcutItem('${s.id}')">🗑️</button>
                 </div>
             </div>
         `).join('');
     }
 
     // 3. THAO TÁC CRUD TRỰC TIẾP
-    window.editShortcut = function (id) {
+    window.editShortcutItem = function (id) {
         const item = shortcuts.find(s => s.id === id);
         if (!item) return;
 
         const keyInput = document.getElementById('shortcut-key-input');
         const valInput = document.getElementById('shortcut-val-input');
         const btnAdd = document.getElementById('btn-add-shortcut');
+        const btnCancel = document.getElementById('btn-cancel-edit-shortcut');
 
         if (keyInput && valInput && btnAdd) {
             keyInput.value = item.shortcut;
@@ -82,22 +109,24 @@
             editingId = id;
             btnAdd.textContent = '💾 Cập nhật';
             btnAdd.classList.add('btn-primary');
+            if (btnCancel) btnCancel.style.display = 'inline-flex';
             keyInput.focus();
         }
     };
 
-    window.deleteShortcut = function (id) {
+    window.deleteShortcutItem = function (id) {
         const item = shortcuts.find(s => s.id === id);
         if (!item) return;
-        if (!confirm(`Bạn có chắc muốn xóa phím tắt "${item.shortcut}"?`)) return;
+        if (!confirm(`Bạn có chắc muốn xóa viết tắt "${item.shortcut}"?`)) return;
 
         shortcuts = shortcuts.filter(s => s.id !== id);
         saveLocalShortcuts();
-        renderShortcutList();
+        if (editingId === id) resetForm();
+        renderShortcutList(document.getElementById('shortcut-search-input')?.value || '');
         if (typeof showToast === 'function') showToast(`🗑️ Đã xóa phím tắt "${item.shortcut}"`, 'var(--btn-info)');
     };
 
-    window.copyShortcutVal = function (id) {
+    window.copyShortcutText = function (id) {
         const item = shortcuts.find(s => s.id === id);
         if (item && item.replacement && navigator.clipboard) {
             navigator.clipboard.writeText(item.replacement);
@@ -105,27 +134,31 @@
         }
     };
 
-    function resetFormState() {
+    function resetForm() {
         editingId = null;
         const keyInput = document.getElementById('shortcut-key-input');
         const valInput = document.getElementById('shortcut-val-input');
         const btnAdd = document.getElementById('btn-add-shortcut');
+        const btnCancel = document.getElementById('btn-cancel-edit-shortcut');
+
         if (keyInput) keyInput.value = '';
         if (valInput) valInput.value = '';
         if (btnAdd) {
             btnAdd.textContent = '➕ Thêm';
             btnAdd.classList.remove('btn-primary');
         }
+        if (btnCancel) btnCancel.style.display = 'none';
     }
 
-    // 4. XUẤT VÀ NHẬP JSON
+    // 4. XUẤT VÀ NHẬP FILE JSON
     function exportShortcutsJSON() {
         if (shortcuts.length === 0) {
             if (typeof showToast === 'function') showToast('Danh sách viết tắt đang trống!', 'var(--btn-warning)');
             return;
         }
         const exportData = {
-            version: 1,
+            schemaVersion: 1,
+            fileName: 'VietTat.json',
             exportedAt: new Date().toISOString(),
             shortcuts: shortcuts
         };
@@ -133,12 +166,12 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `edit-truyen-shortcuts-${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = 'VietTat.json';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        if (typeof showToast === 'function') showToast('💾 Đã xuất file JSON thành công!', 'var(--btn-success)');
+        if (typeof showToast === 'function') showToast(`💾 Đã xuất file VietTat.json thành công!`, 'var(--btn-success)');
     }
 
     function importShortcutsJSON(file) {
@@ -152,147 +185,134 @@
                     throw new Error("File không chứa danh sách viết tắt hợp lệ!");
                 }
 
-                let addedCount = 0;
+                let updatedCount = 0;
                 items.forEach(item => {
-                    if (item.shortcut && item.replacement) {
-                        const existingIdx = shortcuts.findIndex(s => s.shortcut.toLowerCase() === item.shortcut.toLowerCase());
+                    const k = (item.shortcut || '').trim();
+                    const v = (item.replacement || '').trim();
+                    if (k && v) {
+                        const existingIdx = shortcuts.findIndex(s => s.shortcut.toLowerCase() === k.toLowerCase());
                         if (existingIdx >= 0) {
-                            shortcuts[existingIdx].replacement = item.replacement;
+                            shortcuts[existingIdx].replacement = v;
                             shortcuts[existingIdx].updatedAt = Date.now();
                         } else {
                             shortcuts.push({
                                 id: item.id || ('sc_' + Date.now() + Math.random().toString(36).substr(2, 4)),
-                                shortcut: item.shortcut.trim(),
-                                replacement: item.replacement.trim(),
+                                shortcut: k,
+                                replacement: v,
                                 updatedAt: item.updatedAt || Date.now()
                             });
-                            addedCount++;
                         }
+                        updatedCount++;
                     }
                 });
 
                 saveLocalShortcuts();
                 renderShortcutList();
-                if (typeof showToast === 'function') showToast(`📂 Đã nạp thành công ${items.length} phím tắt!`, 'var(--btn-success)');
+                if (typeof showToast === 'function') showToast(`📂 Đã nạp thành công ${updatedCount} viết tắt!`, 'var(--btn-success)');
             } catch (err) {
                 console.error(err);
-                if (typeof showToast === 'function') showToast('❌ File JSON không đúng định dạng!', 'var(--btn-danger)');
+                if (typeof showToast === 'function') showToast('❌ File JSON không đúng định dạng viết tắt!', 'var(--btn-danger)');
             }
         };
         reader.readAsText(file);
     }
 
-    // 5. SAO LƯU & ĐỒNG BỘ GOOGLE DRIVE
+    // 5. ĐỒNG BỘ VÀ TẢI TỪ GOOGLE DRIVE (TẬN DỤNG CƠ CHẾ js/google-drive.js)
     async function syncShortcutsWithDrive() {
         const statusEl = document.getElementById('shortcut-sync-status');
-        if (typeof gapi === 'undefined' || !gapi.client || !gapi.client.drive) {
-            if (statusEl) statusEl.innerHTML = `<span style="color:#ef4444;">⚠️ Vui lòng kết nối Google Drive trước.</span>`;
+        if (typeof isGDriveConnected !== 'function' || !isGDriveConnected()) {
+            if (statusEl) statusEl.innerHTML = `<span class="status-error">⚠️ Chưa kết nối Google Drive.</span>`;
+            if (typeof showToast === 'function') showToast("Vui lòng kết nối Google Drive ở Trang chủ trước!", 'var(--btn-warning)');
+            return;
+        }
+
+        if (statusEl) statusEl.innerHTML = `<span class="status-syncing">Đang đồng bộ VietTat.json... ⏳</span>`;
+
+        try {
+            // A. Đọc file VietTat.json từ Drive về trước để gộp 2 chiều (tránh mất dữ liệu)
+            const loadRes = await gdriveLoadShortcuts();
+            if (!loadRes.success) {
+                throw new Error(loadRes.reason || 'load_failed');
+            }
+
+            const remoteShortcuts = loadRes.data || [];
+
+            // B. Gộp dữ liệu thông minh theo updatedAt
+            const mergedMap = new Map();
+            shortcuts.forEach(s => mergedMap.set(s.id || s.shortcut.toLowerCase(), s));
+
+            let mergedCount = 0;
+            remoteShortcuts.forEach(remoteItem => {
+                const key = remoteItem.id || (remoteItem.shortcut || '').toLowerCase();
+                if (!key) return;
+                const localItem = mergedMap.get(key);
+                if (!localItem || (remoteItem.updatedAt || 0) > (localItem.updatedAt || 0)) {
+                    mergedMap.set(key, remoteItem);
+                    mergedCount++;
+                }
+            });
+
+            shortcuts = Array.from(mergedMap.values());
+            saveLocalShortcuts();
+            renderShortcutList(document.getElementById('shortcut-search-input')?.value || '');
+
+            // C. Ghi đè danh sách mới nhất lên file VietTat.json duy nhất
+            const saveRes = await gdriveSaveShortcuts(shortcuts);
+            if (!saveRes.success) {
+                throw new Error(saveRes.reason || 'save_failed');
+            }
+
+            const now = new Date().toLocaleTimeString('vi-VN');
+            if (statusEl) statusEl.innerHTML = `<span class="status-success">✓ Đã đồng bộ VietTat.json (${now})</span>`;
+            if (typeof showToast === 'function') showToast(`☁️ Đã đồng bộ ${shortcuts.length} viết tắt lên VietTat.json!`, 'var(--btn-success)');
+        } catch (error) {
+            console.error("Lỗi đồng bộ viết tắt:", error);
+            if (statusEl) statusEl.innerHTML = `<span class="status-error">❌ Lỗi đồng bộ Google Drive.</span>`;
+            if (typeof showToast === 'function') showToast("Lỗi đồng bộ Google Drive!", 'var(--btn-danger)');
+        }
+    }
+
+    async function pullShortcutsFromDrive() {
+        const statusEl = document.getElementById('shortcut-sync-status');
+        if (typeof isGDriveConnected !== 'function' || !isGDriveConnected()) {
             if (typeof showToast === 'function') showToast("Vui lòng kết nối Google Drive trước!", 'var(--btn-warning)');
             return;
         }
 
-        const fileName = 'edit-truyen-shortcuts.json';
-        if (statusEl) statusEl.innerHTML = `<span style="color:#f59e0b;">Đang đồng bộ Google Drive... ⏳</span>`;
+        if (!confirm("Bạn có chắc muốn tải dữ liệu từ tệp VietTat.json trên Google Drive về để khôi phục danh sách viết tắt?")) {
+            return;
+        }
+
+        if (statusEl) statusEl.innerHTML = `<span class="status-syncing">Đang tải từ VietTat.json... ⏳</span>`;
 
         try {
-            const searchResponse = await gapi.client.drive.files.list({
-                q: `name='${fileName}' and trashed=false`,
-                fields: 'files(id, modifiedTime)',
-                spaces: 'drive'
-            });
-
-            const files = searchResponse.result.files;
-
-            if (files && files.length > 0) {
-                // TỆP ĐÃ CÓ: TẢI VỀ & MERGE THÔNG MINH
-                const fileId = files[0].id;
-                const getResponse = await gapi.client.drive.files.get({
-                    fileId: fileId,
-                    alt: 'media'
-                });
-
-                let remoteShortcuts = [];
-                if (getResponse.body) {
-                    try {
-                        const parsed = JSON.parse(getResponse.body);
-                        remoteShortcuts = Array.isArray(parsed) ? parsed : (parsed.shortcuts || []);
-                    } catch (e) {}
-                }
-
-                const mergedMap = new Map();
-                shortcuts.forEach(s => mergedMap.set(s.id || s.shortcut, s));
-
-                let mergedCount = 0;
-                remoteShortcuts.forEach(remoteItem => {
-                    const key = remoteItem.id || remoteItem.shortcut;
-                    const localItem = mergedMap.get(key);
-                    if (!localItem || (remoteItem.updatedAt || 0) > (localItem.updatedAt || 0)) {
-                        mergedMap.set(key, remoteItem);
-                        mergedCount++;
-                    }
-                });
-
-                shortcuts = Array.from(mergedMap.values());
-                saveLocalShortcuts();
-                renderShortcutList();
-
-                // LƯU BẢN ĐÃ GỘP LÊN DRIVE
-                const boundary = '-------314159265358979323846';
-                const delimiter = "\r\n--" + boundary + "\r\n";
-                const close_delim = "\r\n--" + boundary + "--";
-                const metadata = { 'mimeType': 'application/json' };
-                const fileContent = JSON.stringify({ version: 1, shortcuts }, null, 2);
-
-                const multipartRequestBody =
-                    delimiter + 'Content-Type: application/json\r\n\r\n' + JSON.stringify(metadata) +
-                    delimiter + 'Content-Type: application/json\r\n\r\n' + fileContent + close_delim;
-
-                await gapi.client.request({
-                    'path': `/upload/drive/v3/files/${fileId}`,
-                    'method': 'PATCH',
-                    'params': { 'uploadType': 'multipart' },
-                    'headers': { 'Content-Type': 'multipart/related; boundary="' + boundary + '"' },
-                    'body': multipartRequestBody
-                });
-
-                if (statusEl) statusEl.innerHTML = `<span style="color:#10b981;">✓ Đồng bộ hoàn tất! (Gộp ${mergedCount} mục mới)</span>`;
-                if (typeof showToast === 'function') showToast(`☁️ Đã đồng bộ ${shortcuts.length} viết tắt lên Drive!`, 'var(--btn-success)');
-            } else {
-                // TẠO TỆP MỚI TRÊN DRIVE
-                const boundary = '-------314159265358979323846';
-                const delimiter = "\r\n--" + boundary + "\r\n";
-                const close_delim = "\r\n--" + boundary + "--";
-                const metadata = {
-                    'name': fileName,
-                    'mimeType': 'application/json',
-                    'description': 'Danh sách phím tắt tự động của công cụ edit truyện'
-                };
-                const folderId = localStorage.getItem('gdriveFolderId');
-                if (folderId) metadata.parents = [folderId];
-
-                const fileContent = JSON.stringify({ version: 1, shortcuts }, null, 2);
-                const multipartRequestBody =
-                    delimiter + 'Content-Type: application/json\r\n\r\n' + JSON.stringify(metadata) +
-                    delimiter + 'Content-Type: application/json\r\n\r\n' + fileContent + close_delim;
-
-                await gapi.client.request({
-                    'path': '/upload/drive/v3/files',
-                    'method': 'POST',
-                    'params': { 'uploadType': 'multipart' },
-                    'headers': { 'Content-Type': 'multipart/related; boundary="' + boundary + '"' },
-                    'body': multipartRequestBody
-                });
-
-                if (statusEl) statusEl.innerHTML = `<span style="color:#10b981;">✓ Đã sao lưu bản đầu tiên lên Google Drive!</span>`;
-                if (typeof showToast === 'function') showToast(`☁️ Đã tạo tệp sao lưu viết tắt trên Drive!`, 'var(--btn-success)');
+            const loadRes = await gdriveLoadShortcuts();
+            if (!loadRes.success) {
+                throw new Error(loadRes.reason || 'load_failed');
             }
+
+            if (loadRes.notFound || !loadRes.data || loadRes.data.length === 0) {
+                if (statusEl) statusEl.innerHTML = `<span class="status-warning">Chưa có tệp VietTat.json nào trên Drive.</span>`;
+                if (typeof showToast === 'function') showToast("Chưa có tệp VietTat.json trên Google Drive!", 'var(--btn-warning)');
+                return;
+            }
+
+            shortcuts = loadRes.data;
+            saveLocalShortcuts();
+            renderShortcutList();
+            resetForm();
+
+            const now = new Date().toLocaleTimeString('vi-VN');
+            if (statusEl) statusEl.innerHTML = `<span class="status-success">✓ Đã khôi phục ${shortcuts.length} viết tắt (${now})</span>`;
+            if (typeof showToast === 'function') showToast(`📥 Đã khôi phục ${shortcuts.length} viết tắt từ VietTat.json!`, 'var(--btn-success)');
         } catch (error) {
-            console.error("Lỗi đồng bộ viết tắt:", error);
-            if (statusEl) statusEl.innerHTML = `<span style="color:#ef4444;">❌ Lỗi mạng hoặc hết phiên đăng nhập.</span>`;
+            console.error("Lỗi tải viết tắt từ Drive:", error);
+            if (statusEl) statusEl.innerHTML = `<span class="status-error">❌ Lỗi tải dữ liệu từ Google Drive.</span>`;
+            if (typeof showToast === 'function') showToast("Lỗi khi tải từ Google Drive!", 'var(--btn-danger)');
         }
     }
 
-    // 6. THUẬT TOÁN THAY THẾ TỰ ĐỘNG BẢO VỆ CON TRỎ (RANGE API)
+    // 6. THUẬT TOÁN TỰ ĐỘNG THAY THẾ KHI GÕ (RANGE API CAO CẤP)
     function handleAutoReplace(e) {
         if (!isAutoReplaceEnabled || isComposing) return;
         if (e.key !== ' ' && e.key !== 'Enter') return;
@@ -304,9 +324,13 @@
         if (!range.collapsed) return;
 
         const targetNode = range.startContainer;
-        const targetCell = targetNode.nodeType === 3 ? targetNode.parentNode.closest('td[data-col]') : targetNode.closest('td[data-col]');
+        const targetCell = targetNode.nodeType === 3 
+            ? targetNode.parentNode.closest('td[data-col]') 
+            : targetNode.closest('td[data-col]');
 
         if (!targetCell) return;
+
+        // Chỉ thay thế trong các cột soạn thảo văn bản
         const validCols = ['translation', 'edit', 'meaning', 'raw', 'qt'];
         if (!validCols.includes(targetCell.dataset.col)) return;
         if (targetNode.nodeType !== 3) return;
@@ -314,27 +338,33 @@
         const offset = range.startOffset;
         const textBeforeCaret = targetNode.textContent.slice(0, offset);
 
+        // Lấy từ cuối cùng sát trước con trỏ (tách biệt bởi khoảng trắng / ngắt dòng)
         const match = textBeforeCaret.match(/(?:^|[\s\xA0\n])([^\s\xA0\n]+)$/);
         if (!match) return;
 
         const wordTyped = match[1];
-        const shortcutRule = shortcuts.find(s => s.shortcut === wordTyped);
-        if (!shortcutRule) return;
+        const rule = shortcuts.find(s => s.shortcut === wordTyped);
+        if (!rule) return;
 
+        // Chặn phím Space/Enter mặc định để tự thay thế chuẩn xác
         e.preventDefault();
 
+        // Xóa từ viết tắt
         range.setStart(targetNode, offset - wordTyped.length);
         range.deleteContents();
 
-        const textToInsert = shortcutRule.replacement + (e.key === ' ' ? ' ' : '\n');
+        // Chèn nội dung thay thế + ký tự Space/Enter vừa gõ
+        const textToInsert = rule.replacement + (e.key === ' ' ? ' ' : '\n');
         const newNode = document.createTextNode(textToInsert);
         range.insertNode(newNode);
 
+        // Đặt con trỏ ngay sau nội dung vừa chèn
         range.setStartAfter(newNode);
         range.collapse(true);
         selection.removeAllRanges();
         selection.addRange(range);
 
+        // Kích hoạt sự kiện input để lưu dữ liệu bảng & Undo/Redo
         targetCell.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
@@ -347,25 +377,26 @@
     document.addEventListener('DOMContentLoaded', () => {
         loadLocalShortcuts();
 
-        // Nút mở Modal
         const btnOpen = document.getElementById('btn-shortcuts-manager');
         const modal = document.getElementById('modal-shortcuts');
 
         if (btnOpen && modal) {
             btnOpen.addEventListener('click', () => {
                 modal.classList.add('show');
-                resetFormState();
+                resetForm();
                 renderShortcutList();
                 const statusEl = document.getElementById('shortcut-sync-status');
                 if (statusEl) statusEl.innerHTML = '';
             });
 
-            // Nút đóng modal
-            const btnClose = document.getElementById('btn-close-shortcuts-modal');
-            if (btnClose) btnClose.onclick = () => modal.classList.remove('show');
+            // Các nút đóng modal
+            modal.querySelectorAll('.btn-close-modal-trigger').forEach(btn => {
+                btn.onclick = () => modal.classList.remove('show');
+            });
 
-            // Nút Thêm / Lưu sửa
+            // Nút Thêm / Cập nhật
             const btnAdd = document.getElementById('btn-add-shortcut');
+            const btnCancel = document.getElementById('btn-cancel-edit-shortcut');
             const keyInput = document.getElementById('shortcut-key-input');
             const valInput = document.getElementById('shortcut-val-input');
 
@@ -374,7 +405,7 @@
                     const key = keyInput.value.trim();
                     const val = valInput.value.trim();
                     if (!key || !val) {
-                        if (typeof showToast === 'function') showToast('Vui lòng nhập đủ từ viết tắt và nội dung!', 'var(--btn-warning)');
+                        if (typeof showToast === 'function') showToast('Vui lòng nhập cả từ viết tắt và nội dung thay thế!', 'var(--btn-warning)');
                         return;
                     }
 
@@ -385,11 +416,11 @@
                             item.replacement = val;
                             item.updatedAt = Date.now();
                         }
-                        if (typeof showToast === 'function') showToast(`✓ Đã cập nhật phím tắt "${key}"`, 'var(--btn-success)');
+                        if (typeof showToast === 'function') showToast(`✓ Đã cập nhật viết tắt "${key}"`, 'var(--btn-success)');
                     } else {
                         const existingIdx = shortcuts.findIndex(s => s.shortcut.toLowerCase() === key.toLowerCase());
                         if (existingIdx >= 0) {
-                            if (!confirm(`Phím tắt "${key}" đã tồn tại. Bạn có muốn ghi đè?`)) return;
+                            if (!confirm(`Viết tắt "${key}" đã tồn tại. Bạn có muốn ghi đè nội dung mới?`)) return;
                             shortcuts[existingIdx].replacement = val;
                             shortcuts[existingIdx].updatedAt = Date.now();
                         } else {
@@ -400,31 +431,46 @@
                                 updatedAt: Date.now()
                             });
                         }
-                        if (typeof showToast === 'function') showToast(`✓ Đã thêm phím tắt "${key}"`, 'var(--btn-success)');
+                        if (typeof showToast === 'function') showToast(`✓ Đã thêm viết tắt "${key}"`, 'var(--btn-success)');
                     }
 
                     saveLocalShortcuts();
-                    renderShortcutList();
-                    resetFormState();
+                    resetForm();
+                    renderShortcutList(document.getElementById('shortcut-search-input')?.value || '');
                     keyInput.focus();
                 };
             }
 
-            // Tìm kiếm
+            if (btnCancel) {
+                btnCancel.onclick = resetForm;
+            }
+
+            // Tìm kiếm trực tiếp
             const searchInput = document.getElementById('shortcut-search-input');
             if (searchInput) {
                 searchInput.oninput = (e) => renderShortcutList(e.target.value);
             }
 
-            // Bật/tắt gõ tắt
+            // Công tắc Bật / Tắt gõ tắt
             const toggleEnable = document.getElementById('toggle-shortcut-enable');
             if (toggleEnable) {
                 toggleEnable.checked = isAutoReplaceEnabled;
                 toggleEnable.onchange = (e) => {
                     isAutoReplaceEnabled = e.target.checked;
-                    localStorage.setItem('shortcuts_enabled', String(isAutoReplaceEnabled));
+                    localStorage.setItem(ENABLED_KEY, String(isAutoReplaceEnabled));
+                    if (typeof showToast === 'function') {
+                        showToast(isAutoReplaceEnabled ? "⚡ Đã bật tự động thay thế viết tắt" : "⏸️ Đã tắt tự động thay thế viết tắt", "var(--btn-info)");
+                    }
                 };
             }
+
+            // Đồng bộ Drive (Upload & Merge)
+            const btnSync = document.getElementById('btn-sync-shortcuts-gdrive');
+            if (btnSync) btnSync.onclick = syncShortcutsWithDrive;
+
+            // Tải từ Drive (Restore)
+            const btnPull = document.getElementById('btn-pull-shortcuts-gdrive');
+            if (btnPull) btnPull.onclick = pullShortcutsFromDrive;
 
             // Xuất JSON
             const btnExport = document.getElementById('btn-export-shortcuts');
@@ -442,13 +488,9 @@
                     }
                 };
             }
-
-            // Đồng bộ Drive
-            const btnSync = document.getElementById('btn-sync-shortcuts-gdrive');
-            if (btnSync) btnSync.onclick = syncShortcutsWithDrive;
         }
 
-        // Lắng nghe phím gõ để Auto-Replace
+        // Lắng nghe sự kiện bàn phím
         document.addEventListener('keydown', handleAutoReplace);
         document.addEventListener('compositionstart', () => isComposing = true);
         document.addEventListener('compositionend', () => isComposing = false);

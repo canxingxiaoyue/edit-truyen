@@ -633,6 +633,151 @@ async function gdriveLoadHistoryCloud(type) {
 }
 
 // =========================================================================
+// QUẢN LÝ VIẾT TẮT (VietTat.json - TÁI SỬ DỤNG fileId, CHỐNG TRÙNG LẶP)
+// =========================================================================
+const FILE_VIETTAT = 'VietTat.json';
+const CACHE_VIETTAT_ID = 'viettat_gdrive_file_id';
+
+// 1. Tìm hoặc kiểm tra fileId của VietTat.json (tái sử dụng, chống sinh file trùng)
+async function gdriveFindVietTatFileId() {
+    const token = await getValidToken();
+    if (!token) return null;
+
+    // A. Kiểm tra fileId đã lưu trong cache
+    const cachedId = localStorage.getItem(CACHE_VIETTAT_ID);
+    if (cachedId) {
+        try {
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files/${cachedId}?fields=id,name,trashed`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (!data.trashed && data.name === FILE_VIETTAT) {
+                    return cachedId;
+                }
+            }
+        } catch (e) {}
+        // Nếu fileId cũ bị xóa hoặc vào thùng rác -> xóa cache tìm lại
+        localStorage.removeItem(CACHE_VIETTAT_ID);
+    }
+
+    // B. Quét tìm trên Drive theo tên file VietTat.json
+    try {
+        const q = `name='${FILE_VIETTAT}' and trashed=false`;
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&pageSize=10`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.files && data.files.length > 0) {
+                const foundId = data.files[0].id;
+                localStorage.setItem(CACHE_VIETTAT_ID, foundId);
+                return foundId;
+            }
+        }
+    } catch (e) {
+        console.error("Lỗi tìm file VietTat.json:", e);
+    }
+
+    return null;
+}
+
+// 2. Lưu / Cập nhật danh sách viết tắt vào đúng 1 file VietTat.json duy nhất
+async function gdriveSaveShortcuts(shortcutsArray) {
+    const token = await getValidToken();
+    if (!token) return { success: false, reason: 'not_connected' };
+
+    const folderId = await getOrCreateFolder(FOLDER_PROJECTS);
+    const existingFileId = await gdriveFindVietTatFileId();
+
+    const payload = {
+        schemaVersion: 1,
+        fileName: FILE_VIETTAT,
+        updatedAt: new Date().toISOString(),
+        shortcuts: shortcutsArray
+    };
+
+    const metadata = {
+        name: FILE_VIETTAT,
+        mimeType: 'application/json',
+        appProperties: {
+            type: 'shortcuts',
+            count: String(shortcutsArray.length || 0),
+            updatedAt: String(Date.now())
+        }
+    };
+
+    const boundary = '-------GDriveVietTatBoundary' + Date.now();
+    const multipartRequestBody =
+        `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
+        JSON.stringify(metadata) +
+        `\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n` +
+        JSON.stringify(payload, null, 2) +
+        `\r\n--${boundary}--`;
+
+    // Nếu file ĐÃ TỒN TẠI -> PATCH ghi đè vào đúng fileId đó (Không tạo thêm file mới)
+    if (existingFileId) {
+        const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=multipart`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': `multipart/related; boundary=${boundary}`
+            },
+            body: multipartRequestBody
+        });
+
+        if (res.ok) {
+            return { success: true, fileId: existingFileId, isNew: false };
+        }
+        return { success: false, reason: 'patch_failed' };
+    }
+
+    // Nếu CHƯA CÓ file -> POST tạo mới vào thư mục CongCuEdit_ChuongTruyen
+    if (folderId) metadata.parents = [folderId];
+
+    const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': `multipart/related; boundary=${boundary}`
+        },
+        body: multipartRequestBody
+    });
+
+    if (res.ok) {
+        const created = await res.json();
+        localStorage.setItem(CACHE_VIETTAT_ID, created.id);
+        return { success: true, fileId: created.id, isNew: true };
+    }
+
+    return { success: false, reason: 'create_failed' };
+}
+
+// 3. Tải nội dung từ VietTat.json trên Drive về máy
+async function gdriveLoadShortcuts() {
+    const token = await getValidToken();
+    if (!token) return { success: false, reason: 'not_connected' };
+
+    const fileId = await gdriveFindVietTatFileId();
+    if (!fileId) {
+        return { success: true, notFound: true, data: [] };
+    }
+
+    try {
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            const json = await res.json();
+            const items = Array.isArray(json) ? json : (json.shortcuts || []);
+            return { success: true, notFound: false, data: items, fileId };
+        }
+    } catch (e) {
+        console.error("Lỗi đọc file VietTat.json từ Drive:", e);
+    }
+
+    return { success: false, reason: 'fetch_failed' };
+}
 // LẮNG NGHE SỰ KIỆN GIAO DIỆN
 // =========================================================================
 window.addEventListener('load', () => {

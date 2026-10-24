@@ -1,6 +1,7 @@
 // =========================================================================
 // KHUNG TRA TỪ ĐIỂN NHANH ĐA NGUỒN (NAME QT, VIETPHRASE, LẠC VIỆT...)
-// TỰ ĐỘNG TRA KHI BÔI ĐEN RAW & BẢN QT - CHO PHÉP COPY TỰ DO - O(1) PERFORMANCE
+// CHỈ TỰ TRA TRÊN CỘT RAW VÀ BẢN QT KHI CÓ MỤC TỪ HỢP LỆ
+// KHÔNG CHẶN COPY CÂU DÀI - HIỆU NĂNG O(1) - ĐỒNG BỘ THEME 100%
 // =========================================================================
 
 (function () {
@@ -20,7 +21,6 @@
         const style = document.createElement('style');
         style.id = STYLE_ID;
         style.textContent = `
-            /* Khung tra từ điển nổi / ghim ở góc trên bên phải */
             .dict-lookup-panel {
                 position: fixed;
                 top: 75px;
@@ -38,7 +38,7 @@
                 z-index: 1000;
                 overflow: hidden;
                 font-family: inherit;
-                transition: height 0.2s ease, opacity 0.2s ease;
+                transition: height 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
             }
             .dict-lookup-panel.collapsed {
                 height: 44px !important;
@@ -48,7 +48,6 @@
                 display: none !important;
             }
 
-            /* Header của khung */
             .dict-lookup-header {
                 display: flex;
                 align-items: center;
@@ -95,7 +94,6 @@
                 background: rgba(37, 99, 235, 0.12);
             }
 
-            /* Body của khung */
             .dict-lookup-body {
                 display: flex;
                 flex-direction: column;
@@ -105,7 +103,6 @@
                 gap: 10px;
             }
 
-            /* Hộp nhập từ khóa */
             .dict-input-wrap {
                 display: flex;
                 align-items: center;
@@ -144,7 +141,6 @@
                 color: var(--text-color, #0f172a);
             }
 
-            /* Khu vực hiển thị thông tin tóm tắt từ đang tra */
             .dict-word-summary {
                 display: flex;
                 align-items: baseline;
@@ -156,16 +152,13 @@
                 font-size: 1.25rem;
                 font-weight: 800;
                 color: var(--btn-primary, #2563eb);
-                user-select: text !important;
             }
             .dict-word-pinyin {
                 font-size: 0.85rem;
                 color: var(--text-muted, #64748b);
                 font-style: italic;
-                user-select: text !important;
             }
 
-            /* Danh sách kết quả tra cứu (cho phép bôi đen tự do) */
             .dict-results-scroll {
                 flex: 1;
                 overflow-y: auto;
@@ -173,38 +166,26 @@
                 flex-direction: column;
                 gap: 8px;
                 padding-right: 4px;
-                user-select: text !important;
-                -webkit-user-select: text !important;
             }
-            .dict-results-scroll::-webkit-scrollbar {
-                width: 6px;
-            }
+            .dict-results-scroll::-webkit-scrollbar { width: 6px; }
             .dict-results-scroll::-webkit-scrollbar-thumb {
                 background: var(--border-color, #cbd5e1);
                 border-radius: 4px;
             }
 
-            /* Thẻ kết quả từng từ điển */
             .dict-entry-card {
                 background: var(--bg-color, #f8fafc);
                 border: 1px solid var(--border-color, #e2e8f0);
                 border-radius: 8px;
                 padding: 8px 10px;
-                user-select: text !important;
-                -webkit-user-select: text !important;
+                transition: transform 0.12s, border-color 0.15s;
             }
+            .dict-entry-card:hover { border-color: var(--btn-primary, #3b82f6); }
             .dict-entry-card.is-priority {
                 border-color: #f59e0b;
                 background: rgba(245, 158, 11, 0.05);
             }
 
-            .dict-card-top-bar {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 6px;
-                user-select: none;
-            }
             .dict-entry-badge {
                 display: inline-flex;
                 align-items: center;
@@ -215,41 +196,29 @@
                 border-radius: 4px;
                 background: rgba(59, 130, 246, 0.12);
                 color: var(--btn-primary, #2563eb);
+                margin-bottom: 6px;
             }
             .dict-entry-card.is-priority .dict-entry-badge {
                 background: rgba(245, 158, 11, 0.15);
                 color: #d97706;
             }
 
-            .btn-copy-card {
-                background: transparent;
-                border: 1px solid var(--border-color, #cbd5e1);
-                border-radius: 4px;
-                padding: 2px 6px;
-                font-size: 11px;
-                color: var(--text-muted, #64748b);
-                cursor: pointer;
-                transition: all 0.15s ease;
-            }
-            .btn-copy-card:hover {
-                background: var(--btn-primary, #2563eb);
-                color: #ffffff;
-                border-color: var(--btn-primary, #2563eb);
-            }
-
-            /* Vùng text kết quả: Mở khóa chọn chữ hoàn toàn, không ép pointer */
             .dict-entry-content {
                 font-size: 13.5px;
                 line-height: 1.6;
                 color: var(--text-color, #1e293b);
                 white-space: pre-wrap;
                 word-break: break-word;
-                cursor: text !important;
-                user-select: text !important;
-                -webkit-user-select: text !important;
+                cursor: pointer;
+            }
+            .dict-entry-content:hover { color: var(--btn-primary, #2563eb); }
+            .dict-copy-hint {
+                font-size: 10px;
+                color: var(--text-muted, #94a3b8);
+                margin-top: 6px;
+                text-align: right;
             }
 
-            /* Nút mở nhanh trên thanh công cụ */
             .btn-dict-toggle-trigger {
                 background: linear-gradient(135deg, #475569, #334155) !important;
                 color: #ffffff !important;
@@ -315,7 +284,7 @@
             const entryMap = getFileEntryMap(file);
             if (!entryMap) continue;
 
-            // A. Khớp chính xác từ khóa (Exact Match)
+            // A. Khớp chính xác mục từ
             if (entryMap.has(cleanWord)) {
                 results.push({
                     fileName: file.fileName,
@@ -326,12 +295,12 @@
                 continue;
             }
 
-            // B. Nếu từ khóa là tiếng Việt (Tra cứu ngược)
-            if (!isChinese) {
+            // B. Tra cứu ngược nghĩa tiếng Việt (chỉ chạy với từ ngắn < 20 ký tự)
+            if (!isChinese && cleanWord.length <= 20) {
                 const lowerWord = cleanWord.toLowerCase();
                 let foundReverse = false;
                 for (const [k, v] of entryMap.entries()) {
-                    if (v.toLowerCase() === lowerWord || v.toLowerCase().split(/[,/]/).map(s => s.trim()).includes(lowerWord)) {
+                    if (v.toLowerCase() === lowerWord || v.toLowerCase().split(/[,/]/).map(s=>s.trim()).includes(lowerWord)) {
                         results.push({
                             fileName: file.fileName,
                             keyword: k,
@@ -349,7 +318,7 @@
         return results;
     }
 
-    // 4. ĐỊNH DẠNG VĂN BẢN NGHĨA (CHUẨN HÓA LẠC VIỆT & VIETPHRASE)
+    // 4. ĐỊNH DẠNG VĂN BẢN NGHĨA
     function formatDefinitionText(val, fileName) {
         if (!val) return '';
         let text = val.trim();
@@ -404,8 +373,8 @@
 
         if (!currentQuery) {
             resultsContainerEl.innerHTML = `
-                <div style="text-align: center; color: var(--text-muted, #64748b); padding: 30px 10px; font-size: 13px; user-select: none;">
-                    <span>👆</span> Bôi đen từ trong cột <b>Raw</b> hoặc <b>Bản QT</b> để tra cứu,<br>hoặc tự nhập từ khóa vào ô trên.
+                <div style="text-align: center; color: var(--text-muted, #64748b); padding: 30px 10px; font-size: 13px;">
+                    <span>👆</span> Bôi đen từ ở cột Raw / Bản QT để tra cứu tức thì,<br>hoặc nhập từ khóa vào ô trên.
                 </div>
             `;
             const summaryEl = dictPanelEl.querySelector('#dict-word-summary');
@@ -413,7 +382,6 @@
             return;
         }
 
-        // Hiển thị Pinyin
         const summaryEl = dictPanelEl.querySelector('#dict-word-summary');
         const wordTextEl = dictPanelEl.querySelector('#dict-word-text');
         const pinyinTextEl = dictPanelEl.querySelector('#dict-word-pinyin');
@@ -432,9 +400,9 @@
 
         if (entries.length === 0) {
             resultsContainerEl.innerHTML = `
-                <div style="text-align: center; color: var(--text-muted, #64748b); padding: 25px 10px; font-size: 13px; user-select: none;">
+                <div style="text-align: center; color: var(--text-muted, #64748b); padding: 25px 10px; font-size: 13px;">
                     <div>❌ Không tìm thấy mục từ "<b>${escapeHtml(currentQuery)}</b>"</div>
-                    <div style="margin-top: 8px; font-size: 11px;">Bạn có thể bôi đen và nhấn <b>➕ Thêm từ</b> để nạp vào từ điển.</div>
+                    <div style="margin-top: 8px; font-size: 11px;">Bạn có thể bôi đen và nhấn <b>➕ Thêm từ</b> để thêm vào từ điển.</div>
                 </div>
             `;
             return;
@@ -449,31 +417,27 @@
         entries.forEach((entry) => {
             const formattedVal = formatDefinitionText(entry.value, entry.fileName);
             html += `
-                <div class="dict-entry-card ${entry.isPriority ? 'is-priority' : ''}">
-                    <div class="dict-card-top-bar">
-                        <div class="dict-entry-badge">
-                            <span>${entry.isPriority ? '⭐' : '📖'}</span>
-                            <span>${escapeHtml(entry.fileName)}</span>
-                            ${entry.keyword !== currentQuery ? `<span style="opacity:0.8;">(${escapeHtml(entry.keyword)})</span>` : ''}
-                        </div>
-                        <button type="button" class="btn-copy-card" data-val="${escapeHtml(formattedVal)}" title="Sao chép toàn bộ mục từ này">📋 Chép toàn bộ</button>
+                <div class="dict-entry-card ${entry.isPriority ? 'is-priority' : ''}" data-val="${escapeHtml(formattedVal)}">
+                    <div class="dict-entry-badge">
+                        <span>${entry.isPriority ? '⭐' : '📖'}</span>
+                        <span>${escapeHtml(entry.fileName)}</span>
+                        ${entry.keyword !== currentQuery ? `<span style="opacity:0.8;">(${escapeHtml(entry.keyword)})</span>` : ''}
                     </div>
-                    <div class="dict-entry-content">${escapeHtml(formattedVal)}</div>
+                    <div class="dict-entry-content" title="Nhấn để sao chép nghĩa">${escapeHtml(formattedVal)}</div>
+                    <div class="dict-copy-hint">📋 Click nghĩa để copy</div>
                 </div>
             `;
         });
 
         resultsContainerEl.innerHTML = html;
 
-        // Bắt sự kiện sao chép toàn bộ từ nút chuyên dụng (không ảnh hưởng bôi đen lẻ)
-        resultsContainerEl.querySelectorAll('.btn-copy-card').forEach((btn) => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const valToCopy = btn.dataset.val || '';
+        resultsContainerEl.querySelectorAll('.dict-entry-card').forEach((card) => {
+            card.addEventListener('click', () => {
+                const valToCopy = card.dataset.val || '';
                 if (valToCopy && navigator.clipboard) {
                     navigator.clipboard.writeText(valToCopy);
                     if (typeof showToast === 'function') {
-                        showToast(`📋 Đã sao chép toàn bộ mục từ!`, 'var(--btn-success)');
+                        showToast(`📋 Đã copy nghĩa vào clipboard!`, 'var(--btn-success)');
                     }
                 }
             });
@@ -482,10 +446,7 @@
 
     // 6. KHỞI TẠO KHUNG TRA TỪ ĐIỂN
     function createDictLookupPanel() {
-        if (document.getElementById('dict-lookup-panel')) {
-            dictPanelEl = document.getElementById('dict-lookup-panel');
-            return;
-        }
+        if (document.getElementById('dict-lookup-panel')) return;
 
         dictPanelEl = document.createElement('div');
         dictPanelEl.id = 'dict-lookup-panel';
@@ -499,7 +460,7 @@
                 <div class="dict-header-actions">
                     <button type="button" class="btn-dict-ctrl ${isPinned ? 'active' : ''}" id="btn-dict-pin" title="${isPinned ? 'Bỏ ghim' : 'Ghim vị trí'}">📌</button>
                     <button type="button" class="btn-dict-ctrl" id="btn-dict-collapse" title="${isCollapsed ? 'Mở rộng' : 'Thu gọn'}">${isCollapsed ? '➕' : '➖'}</button>
-                    <button type="button" class="btn-dict-ctrl" id="btn-dict-close" title="Đóng khung">&times;</button>
+                    <button type="button" class="btn-dict-ctrl" id="btn-dict-close" title="Ẩn khung">&times;</button>
                 </div>
             </div>
             <div class="dict-lookup-body">
@@ -522,7 +483,6 @@
         queryInputEl = dictPanelEl.querySelector('#dict-query-input');
         resultsContainerEl = dictPanelEl.querySelector('#dict-results-container');
 
-        // Bắt sự kiện gõ chữ thủ công
         queryInputEl.addEventListener('input', (e) => {
             clearTimeout(lookupDebounce);
             lookupDebounce = setTimeout(() => {
@@ -530,14 +490,12 @@
             }, 180);
         });
 
-        // Nút xóa từ khóa
         dictPanelEl.querySelector('#btn-dict-clear').addEventListener('click', () => {
             if (queryInputEl) queryInputEl.value = '';
             displayLookupResults('');
             queryInputEl?.focus();
         });
 
-        // Nút copy từ khóa
         dictPanelEl.querySelector('#btn-dict-copy-word').addEventListener('click', () => {
             if (currentQuery && navigator.clipboard) {
                 navigator.clipboard.writeText(currentQuery);
@@ -545,7 +503,6 @@
             }
         });
 
-        // Nút Ghim
         const pinBtn = dictPanelEl.querySelector('#btn-dict-pin');
         pinBtn.addEventListener('click', () => {
             isPinned = !isPinned;
@@ -553,7 +510,6 @@
             localStorage.setItem('dict_lookup_pinned', String(isPinned));
         });
 
-        // Nút Thu gọn / Mở rộng
         const collapseBtn = dictPanelEl.querySelector('#btn-dict-collapse');
         collapseBtn.addEventListener('click', () => {
             isCollapsed = !isCollapsed;
@@ -562,7 +518,6 @@
             localStorage.setItem('dict_lookup_collapsed', String(isCollapsed));
         });
 
-        // Nút Đóng khung
         dictPanelEl.querySelector('#btn-dict-close').addEventListener('click', () => {
             dictPanelEl.style.display = 'none';
         });
@@ -570,27 +525,7 @@
         displayLookupResults('');
     }
 
-    // 7. HÀM BẬT / TẮT KHUNG ĐẢM BẢO MỞ LẠI VÔ TẬN LẦN (TOGGLE ROBUST)
-    function toggleDictPanel() {
-        if (!dictPanelEl) createDictLookupPanel();
-
-        const isHidden = dictPanelEl.style.display === 'none' ||
-                         window.getComputedStyle(dictPanelEl).display === 'none';
-
-        if (isHidden) {
-            dictPanelEl.style.display = 'flex';
-            dictPanelEl.classList.remove('collapsed');
-            const collapseBtn = dictPanelEl.querySelector('#btn-dict-collapse');
-            if (collapseBtn) collapseBtn.textContent = '➖';
-            if (currentQuery) {
-                displayLookupResults(currentQuery);
-            }
-        } else {
-            dictPanelEl.style.display = 'none';
-        }
-    }
-
-    // 8. BẮT SỰ KIỆN BÔI ĐEN: CHỈ CHO PHÉP RAW VÀ BẢN QT KÍCH HOẠT
+    // 7. BẮT SỰ KIỆN BÔI ĐEN VĂN BẢN VỚI QUY TẮC NGHIÊM NGẶT
     function handleSelectionChangeForDictionary() {
         clearTimeout(lookupDebounce);
         lookupDebounce = setTimeout(() => {
@@ -603,74 +538,71 @@
             const range = selection.getRangeAt(0);
             const container = range.commonAncestorContainer;
             const node = container.nodeType === Node.ELEMENT_NODE ? container : container.parentElement;
-            if (!node) return;
 
-            // NẾU BÔI ĐEN TRONG KHUNG TRA TỪ ĐIỂN THÌ BỎ QUA HOÀN TOÀN (Cho phép tự do bôi đen, copy nghĩa)
+            // Bỏ qua nếu người dùng bôi đen bên trong khung từ điển
             if (dictPanelEl && dictPanelEl.contains(node)) return;
 
-            // Bỏ qua nếu bôi đen trên thanh menu, modal khác hoặc header
-            if (node.closest('.modal-overlay') || node.closest('.toolbar') || node.closest('header')) return;
+            // QUY TẮC 1: CHỈ ÁP DỤNG TRÊN CỘT RAW VÀ BẢN QT
+            const targetCell = node ? node.closest('td[data-col]') : null;
+            if (!targetCell) return;
 
-            // Xác định ô bảng tương ứng
-            const td = node.closest('td');
-            if (!td) return;
-            const tr = td.closest('tr');
-            if (!tr || !tr.parentElement || tr.parentElement.id !== 'table-body') return;
+            const colName = targetCell.dataset.col;
+            if (colName !== 'raw' && colName !== 'qt') return;
 
-            // Lấy mã cột
-            let colKey = td.dataset ? td.dataset.col : '';
-            if (!colKey) {
-                const allTds = Array.from(tr.children);
-                const dataTds = allTds.filter(c => !c.classList.contains('batch-select-cell'));
-                const idx = dataTds.indexOf(td);
-                const COL_KEYS = ['raw', 'pinyin', 'meaning', 'translation', 'qt', 'edit'];
-                colKey = COL_KEYS[idx] || '';
-            }
-
-            // ==============================================================
-            // BỘ LỌC BẮT BUỘC: CHỈ CHO PHÉP CỘT RAW VÀ BẢN QT
-            // ==============================================================
-            if (colKey !== 'raw' && colKey !== 'qt') {
-                return; // Pinyin, Chú thích, Bản edit, Bản beta bị bỏ qua hoàn toàn!
-            }
-
-            if (selectedText.length > 50) return;
-
-            // Tránh tra cứu lặp cùng một từ đang hiển thị
-            if (selectedText === currentQuery && dictPanelEl && dictPanelEl.style.display !== 'none' && !dictPanelEl.classList.contains('collapsed')) {
+            // QUY TẮC 2: KHÔNG KÍCH HOẠT KHI CHỌN CẢ ĐOẠN HOẶC CÂU DÀI ĐỂ COPY
+            // Nếu chứa ký tự xuống dòng hoặc có dấu câu kết thúc câu -> Bỏ qua
+            if (selectedText.includes('\n') || /[。！？!?\r\t]/.test(selectedText)) {
                 return;
             }
 
-            // Tự động mở khung nếu đang đóng hoặc thu nhỏ
-            if (dictPanelEl) {
+            // QUY TẮC 3: XÁC MINH CÓ MỤC TỪ HỢP LỆ MỚI MỞ KHUNG
+            const validEntries = queryAllDictionaries(selectedText);
+            if (!validEntries || validEntries.length === 0 || validEntries[0].type === 'empty') {
+                // Không có mục từ trong từ điển (như Chapter4) -> Tuyệt đối không tự mở khung!
+                return;
+            }
+
+            // HỢP LỆ: Tự động cập nhật kết quả vào khung hiện có
+            if (!dictPanelEl) createDictLookupPanel();
+
+            if (dictPanelEl.style.display === 'none') {
                 dictPanelEl.style.display = 'flex';
+            }
+            if (dictPanelEl.classList.contains('collapsed')) {
                 dictPanelEl.classList.remove('collapsed');
                 const cBtn = dictPanelEl.querySelector('#btn-dict-collapse');
                 if (cBtn) cBtn.textContent = '➖';
             }
 
             displayLookupResults(selectedText);
-        }, 150);
+        }, 180);
     }
 
-    // 9. BẢO ĐẢM GÁN ONCLICK CHO NÚT TRÊN THANH CÔNG CỤ
+    // 8. NÚT BẬT/TẮT TRÊN THANH CÔNG CỤ
     function ensureToolbarButton() {
-        let btn = document.getElementById('btn-toggle-dict-panel');
-        if (!btn) {
-            const targetAnchor = document.getElementById('btn-refresh-qt') || document.getElementById('btn-open-nameqt-modal');
-            if (targetAnchor && targetAnchor.parentNode) {
-                btn = document.createElement('button');
-                btn.type = 'button';
-                btn.id = 'btn-toggle-dict-panel';
-                btn.className = 'btn-tool btn-dict-toggle-trigger';
-                btn.innerHTML = '📖 Tra từ điển';
-                btn.title = 'Bật / Tắt khung tra từ điển nhanh';
-                targetAnchor.parentNode.insertBefore(btn, targetAnchor.nextSibling);
+        if (document.getElementById('btn-toggle-dict-panel')) return;
+        const targetAnchor = document.getElementById('btn-refresh-qt') || document.getElementById('btn-open-nameqt-modal');
+        if (!targetAnchor || !targetAnchor.parentNode) return;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.id = 'btn-toggle-dict-panel';
+        btn.className = 'btn-tool btn-dict-toggle-trigger';
+        btn.innerHTML = '📖 Tra từ điển';
+        btn.title = 'Bật / Tắt khung tra từ điển nhanh';
+
+        btn.addEventListener('click', () => {
+            if (!dictPanelEl) createDictLookupPanel();
+            if (dictPanelEl.style.display === 'none') {
+                dictPanelEl.style.display = 'flex';
+                dictPanelEl.classList.remove('collapsed');
+                if (currentQuery) displayLookupResults(currentQuery);
+            } else {
+                dictPanelEl.style.display = 'none';
             }
-        }
-        if (btn) {
-            btn.onclick = toggleDictPanel;
-        }
+        });
+
+        targetAnchor.parentNode.insertBefore(btn, targetAnchor.nextSibling);
     }
 
     function escapeHtml(str) {
@@ -678,7 +610,7 @@
         return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    // 10. KHỞI CHẠY HỆ THỐNG
+    // 9. KHỞI CHẠY HỆ THỐNG
     function initDictionaryLookupModule() {
         createDictLookupPanel();
         ensureToolbarButton();
@@ -691,7 +623,6 @@
         initDictionaryLookupModule();
     }
 
-    window.toggleDictPanel = toggleDictPanel;
     window.lookupWordInDictionary = function (word) {
         if (!dictPanelEl) createDictLookupPanel();
         dictPanelEl.style.display = 'flex';

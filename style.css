@@ -23,6 +23,23 @@
     --info-pink-bg: #fce4d6;
     --info-yellow-bg: #fff2cc;
     --info-header-text: #1e293b;
+
+    /* ================= BIẾN TƯƠNG TÁC Ô NHẬP LIỆU (THEME SÁNG) ================= */
+    --input-bg: var(--header-bg);
+    --input-border: var(--border-color);
+    --input-text: var(--text-color);
+    --input-hover-bg: #f1f5f9;
+    --input-hover-border: #94a3b8;
+    --input-focus-bg: #ffffff;
+    --input-focus-border: var(--btn-primary);
+    --input-focus-ring: rgba(59, 130, 246, 0.2);
+
+    --input-disabled-bg: #f1f5f9;
+    --input-disabled-border: #e2e8f0;
+    --input-disabled-text: #94a3b8;
+
+    --input-invalid-border: var(--btn-danger);
+    --input-invalid-ring: rgba(239, 68, 68, 0.2);
 }
 
 [data-theme="dark"] {
@@ -40,6 +57,23 @@
     --info-pink-bg: #4a2b25;
     --info-yellow-bg: #4c3e1e;
     --info-header-text: #cbd5e1;
+
+    /* ================= BIẾN TƯƠNG TÁC Ô NHẬP LIỆU (THEME TỐI) ================= */
+    --input-bg: rgba(15, 23, 42, 0.6);
+    --input-border: var(--border-color);
+    --input-text: #f8fafc;
+    --input-hover-bg: rgba(255, 255, 255, 0.05);
+    --input-hover-border: #64748b;
+    --input-focus-bg: #0f172a;
+    --input-focus-border: #38bdf8;
+    --input-focus-ring: rgba(56, 189, 248, 0.25);
+
+    --input-disabled-bg: rgba(255, 255, 255, 0.04);
+    --input-disabled-border: var(--border-color);
+    --input-disabled-text: #64748b;
+
+    --input-invalid-border: #f87171;
+    --input-invalid-ring: rgba(248, 113, 113, 0.25);
 }
 
 /* ================= THIẾT LẬP CHUNG ================= */
@@ -109,7 +143,10 @@ header {
     margin-left: 10px; padding: 5px 8px; border-radius: 6px;
     border: 1px solid var(--border-color); background: var(--header-bg); color: var(--text-color);
     outline: none; font-size: 0.9rem; font-family: inherit; cursor: pointer; font-weight: 600;
+    transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
+.font-select:hover { border-color: var(--input-hover-border); }
+.font-select:focus { border-color: var(--input-focus-border); box-shadow: 0 0 0 3px var(--input-focus-ring); }
 
 /* ================= THANH CHUYỂN TAB ================= */
 .nav-tabs {
@@ -179,6 +216,93 @@ button {
 .color-picker-box { width: 18px; height: 18px; border: none; border-radius: 3px; cursor: pointer; background: transparent; }
 
 /* =========================================================================
+   HỆ THỐNG TRẠNG THÁI Ô NHẬP LIỆU TOÀN ỨNG DỤNG (DEFAULT, HOVER, FOCUS)
+   ========================================================================= */
+input[type="text"],
+input[type="search"],
+input[type="password"],
+input[type="number"],
+textarea,
+.shortcut-input-field {
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--input-text);
+    border-radius: 6px;
+    outline: none;
+    box-sizing: border-box;
+    transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+/* 1. Trạng thái Hover: Nền nhấn nhẹ, viền đậm hơn, KHÔNG ghi đè khi ô đang focus */
+input[type="text"]:hover:not(:disabled):not([readonly]):not(:focus):not(:focus-visible),
+input[type="search"]:hover:not(:disabled):not([readonly]):not(:focus):not(:focus-visible),
+input[type="password"]:hover:not(:disabled):not([readonly]):not(:focus):not(:focus-visible),
+input[type="number"]:hover:not(:disabled):not([readonly]):not(:focus):not(:focus-visible),
+textarea:hover:not(:disabled):not([readonly]):not(:focus):not(:focus-visible),
+.shortcut-input-field:hover:not(:disabled):not([readonly]):not(:focus):not(:focus-visible) {
+    background-color: var(--input-hover-bg);
+    border-color: var(--input-hover-border);
+}
+
+/* 2. Trạng thái Focus & Focus-visible: Nền rõ nét, viền màu chủ đạo, vòng ring tinh tế */
+input[type="text"]:focus,
+input[type="text"]:focus-visible,
+input[type="search"]:focus,
+input[type="search"]:focus-visible,
+input[type="password"]:focus,
+input[type="password"]:focus-visible,
+input[type="number"]:focus,
+input[type="number"]:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+.shortcut-input-field:focus,
+.shortcut-input-field:focus-visible {
+    background-color: var(--input-focus-bg) !important;
+    border-color: var(--input-focus-border) !important;
+    box-shadow: 0 0 0 3px var(--input-focus-ring) !important;
+    outline: none !important;
+}
+
+/* 3. Trạng thái Disabled & Readonly */
+input:disabled,
+textarea:disabled,
+.shortcut-input-field:disabled {
+    background-color: var(--input-disabled-bg) !important;
+    border-color: var(--input-disabled-border) !important;
+    color: var(--input-disabled-text) !important;
+    cursor: not-allowed !important;
+    opacity: 0.65;
+    box-shadow: none !important;
+}
+input[readonly],
+textarea[readonly],
+.input-readonly {
+    cursor: default !important;
+}
+input[readonly]:hover,
+textarea[readonly]:hover,
+.input-readonly:hover {
+    background-color: var(--bg-color) !important;
+    border-color: var(--border-color) !important;
+    box-shadow: none !important;
+}
+
+/* 4. Trạng thái Invalid (Báo lỗi dữ liệu) */
+input[type="text"]:invalid:not(:placeholder-shown):not(:focus),
+textarea:invalid:not(:placeholder-shown):not(:focus),
+input[type="text"].is-invalid,
+textarea.is-invalid {
+    border-color: var(--input-invalid-border) !important;
+}
+input[type="text"]:invalid:not(:placeholder-shown):focus,
+textarea:invalid:not(:placeholder-shown):focus,
+input[type="text"].is-invalid:focus,
+textarea.is-invalid:focus {
+    border-color: var(--input-invalid-border) !important;
+    box-shadow: 0 0 0 3px var(--input-invalid-ring) !important;
+}
+
+/* =========================================================================
    BỐ CỤC BẢNG TRUYỆN DESKTOP CHUẨN MỰC (≥ 769px)
    ========================================================================= */
 @media screen and (min-width: 769px) {
@@ -221,11 +345,24 @@ button {
         white-space: pre-wrap !important; word-break: break-word !important;
         box-sizing: border-box !important; background-color: transparent;
         user-select: text !important; -webkit-user-select: text !important;
+        transition: background-color 180ms ease, box-shadow 180ms ease;
     }
 
     tr:hover td { background-color: var(--row-hover) !important; }
     tr.active-row td { background-color: var(--row-active) !important; }
-    td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary) !important; }
+
+    /* Hover vào từng ô soạn thảo bảng (chưa focus) */
+    body:not([data-current-theme="aqua"]) #table-body td[data-col]:hover:not(:focus):not(:focus-within) {
+        background-color: rgba(59, 130, 246, 0.06) !important;
+    }
+
+    /* Focus vào ô soạn thảo bảng để gõ chữ */
+    body:not([data-current-theme="aqua"]) #table-body td[data-col]:focus,
+    body:not([data-current-theme="aqua"]) #table-body td[data-col]:focus-within {
+        background-color: var(--header-bg) !important;
+        box-shadow: inset 0 0 0 2px var(--btn-primary) !important;
+        outline: none !important;
+    }
 
     /* KHỬ HOÀN TOÀN CÁC KHỐI MOBILE LÀM RÁC DOM TRÊN DESKTOP */
     #table-body tr td.mobile-row-meta, td.mobile-row-meta, .mobile-row-meta, .cell-header, .mobile-view-bar {
@@ -284,22 +421,62 @@ td.batch-intersection-selected { background-color: rgba(239, 68, 68, 0.2) !impor
     font-size: 1.05rem; border-bottom: 1.5px solid var(--border-color); gap: 10px;
 }
 .story-title-bar .title-label { white-space: nowrap; }
-.story-title-bar input {
+
+/* Ô nhập tên chương & tên truyện trên thanh tiêu đề */
+#chapter-title-input {
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border) !important;
+    border-radius: 6px;
+    color: var(--input-text);
+}
+#chapter-title-input:hover:not(:focus) {
+    background-color: var(--input-hover-bg);
+    border-color: var(--input-hover-border) !important;
+}
+#chapter-title-input:focus {
+    background-color: var(--input-focus-bg) !important;
+    border-color: var(--input-focus-border) !important;
+    box-shadow: 0 0 0 3px var(--input-focus-ring) !important;
+}
+
+#story-title-input {
     background: transparent; border: none; border-bottom: 1.5px dashed var(--info-header-text);
     color: var(--info-header-text); font-size: 1.05rem; font-weight: bold; outline: none; width: 320px; padding: 2px 5px; font-family: inherit;
+    border-radius: 4px 4px 0 0;
+    transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
+#story-title-input:hover:not(:focus) {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-bottom-color: var(--btn-primary);
+}
+#story-title-input:focus {
+    background-color: rgba(255, 255, 255, 0.35);
+    border-bottom: 1.5px solid var(--btn-primary);
+    box-shadow: 0 2px 0 0 var(--btn-primary);
+}
+
 .story-header-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
 
+/* Ô tìm kiếm thông tin truyện Mục 2 */
 .meta-search-container { padding: 8px 20px; background: var(--header-bg); border-bottom: 1px solid var(--border-color); }
 .meta-search-wrapper {
-    display: flex; align-items: center; max-width: 550px; background: var(--bg-color);
-    border: 1.5px solid var(--border-color); border-radius: 8px; padding: 5px 12px; transition: all 0.2s ease;
+    display: flex; align-items: center; max-width: 550px; background: var(--input-bg);
+    border: 1px solid var(--input-border); border-radius: 8px; padding: 5px 12px;
+    transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
-.meta-search-wrapper:focus-within { border-color: var(--btn-primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+.meta-search-wrapper:hover:not(:focus-within) {
+    background-color: var(--input-hover-bg);
+    border-color: var(--input-hover-border);
+}
+.meta-search-wrapper:focus-within {
+    background-color: var(--input-focus-bg) !important;
+    border-color: var(--input-focus-border) !important;
+    box-shadow: 0 0 0 3px var(--input-focus-ring) !important;
+}
 .meta-search-icon { margin-right: 8px; font-size: 0.95rem; color: gray; }
 .meta-search-wrapper input {
-    flex: 1; border: none; background: transparent; color: var(--text-color);
-    outline: none; font-size: 0.9rem; font-family: inherit;
+    flex: 1; border: none; background: transparent !important; color: var(--text-color);
+    outline: none !important; font-size: 0.9rem; font-family: inherit; box-shadow: none !important;
 }
 .btn-clear-search { background: transparent; border: none; color: gray; cursor: pointer; font-size: 0.95rem; padding: 0 4px; }
 .btn-clear-search:hover { color: var(--btn-danger); }
@@ -346,13 +523,27 @@ td.batch-intersection-selected { background-color: rgba(239, 68, 68, 0.2) !impor
 .meta-field-row { display: flex; align-items: baseline; margin-bottom: 6px; font-size: 0.9rem; gap: 8px; }
 .meta-field-label { font-weight: 700; color: var(--text-color); min-width: 150px; flex-shrink: 0; opacity: 0.85; }
 .pink-section .meta-field-label { min-width: 60px; }
+
+/* Các ô sửa nội dung nhân vật / xưng hô */
 .meta-field-value {
     flex: 1; padding: 4px 8px; border-radius: 6px; background: rgba(255, 255, 255, 0.6);
     border: 1px solid transparent; outline: none; min-height: 26px; word-break: break-word;
-    white-space: pre-wrap; transition: all 0.2s;
+    white-space: pre-wrap; transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 [data-theme="dark"] .meta-field-value { background: rgba(0, 0, 0, 0.25); }
-.meta-field-value:focus { border-color: var(--btn-primary); background: var(--header-bg); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
+.meta-field-value:hover:not(:focus) {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: var(--border-color);
+}
+[data-theme="dark"] .meta-field-value:hover:not(:focus) {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--border-color);
+}
+.meta-field-value:focus { 
+    border-color: var(--btn-primary) !important; 
+    background: var(--header-bg) !important; 
+    box-shadow: 0 0 0 3px var(--input-focus-ring) !important; 
+}
 
 .term-line-item {
     display: flex; align-items: center; gap: 8px; background: var(--bg-color); border: 1px solid var(--border-color);
@@ -363,14 +554,28 @@ td.batch-intersection-selected { background-color: rgba(239, 68, 68, 0.2) !impor
     border-color: var(--btn-warning) !important; background: rgba(245, 158, 11, 0.08) !important;
     box-shadow: 0 0 0 2px var(--btn-warning) !important;
 }
+
+/* Các ô sửa thuật ngữ tiếng Trung - tiếng Việt */
 .term-part-cn, .term-part-vi {
     flex: 1; padding: 5px 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.6);
-    border: 1px solid transparent; outline: none; min-height: 28px; font-family: inherit; transition: all 0.2s;
+    border: 1px solid transparent; outline: none; min-height: 28px; font-family: inherit; 
+    transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 [data-theme="dark"] .term-part-cn, [data-theme="dark"] .term-part-vi { background: rgba(0, 0, 0, 0.25); }
-.term-part-cn:focus, .term-part-vi:focus {
-    border-color: var(--btn-warning); background: var(--header-bg); box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+.term-part-cn:hover:not(:focus), .term-part-vi:hover:not(:focus) {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(245, 158, 11, 0.35);
 }
+[data-theme="dark"] .term-part-cn:hover:not(:focus), [data-theme="dark"] .term-part-vi:hover:not(:focus) {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(245, 158, 11, 0.35);
+}
+.term-part-cn:focus, .term-part-vi:focus {
+    border-color: var(--btn-warning) !important; 
+    background: var(--header-bg) !important; 
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25) !important;
+}
+
 .term-equal-sign { font-weight: 800; font-size: 1.1rem; color: var(--btn-warning); padding: 0 4px; user-select: none; }
 .meta-no-result { text-align: center; color: gray; font-style: italic; padding: 24px 10px; font-size: 0.9rem; }
 .btn-card-del {
@@ -393,13 +598,38 @@ td.batch-intersection-selected { background-color: rgba(239, 68, 68, 0.2) !impor
 .modal-body-scroll { flex-grow: 1; overflow-y: auto; padding-right: 5px; }
 .modal-group { margin-bottom: 12px; }
 .modal-group label { display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: bold; }
-.modal-group input, .modal-group select {
-    width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-color); color: var(--text-color);
-}
+
+/* Ô nhập liệu bên trong Modal chung */
+.modal-group input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]),
+.modal-group select,
+.modal-group textarea,
 #nameqt-text-input {
-    width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;
-    background: var(--bg-color); color: var(--text-color); font-family: monospace; resize: vertical;
+    width: 100%; padding: 8px 10px; 
+    border: 1px solid var(--input-border); 
+    border-radius: 6px; 
+    background: var(--input-bg); 
+    color: var(--input-text);
+    outline: none;
+    transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
+.modal-group input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]):hover:not(:focus):not(:disabled),
+.modal-group select:hover:not(:focus):not(:disabled),
+.modal-group textarea:hover:not(:focus):not(:disabled),
+#nameqt-text-input:hover:not(:focus):not(:disabled) {
+    background-color: var(--input-hover-bg);
+    border-color: var(--input-hover-border);
+}
+.modal-group input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]):focus,
+.modal-group select:focus,
+.modal-group textarea:focus,
+#nameqt-text-input:focus {
+    background-color: var(--input-focus-bg) !important;
+    border-color: var(--input-focus-border) !important;
+    box-shadow: 0 0 0 3px var(--input-focus-ring) !important;
+}
+
+#nameqt-text-input { font-family: monospace; resize: vertical; }
+
 .modal-sub-title { margin: 15px 0 8px 0; font-size: 0.95rem; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; font-weight: bold; }
 .modal-checkbox-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
 .modal-checkbox-grid label { display: flex; align-items: center; gap: 5px; font-size: 0.85rem; font-weight: normal; cursor: pointer; }
@@ -462,7 +692,7 @@ td.batch-intersection-selected { background-color: rgba(239, 68, 68, 0.2) !impor
 /* GIAO DIỆN DANH SÁCH FILE NAME QT TRONG MODAL */
 .nameqt-file-list { display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; margin-bottom: 12px; padding-right: 4px; }
 .nameqt-file-item {
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex align-items: center; justify-content: space-between;
     background: var(--bg-color); border: 1px solid var(--border-color);
     padding: 8px 12px; border-radius: 6px; transition: all 0.2s;
 }
@@ -567,9 +797,18 @@ td.batch-intersection-selected { background-color: rgba(239, 68, 68, 0.2) !impor
 
 /* ================= CHỦ ĐỀ: 🌊 MÂY LAM NGỌC ================= */
 body[data-current-theme="aqua"] {
-    /* Sử dụng chính xác 2 mã màu từ ảnh của bạn tạo dải màu dọc mềm mại */
     background: linear-gradient(180deg, #C6E6E8 0%, #51C4D3 100%) fixed !important;
-    color: #0c383e; /* Xanh cổ vịt rất đậm để tương phản tốt khi đọc văn bản */
+    color: #0c383e;
+
+    /* Tùy biến biến tương tác ô nhập liệu cho Theme Mây Lam Ngọc */
+    --input-bg: rgba(255, 255, 255, 0.75);
+    --input-border: #79d2df;
+    --input-text: #0c383e;
+    --input-hover-bg: #e2f6f8;
+    --input-hover-border: #51c4d3;
+    --input-focus-bg: #ffffff;
+    --input-focus-border: #51c4d3;
+    --input-focus-ring: rgba(81, 196, 211, 0.25);
 }
 
 /* Thanh Header, Toolbar và Tabs làm hiệu ứng kính mờ (Glassmorphism) */
@@ -579,15 +818,15 @@ body[data-current-theme="aqua"] .story-title-bar,
 body[data-current-theme="aqua"] .toolbar,
 body[data-current-theme="aqua"] .format-toolbar,
 body[data-current-theme="aqua"] .nav-tabs {
-    background: rgba(255, 255, 255, 0.55) !important; /* Trắng trong suốt */
+    background: rgba(255, 255, 255, 0.55) !important;
     backdrop-filter: blur(12px); 
     -webkit-backdrop-filter: blur(12px); 
-    border-color: rgba(81, 196, 211, 0.4) !important; /* Viền mỏng màu #51C4D3 */
+    border-color: rgba(81, 196, 211, 0.4) !important;
 }
 
 /* Tiêu đề cột của bảng dịch */
 body[data-current-theme="aqua"] table thead th {
-    background: rgba(198, 230, 232, 0.8) !important; /* Nền màu #C6E6E8 trong suốt */
+    background: rgba(198, 230, 232, 0.8) !important;
     color: #0c383e !important; 
     border-color: rgba(81, 196, 211, 0.4) !important; 
     font-weight: 700;
@@ -595,7 +834,7 @@ body[data-current-theme="aqua"] table thead th {
 
 /* Ô nhập liệu trong bảng dịch */
 body[data-current-theme="aqua"] table tbody td[data-col] {
-    background: rgba(255, 255, 255, 0.82) !important; /* Giữ nền trắng đủ để đọc chữ, nhưng vẫn hơi mờ */
+    background: rgba(255, 255, 255, 0.82) !important;
     color: #123136 !important;
     border-color: rgba(81, 196, 211, 0.25) !important; 
     vertical-align: top !important;
@@ -615,31 +854,37 @@ body[data-current-theme="aqua"] tr:hover:not(.active-row) td {
     background: rgba(255, 255, 255, 0.95) !important; 
 }
 
-/* Hiệu ứng khi lia chuột vào TỪNG Ô CỤ THỂ */
-body[data-current-theme="aqua"] table tbody td[data-col]:hover {
-    background: #E2F6F8 !important; /* Màu xanh mây nhạt dịu mắt */
+/* Hiệu ứng khi lia chuột vào TỪNG Ô CỤ THỂ (không đè lên ô đang focus) */
+body[data-current-theme="aqua"] table tbody td[data-col]:hover:not(:focus):not(:focus-within) {
+    background: #E2F6F8 !important;
 }
 
 /* Hiệu ứng khi click chọn MỘT HÀNG (Active Row) */
 body[data-current-theme="aqua"] tr.active-row td { 
-    background: rgba(198, 230, 232, 0.5) !important; /* Màu Vân Tụ Lam (#C6E6E8) trong suốt */
+    background: rgba(198, 230, 232, 0.5) !important;
 }
 
 /* Hiệu ứng khi BẤM VÀO Ô ĐỂ GÕ CHỮ (Focus / Focus-within) */
 body[data-current-theme="aqua"] table tbody td[data-col]:focus,
 body[data-current-theme="aqua"] table tbody td[data-col]:focus-within {
-    background: #ffffff !important; /* Nền trắng tinh khiết để gõ chữ rõ nét nhất */
-    box-shadow: inset 0 0 0 2px #51C4D3, inset 0 0 12px rgba(81, 196, 211, 0.25) !important; /* Khung viền Ngọc Phác Lam sắc nét + ánh sáng mờ tỏa vào trong */
+    background: #ffffff !important;
+    box-shadow: inset 0 0 0 2px #51C4D3, inset 0 0 12px rgba(81, 196, 211, 0.25) !important;
     outline: none !important;
 }
 
-/* Ô input, ô chọn, khung text phụ */
+/* Ô input, ô chọn, khung text phụ trong Theme Mây Lam Ngọc */
 body[data-current-theme="aqua"] .font-select,
 body[data-current-theme="aqua"] input[type="text"],
 body[data-current-theme="aqua"] textarea {
     background: rgba(255, 255, 255, 0.75) !important; 
     border-color: #79d2df !important; 
     color: #0c383e !important;
+}
+body[data-current-theme="aqua"] input[type="text"]:hover:not(:focus):not(:disabled),
+body[data-current-theme="aqua"] textarea:hover:not(:focus):not(:disabled),
+body[data-current-theme="aqua"] .font-select:hover:not(:focus) {
+    background: #e2f6f8 !important;
+    border-color: #51c4d3 !important;
 }
 body[data-current-theme="aqua"] .font-select:focus,
 body[data-current-theme="aqua"] input[type="text"]:focus,
@@ -657,6 +902,7 @@ body[data-current-theme="aqua"] .story-section-box {
     border-color: rgba(81, 196, 211, 0.4) !important; 
     color: #0c383e !important;
 }
+
 /* =========================================================================
    GIAO DIỆN QUẢN LÝ VIẾT TẮT (SHORTCUTS) - PHONG CÁCH TỐI GIẢN & ĐỒNG BỘ
    ========================================================================= */
@@ -801,7 +1047,7 @@ body[data-current-theme="aqua"] .story-section-box {
 }
 .shortcut-sync-status { font-size: 0.85rem; font-weight: 600; }
 
-/* 4. Khung Thêm / Sửa viết tắt (Giải quyết triệt để lỗi ép nhỏ input) */
+/* 4. Khung Thêm / Sửa viết tắt (Ô nhập liệu viết tắt) */
 .shortcut-form-row {
     display: flex;
     gap: 10px;
@@ -816,23 +1062,29 @@ body[data-current-theme="aqua"] .story-section-box {
     display: flex;
     gap: 8px;
     flex: 1;
-    min-width: 0; /* Ràng buộc chống tràn/vỡ form cho Flexbox */
+    min-width: 0;
 }
 .shortcut-input-field {
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--input-border);
     border-radius: 6px;
     padding: 8px 10px;
     font-size: 0.9rem;
     outline: none;
-    background: var(--header-bg);
-    color: var(--text-color);
-    min-width: 0; /* Khắc phục lỗi input bị co lại còn vài kí tự */
-    transition: border-color 0.15s, box-shadow 0.15s;
+    background: var(--input-bg);
+    color: var(--input-text);
+    min-width: 0;
     font-family: inherit;
+    transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
-.shortcut-input-field:focus {
-    border-color: var(--btn-primary);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+.shortcut-input-field:hover:not(:focus):not(:disabled) {
+    background-color: var(--input-hover-bg);
+    border-color: var(--input-hover-border);
+}
+.shortcut-input-field:focus,
+.shortcut-input-field:focus-visible {
+    background-color: var(--input-focus-bg) !important;
+    border-color: var(--input-focus-border) !important;
+    box-shadow: 0 0 0 3px var(--input-focus-ring) !important;
 }
 .key-field {
     width: 140px;
@@ -864,7 +1116,7 @@ body[data-current-theme="aqua"] .story-section-box {
 .shortcut-cancel-btn { background: var(--btn-secondary); color: white; border: 1px solid var(--border-color); }
 .shortcut-cancel-btn:hover { background: var(--btn-secondary-hover); }
 
-/* 5. Khung Danh sách và Tìm kiếm */
+/* 5. Khung Danh sách và Ô tìm kiếm viết tắt */
 .shortcut-list-wrap {
     display: flex;
     flex-direction: column;
@@ -874,15 +1126,20 @@ body[data-current-theme="aqua"] .story-section-box {
 .shortcut-search-bar {
     display: flex;
     align-items: center;
-    background: var(--bg-color);
-    border: 1px solid var(--border-color);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
     border-radius: 6px;
     padding: 0 10px;
-    transition: all 0.2s;
+    transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+.shortcut-search-bar:hover:not(:focus-within) {
+    background-color: var(--input-hover-bg);
+    border-color: var(--input-hover-border);
 }
 .shortcut-search-bar:focus-within {
-    border-color: var(--btn-primary);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+    background-color: var(--input-focus-bg) !important;
+    border-color: var(--input-focus-border) !important;
+    box-shadow: 0 0 0 3px var(--input-focus-ring) !important;
 }
 .shortcut-search-bar .search-icon {
     color: var(--text-muted, #64748b);
@@ -891,14 +1148,15 @@ body[data-current-theme="aqua"] .story-section-box {
 }
 #shortcut-search-input {
     flex: 1;
-    border: none;
-    background: transparent;
+    border: none !important;
+    background: transparent !important;
     padding: 8px 0;
     font-size: 0.9rem;
     color: var(--text-color);
-    outline: none;
+    outline: none !important;
     min-width: 0;
     font-family: inherit;
+    box-shadow: none !important;
 }
 
 .shortcut-list-scroll {
@@ -991,7 +1249,7 @@ body[data-current-theme="aqua"] .story-section-box {
     color: var(--text-muted, #64748b);
 }
 .shortcut-empty-compact .empty-icon {
-    font-size: 2.2rem; /* Giới hạn tuyệt đối cỡ chữ của icon */
+    font-size: 2.2rem;
     display: block;
     margin-bottom: 10px;
     line-height: 1;

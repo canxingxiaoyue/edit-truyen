@@ -1,7 +1,6 @@
 // =========================================================================
 // KHUNG TRA TỪ ĐIỂN NHANH ĐA NGUỒN (NAME QT, VIETPHRASE, LẠC VIỆT...)
-// BẢO TOÀN VÙNG CHỌN NGUYÊN BẢN - CHỈ TỰ MỞ KHI CÓ MỤC TỪ RAW/QT HỢP LỆ
-// KHÔNG CƯỚP FOCUS - KHÔNG ẢNH HƯỞNG ĐẾN CTRL+C VÀ SAO CHÉP CÂU DÀI
+// TỰ ĐỘNG THU GỌN KHI TRA XONG - KHÔNG CƯỚP FOCUS - ĐỒNG BỘ THEME 100%
 // =========================================================================
 
 (function () {
@@ -57,7 +56,7 @@
                 background: var(--th-bg, rgba(241, 245, 249, 0.8));
                 border-bottom: 1px solid var(--border-color, #cbd5e1);
                 user-select: none;
-                cursor: grab;
+                cursor: pointer; /* Cho phép click để mở */
             }
             .dict-lookup-title {
                 display: flex;
@@ -102,6 +101,7 @@
                 overflow: hidden;
                 padding: 10px;
                 gap: 10px;
+                cursor: default;
             }
 
             .dict-input-wrap {
@@ -266,6 +266,16 @@
         `;
         document.head.appendChild(style);
     })();
+
+    // Helper: Quản lý trạng thái Thu gọn / Mở rộng đồng bộ
+    function setDictCollapseState(collapse) {
+        if (!dictPanelEl) return;
+        isCollapsed = collapse;
+        dictPanelEl.classList.toggle('collapsed', isCollapsed);
+        const cBtn = dictPanelEl.querySelector('#btn-dict-collapse');
+        if (cBtn) cBtn.textContent = isCollapsed ? '➕' : '➖';
+        localStorage.setItem('dict_lookup_collapsed', String(isCollapsed));
+    }
 
     // 2. LẬP CHỈ MỤC O(1) CHO TỪNG TỆP TỪ ĐIỂN
     function getFileEntryMap(file) {
@@ -480,7 +490,7 @@
 
         resultsContainerEl.innerHTML = html;
 
-        // Chỉ gán sự kiện cho riêng nút copy icon, cho phép bôi đen chữ tự do trên thẻ
+        // Gán sự kiện nút copy icon
         resultsContainerEl.querySelectorAll('.btn-copy-card-val').forEach((btn) => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -504,12 +514,12 @@
         dictPanelEl.className = `dict-lookup-panel ${isCollapsed ? 'collapsed' : ''}`;
 
         dictPanelEl.innerHTML = `
-            <div class="dict-lookup-header">
+            <div class="dict-lookup-header" title="Nhấn để mở rộng khung tra từ điển">
                 <h4 class="dict-lookup-title">
                     <span>📖</span> Tra từ điển
                 </h4>
                 <div class="dict-header-actions">
-                    <button type="button" class="btn-dict-ctrl ${isPinned ? 'active' : ''}" id="btn-dict-pin" title="${isPinned ? 'Bỏ ghim' : 'Ghim vị trí'}">📌</button>
+                    <button type="button" class="btn-dict-ctrl ${isPinned ? 'active' : ''}" id="btn-dict-pin" title="${isPinned ? 'Bỏ ghim' : 'Ghim vị trí (Khung sẽ luôn mở)'}">📌</button>
                     <button type="button" class="btn-dict-ctrl" id="btn-dict-collapse" title="${isCollapsed ? 'Mở rộng' : 'Thu gọn'}">${isCollapsed ? '➕' : '➖'}</button>
                     <button type="button" class="btn-dict-ctrl" id="btn-dict-close" title="Ẩn khung">&times;</button>
                 </div>
@@ -533,6 +543,13 @@
 
         queryInputEl = dictPanelEl.querySelector('#dict-query-input');
         resultsContainerEl = dictPanelEl.querySelector('#dict-results-container');
+
+        // Bật tính năng click vào thanh tiêu đề để mở nhanh khung
+        const headerEl = dictPanelEl.querySelector('.dict-lookup-header');
+        headerEl.addEventListener('click', (e) => {
+            if (e.target.closest('.btn-dict-ctrl')) return; // Bỏ qua nếu bấm trúng nút
+            if (isCollapsed) setDictCollapseState(false);
+        });
 
         queryInputEl.addEventListener('input', (e) => {
             clearTimeout(lookupDebounce);
@@ -563,10 +580,7 @@
 
         const collapseBtn = dictPanelEl.querySelector('#btn-dict-collapse');
         collapseBtn.addEventListener('click', () => {
-            isCollapsed = !isCollapsed;
-            dictPanelEl.classList.toggle('collapsed', isCollapsed);
-            collapseBtn.textContent = isCollapsed ? '➕' : '➖';
-            localStorage.setItem('dict_lookup_collapsed', String(isCollapsed));
+            setDictCollapseState(!isCollapsed);
         });
 
         dictPanelEl.querySelector('#btn-dict-close').addEventListener('click', () => {
@@ -576,54 +590,77 @@
         displayLookupResults('');
     }
 
-    // 7. XỬ LÝ TRA CỨU VĂN BẢN ĐÃ CHỌN VỚI CÁC ĐIỀU KIỆN CHẶT CHẼ
-    function processSelectedTextLookup() {
+    // 7. XỬ LÝ TRA CỨU & TỰ ĐỘNG THU GỌN KHI TRA XONG
+    function processSelectedTextLookup(clickedInsideDict = false) {
         if (isPointerSelecting) return;
 
+        // Hàm tiện ích: Tự động thu gọn khung từ điển
+        const tryAutoCollapse = () => {
+            if (isPinned || isCollapsed || clickedInsideDict) return;
+            if (dictPanelEl && dictPanelEl.style.display !== 'none') {
+                setDictCollapseState(true);
+            }
+        };
+
         const selection = window.getSelection();
-        if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
+        // Nếu click ra ngoài bảng, hoặc vùng chọn bị xóa (thao tác khác)
+        if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+            tryAutoCollapse();
+            return;
+        }
 
         const rawText = selection.toString();
-        // Loại bỏ dấu câu ở đầu và cuối khi tra cứu mà KHÔNG làm thay đổi văn bản trên ô
         const selectedText = rawText.trim().replace(/^[\s\p{P}+]+|[\s\p{P}+]+$/gu, '');
-        if (!selectedText) return;
+        if (!selectedText) {
+            tryAutoCollapse();
+            return;
+        }
 
         const range = selection.getRangeAt(0);
         const container = range.commonAncestorContainer;
         const node = container.nodeType === Node.ELEMENT_NODE ? container : container.parentElement;
-        if (!node) return;
+        if (!node) {
+            tryAutoCollapse();
+            return;
+        }
 
         // Bỏ qua nếu đang bôi đen bên trong chính khung tra từ điển để copy nghĩa
         if (dictPanelEl && dictPanelEl.contains(node)) return;
 
         // QUY TẮC 1: Chỉ tự động tra khi bôi đen ở 2 cột Raw và Bản QT
         const targetCell = node.closest('td[data-col]');
-        if (!targetCell) return;
-
-        const colName = targetCell.dataset.col;
-        if (colName !== 'raw' && colName !== 'qt') return;
-
-        // QUY TẮC 2: Bỏ qua khi người dùng chọn câu dài, đoạn văn hoặc nhấn Ctrl+C
-        if (rawText.includes('\n') || rawText.includes('\r')) return;
-        if (/[。！？!?；…\t]/.test(selectedText)) return;
-        if (selectedText.length > 20) return;
-
-        // QUY TẮC 3: Kiểm tra mục từ hợp lệ trước khi quyết định mở khung
-        if (!checkHasValidDictionaryEntry(selectedText)) {
-            // Không có trong từ điển (như Chapter4) -> Tuyệt đối không mở khung
+        if (!targetCell) {
+            tryAutoCollapse();
             return;
         }
 
-        // HỢP LỆ: Mở khung và hiển thị nghĩa (Không cướp focus của ô bảng)
+        const colName = targetCell.dataset.col;
+        if (colName !== 'raw' && colName !== 'qt') {
+            tryAutoCollapse();
+            return;
+        }
+
+        // QUY TẮC 2: Bỏ qua khi người dùng chọn câu dài, đoạn văn hoặc nhấn Ctrl+C
+        if (rawText.includes('\n') || rawText.includes('\r') || /[。！？!?；…\t]/.test(selectedText) || selectedText.length > 20) {
+            tryAutoCollapse();
+            return;
+        }
+
+        // QUY TẮC 3: Kiểm tra mục từ hợp lệ trước khi quyết định mở khung
+        if (!checkHasValidDictionaryEntry(selectedText)) {
+            // Không có trong từ điển -> Không mở, tự động thu gọn khung cũ
+            tryAutoCollapse();
+            return;
+        }
+
+        // ================= HỢP LỆ: MỞ KHUNG TỪ ĐIỂN =================
         if (!dictPanelEl) createDictLookupPanel();
 
         if (dictPanelEl.style.display === 'none') {
             dictPanelEl.style.display = 'flex';
         }
-        if (dictPanelEl.classList.contains('collapsed')) {
-            dictPanelEl.classList.remove('collapsed');
-            const cBtn = dictPanelEl.querySelector('#btn-dict-collapse');
-            if (cBtn) cBtn.textContent = '➖';
+        if (isCollapsed) {
+            setDictCollapseState(false);
         }
 
         displayLookupResults(selectedText);
@@ -646,7 +683,7 @@
             if (!dictPanelEl) createDictLookupPanel();
             if (dictPanelEl.style.display === 'none') {
                 dictPanelEl.style.display = 'flex';
-                dictPanelEl.classList.remove('collapsed');
+                setDictCollapseState(false);
                 if (currentQuery) displayLookupResults(currentQuery);
             } else {
                 dictPanelEl.style.display = 'none';
@@ -661,32 +698,40 @@
         return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    // 9. KHỞI CHẠY HỆ THỐNG (HỖ TRỢ CẢ CHUỘT VÀ CHẠM GIỮ TRÊN MOBILE)
+    // 9. KHỞI CHẠY HỆ THỐNG
     function initDictionaryLookupModule() {
         createDictLookupPanel();
         ensureToolbarButton();
 
         // 1. Dành cho Desktop (Chuột)
         document.addEventListener('mousedown', () => { isPointerSelecting = true; });
-        document.addEventListener('mouseup', () => {
+        document.addEventListener('mouseup', (e) => {
             isPointerSelecting = false;
             clearTimeout(lookupDebounce);
-            lookupDebounce = setTimeout(processSelectedTextLookup, 150);
+            lookupDebounce = setTimeout(() => {
+                const clickedInsideDict = dictPanelEl && dictPanelEl.contains(e.target);
+                processSelectedTextLookup(clickedInsideDict);
+            }, 150);
         });
 
         // 2. Dành cho Mobile (Chạm giữ để chọn chữ)
         document.addEventListener('touchstart', () => { isPointerSelecting = true; }, { passive: true });
-        document.addEventListener('touchend', () => {
+        document.addEventListener('touchend', (e) => {
             isPointerSelecting = false;
             clearTimeout(lookupDebounce);
-            lookupDebounce = setTimeout(processSelectedTextLookup, 250);
+            lookupDebounce = setTimeout(() => {
+                const touchedInsideDict = dictPanelEl && dictPanelEl.contains(e.target);
+                processSelectedTextLookup(touchedInsideDict);
+            }, 250);
         }, { passive: true });
 
         // 3. Dành cho Bàn phím (Shift + Mũi tên)
         document.addEventListener('keyup', (e) => {
             if (e.shiftKey || e.key.startsWith('Arrow')) {
                 clearTimeout(lookupDebounce);
-                lookupDebounce = setTimeout(processSelectedTextLookup, 200);
+                lookupDebounce = setTimeout(() => {
+                    processSelectedTextLookup(false);
+                }, 200);
             }
         });
     }

@@ -283,12 +283,29 @@ button {
 .color-picker-box { width: 18px; height: 18px; border: none; border-radius: 3px; cursor: pointer; background: transparent; }
 
 /* ================= BẢNG CHÍNH (TAB 1 - DESKTOP VIEW) ================= */
-#table-container { flex-grow: 1; overflow: auto; position: relative; }
-table { width: 100%; min-width: 1200px; table-layout: fixed; border-collapse: collapse; }
+#table-container { 
+    flex-grow: 1; 
+    overflow: auto; 
+    position: relative; 
+}
+table { 
+    width: 100%; 
+    min-width: 1200px; 
+    table-layout: fixed; 
+    border-collapse: collapse; 
+}
+
+/* ĐẦU CỘT DÍNH (STICKY TH): NỀN ĐẶC HOÀN TOÀN ĐỂ KHÔNG BỊ LỘ CHỮ KHI CUỘN */
 th {
-    position: sticky; top: 0; background-color: var(--th-bg);
-    border: 1px solid var(--border-color); border-top: none;
-    padding: 10px; font-weight: 600; width: 16.666%; z-index: 10;
+    position: sticky; 
+    top: 0; 
+    background-color: var(--th-bg, #f4f4f5);
+    border: 1px solid var(--border-color); 
+    border-top: none;
+    padding: 10px; 
+    font-weight: 600; 
+    width: 16.666%; 
+    z-index: 10;
 }
 
 .th-wrapper {
@@ -315,10 +332,31 @@ th {
 .col-action-btn { background-color: var(--btn-primary); color: white; }
 .col-action-btn:hover { background-color: var(--btn-primary-hover); transform: scale(1.05); }
 
-td {
-    border: 1px solid var(--border-color); padding: 10px;
-    vertical-align: top; outline: none; white-space: pre-wrap; word-wrap: break-word;
+/* =========================================================================
+   CĂN CHỈNH NỘI DUNG TẤT CẢ CÁC Ô TRÊN DESKTOP:
+   LUÔN LUÔN CĂN TRÊN CÙNG (TOP) VÀ CĂN TRÁI (LEFT) - KHÔNG BAO GIỜ BỊ DỒN GIỮA
+   ========================================================================= */
+tbody tr {
+    height: auto !important;
 }
+
+td,
+td[data-col],
+#table-body td,
+#table-body td[data-col] {
+    display: table-cell !important;
+    vertical-align: top !important;   /* CĂN TRÊN CÙNG 100% */
+    text-align: left !important;      /* CĂN TRÁI 100% */
+    padding: 10px 12px !important;    /* Khoảng cách đệm chuẩn mực */
+    height: auto !important;          /* Chiều cao co giãn tự nhiên theo ô dài nhất */
+    min-height: 0 !important;
+    border: 1px solid var(--border-color);
+    outline: none;
+    white-space: pre-wrap;
+    word-break: break-word;
+    box-sizing: border-box;
+}
+
 tr:hover td { background-color: var(--row-hover); }
 tr.active-row td { background-color: var(--row-active); }
 td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var(--bg-color) !important; }
@@ -329,16 +367,23 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
 .mobile-view-bar {
     display: none !important;
 }
+
 .cell-content {
-    display: block;
-    width: 100%;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
     min-height: 24px;
+    text-align: left !important;
+    vertical-align: top !important;
+    margin: 0 !important;
+    padding: 0 !important;
     outline: none;
     word-break: break-word;
     white-space: pre-wrap;
 }
+
 .col-collapsed .cell-content {
-    display: block !important; /* Trên máy tính luôn luôn mở 100% cột */
+    display: block !important; /* Trên máy tính luôn luôn mở 100% các cột */
 }
 
 /* ================= HIỆU ỨNG BÔI ĐEN ĐỒNG THỜI REAL-TIME (RAW ↔ QT) ================= */
@@ -427,7 +472,7 @@ td:focus { box-shadow: inset 0 0 0 2px var(--btn-primary); background-color: var
     width: 45px !important;
     min-width: 45px !important;
     text-align: center;
-    vertical-align: middle;
+    vertical-align: middle !important;
     padding: 6px !important;
     background-color: var(--th-bg);
     border: 1px solid var(--border-color);
@@ -864,13 +909,23 @@ body[data-current-theme="aqua"] .format-toolbar {
     background: rgba(235, 248, 250, 0.85) !important;
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-color: #B2DCE0 !important;
 }
+
+/* ĐẦU CỘT NỀN ĐẶC OPAQUE ĐỂ CHỐNG LỘ MỜ CHỮ KHI CUỘN */
 body[data-current-theme="aqua"] table thead th {
-    background: rgba(226, 246, 248, 0.95) !important; color: #18434D !important;
-    border-color: #B2DCE0 !important; font-weight: 700;
+    background: #E2F6F8 !important; 
+    color: #18434D !important;
+    border-color: #B2DCE0 !important; 
+    font-weight: 700;
 }
+
+/* ĐẢM BẢO CĂN TRÊN CÙNG & CĂN TRÁI CHO TẤT CẢ CÁC Ô THEME AQUA */
 body[data-current-theme="aqua"] table tbody td {
-    background: rgba(255, 255, 255, 0.82) !important; color: #18434D !important;
-    border-color: rgba(81, 196, 211, 0.28) !important; transition: background 0.15s ease;
+    background: rgba(255, 255, 255, 0.82) !important; 
+    color: #18434D !important;
+    border-color: rgba(81, 196, 211, 0.28) !important; 
+    vertical-align: top !important;
+    text-align: left !important;
+    transition: background 0.15s ease;
 }
 body[data-current-theme="aqua"] tr:hover:not(.active-row) td { background: rgba(255, 255, 255, 0.94) !important; }
 body[data-current-theme="aqua"] tr.active-row td { background: rgba(182, 238, 245, 0.55) !important; }
@@ -893,7 +948,6 @@ body[data-current-theme="aqua"] .story-section-box {
 /* ========================================================================= */
 
 @media screen and (max-width: 768px) {
-    /* 1. MỞ KHÓA CUỘN DỌC TOÀN TRANG, TRIỆT TIÊU CUỘN NGANG */
     body {
         height: auto !important;
         overflow-y: auto !important;
@@ -915,7 +969,6 @@ body[data-current-theme="aqua"] .story-section-box {
         overflow: visible !important;
     }
 
-    /* 2. HEADER VÀ MENU GỌN GÀNG */
     .top-nav-bar {
         flex-direction: column !important;
         padding: 8px 12px !important;
@@ -937,7 +990,6 @@ body[data-current-theme="aqua"] .story-section-box {
         width: 100% !important;
     }
 
-    /* 3. THANH CÔNG CỤ DỊCH THUẬT: CUỘN NGANG TIỆN TAY */
     .story-title-bar {
         padding: 6px 12px !important;
         flex-direction: column !important;
@@ -965,12 +1017,10 @@ body[data-current-theme="aqua"] .story-section-box {
         font-size: 0.8rem !important;
     }
 
-    /* Ẩn bớt thanh ribbon format trên mobile để nhường diện tích đọc truyện */
     .format-toolbar {
         display: none !important;
     }
 
-    /* 4. THANH ĐIỀU KHIỂN CHẾ ĐỘ XEM TRÊN MOBILE (QUICK VIEW BAR) */
     .mobile-view-bar {
         display: flex !important;
         align-items: center;
@@ -1002,7 +1052,6 @@ body[data-current-theme="aqua"] .story-section-box {
         border-color: var(--btn-primary) !important;
     }
 
-    /* 5. BIẾN ĐỔI BẢNG THÀNH CÁC THẺ TRUYỆN DỌC (STORY CARDS) */
     #table-container {
         height: auto !important;
         overflow: visible !important;
@@ -1018,7 +1067,7 @@ body[data-current-theme="aqua"] .story-section-box {
     }
 
     thead {
-        display: none !important; /* Ẩn toàn bộ tiêu đề cột máy tính */
+        display: none !important;
     }
 
     tbody {
@@ -1028,11 +1077,11 @@ body[data-current-theme="aqua"] .story-section-box {
         width: 100% !important;
     }
 
-    /* MỖI HÀNG LÀ MỘT CARD ĐỘC LẬP */
     tr {
         display: flex !important;
         flex-direction: column !important;
         width: 100% !important;
+        height: auto !important;
         background: var(--header-bg, #ffffff) !important;
         border: 1.5px solid var(--border-color, #cbd5e1) !important;
         border-radius: 12px !important;
@@ -1046,7 +1095,6 @@ body[data-current-theme="aqua"] .story-section-box {
         box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
     }
 
-    /* Thanh số dòng ở đầu mỗi thẻ Card (Dòng X + Nút Thêm/Xóa) */
     .mobile-row-meta {
         display: flex !important;
         align-items: center !important;
@@ -1090,7 +1138,7 @@ body[data-current-theme="aqua"] .story-section-box {
         border: 1px solid rgba(239, 68, 68, 0.2) !important;
     }
 
-    /* THỨ TỰ CỐ ĐỊNH 6 KHỐI NỘI DUNG THEO YÊU CẦU */
+    /* THỨ TỰ CỐ ĐỊNH TRÊN MOBILE */
     td[data-col="raw"]         { order: 1 !important; }
     td[data-col="pinyin"]      { order: 2 !important; }
     td[data-col="qt"]          { order: 3 !important; }
@@ -1098,11 +1146,15 @@ body[data-current-theme="aqua"] .story-section-box {
     td[data-col="edit"]        { order: 5 !important; }
     td[data-col="meaning"]     { order: 6 !important; }
 
-    /* ĐỊNH DẠNG TỪNG KHỐI NỘI DUNG */
+    /* CĂN TRÊN CÙNG VÀ CĂN TRÁI CHO KHỐI NỘI DUNG MOBILE */
     td[data-col] {
         display: flex !important;
         flex-direction: column !important;
+        align-items: stretch !important;       /* Căng đều lề ngang, không dồn giữa */
+        justify-content: flex-start !important; /* Căn trên cùng */
+        text-align: left !important;
         width: 100% !important;
+        height: auto !important;
         border: none !important;
         border-bottom: 1px solid var(--border-color, #e2e8f0) !important;
         padding: 0 !important;
@@ -1112,7 +1164,6 @@ body[data-current-theme="aqua"] .story-section-box {
         border-bottom: none !important;
     }
 
-    /* THANH TIÊU ĐỀ KHỐI (CHIỀU CAO 42PX CHUẨN CẢM ỨNG) */
     .cell-header {
         display: flex !important;
         align-items: center !important;
@@ -1132,7 +1183,6 @@ body[data-current-theme="aqua"] .story-section-box {
         text-transform: uppercase !important;
     }
 
-    /* MÀU HUY HIỆU PASTEL TỪNG CỘT */
     .badge-raw     { background: #e0f2fe; color: #0284c7; }
     .badge-pinyin  { background: #f3e8ff; color: #9333ea; }
     .badge-qt      { background: #fef3c7; color: #d97706; }
@@ -1140,7 +1190,6 @@ body[data-current-theme="aqua"] .story-section-box {
     .badge-beta    { background: #ede9fe; color: #7c3aed; }
     .badge-meaning { background: #f1f5f9; color: #64748b; }
 
-    /* Chế độ tối cho huy hiệu */
     [data-theme="dark"] .badge-raw     { background: #1e3a5f; color: #38bdf8; }
     [data-theme="dark"] .badge-pinyin  { background: #3b1d54; color: #c084fc; }
     [data-theme="dark"] .badge-qt      { background: #452b14; color: #fbbf24; }
@@ -1167,8 +1216,9 @@ body[data-current-theme="aqua"] .story-section-box {
         transition: transform 0.2s ease;
     }
 
-    /* VÙNG NỘI DUNG VĂN BẢN TRONG KHỐI */
     .cell-content {
+        display: block !important;
+        text-align: left !important;
         padding: 8px 12px 12px 12px !important;
         font-size: inherit !important;
         line-height: 1.65 !important;
@@ -1176,6 +1226,7 @@ body[data-current-theme="aqua"] .story-section-box {
         outline: none !important;
         word-break: break-word !important;
         white-space: pre-wrap !important;
+        margin: 0 !important;
     }
     .cell-content:focus {
         background: var(--bg-color, #ffffff) !important;
@@ -1183,7 +1234,6 @@ body[data-current-theme="aqua"] .story-section-box {
         border-radius: 6px;
     }
 
-    /* TRẠNG THÁI KHỐI KHI THU GỌN (CHỈ HIỂN THỊ THANH TIÊU ĐỀ) */
     td.col-collapsed .cell-content {
         display: none !important;
     }
@@ -1191,7 +1241,6 @@ body[data-current-theme="aqua"] .story-section-box {
         transform: rotate(-90deg);
     }
 
-    /* 6. KHUNG TRA TỪ ĐIỂN DẠNG BOTTOM SHEET TRÊN MOBILE */
     .dict-lookup-panel {
         top: auto !important;
         bottom: 12px !important;
@@ -1204,7 +1253,6 @@ body[data-current-theme="aqua"] .story-section-box {
         box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.25) !important;
     }
 
-    /* 7. MỤC 2: THÔNG TIN TRUYỆN XẾP DỌC THẲNG ĐỨNG */
     .story-tables-wrapper {
         display: flex !important;
         flex-direction: column !important;
@@ -1230,7 +1278,6 @@ body[data-current-theme="aqua"] .story-section-box {
         min-width: unset !important;
     }
 
-    /* 8. MODAL RESPONSIVE TRÊN MOBILE */
     .modal-content, .sage-gdrive-card, .sage-auth-card, .modal-name-editor, .modal-projects-box {
         width: 95% !important;
         max-width: 100% !important;

@@ -318,7 +318,14 @@ textarea.is-invalid:focus {
 
     #table-container thead { display: table-header-group !important; }
     #table-container tbody { display: table-row-group !important; height: auto !important; }
-    #table-container tbody tr { display: table-row !important; height: auto !important; }
+    
+    /* 1. RÀNG BUỘC HÀNG: ÉP TOÀN BỘ CÁC HÀNG BẮT ĐẦU NỘI DUNG TỪ ĐỈNH */
+    #table-container tbody tr,
+    #table-body tr { 
+        display: table-row !important; 
+        height: auto !important; 
+        vertical-align: top !important; 
+    }
 
     th {
         position: sticky; top: 0; background-color: var(--th-bg, #f4f4f5) !important;
@@ -335,16 +342,31 @@ textarea.is-invalid:focus {
     .col-copy-btn { background-color: var(--btn-success); color: white; }
     .col-copy-btn:hover { background-color: var(--btn-success-hover); transform: scale(1.05); }
 
-    /* CĂN CHỮ SÁT TRÊN CÙNG BÊN TRÁI CHO TẤT CẢ CÁC Ô */
+    /* 2. CĂN CHỮ BẮT BUỘC Ở ĐẦU Ô (TOP-LEFT) CHO TẤT CẢ CÁC CỘT DỮ LIỆU */
     body #table-body td,
+    body #table-body td[data-col],
     body[data-current-theme] #table-body td,
-    body[data-current-theme] #table-body td[data-col] {
-        display: table-cell !important; vertical-align: top !important; text-align: left !important;
-        padding: 8px 12px !important; height: auto !important; min-height: 0 !important;
-        border: 1px solid var(--border-color) !important; outline: none !important;
-        white-space: pre-wrap !important; word-break: break-word !important;
-        box-sizing: border-box !important; background-color: transparent;
-        user-select: text !important; -webkit-user-select: text !important;
+    body[data-current-theme] #table-body td[data-col],
+    #table-body td[data-col="raw"],
+    #table-body td[data-col="pinyin"],
+    #table-body td[data-col="meaning"],
+    #table-body td[data-col="translation"],
+    #table-body td[data-col="qt"],
+    #table-body td[data-col="edit"] {
+        display: table-cell !important; 
+        vertical-align: top !important; /* Luôn ôm sát mép trên ô */
+        text-align: left !important;     /* Luôn ôm sát mép trái */
+        padding: 6px 10px !important;    /* Lề trên-dưới nhỏ gọn (6px), tránh khoảng trống thừa */
+        height: auto !important; 
+        min-height: 0 !important;
+        border: 1px solid var(--border-color) !important; 
+        outline: none !important;
+        white-space: pre-wrap !important; 
+        word-break: break-word !important;
+        box-sizing: border-box !important; 
+        background-color: transparent;
+        user-select: text !important; 
+        -webkit-user-select: text !important;
         transition: background-color 180ms ease, box-shadow 180ms ease;
     }
 
@@ -354,6 +376,7 @@ textarea.is-invalid:focus {
     /* Hover vào từng ô soạn thảo bảng (chưa focus) */
     body:not([data-current-theme="aqua"]) #table-body td[data-col]:hover:not(:focus):not(:focus-within) {
         background-color: rgba(59, 130, 246, 0.06) !important;
+        vertical-align: top !important;
     }
 
     /* Focus vào ô soạn thảo bảng để gõ chữ */
@@ -362,6 +385,7 @@ textarea.is-invalid:focus {
         background-color: var(--header-bg) !important;
         box-shadow: inset 0 0 0 2px var(--btn-primary) !important;
         outline: none !important;
+        vertical-align: top !important;
     }
 
     /* KHỬ HOÀN TOÀN CÁC KHỐI MOBILE LÀM RÁC DOM TRÊN DESKTOP */
@@ -377,13 +401,27 @@ textarea.is-invalid:focus {
     }
     #table-body tr td.batch-select-cell[style*="display: none"] { display: none !important; }
 
-    /* VÙNG CHỨA VĂN BẢN TRONG SUỐT VÀ ÔM SÁT TEXT */
-    #table-body .cell-content, #table-body td > div {
-        display: block !important; width: 100% !important; height: auto !important; min-height: 0 !important;
-        text-align: left !important; vertical-align: top !important; margin: 0 !important; padding: 0 !important;
-        border: none !important; background: transparent !important; box-shadow: none !important;
-        outline: none !important; word-break: break-word !important; white-space: pre-wrap !important;
-        user-select: text !important; -webkit-user-select: text !important;
+    /* 3. TRIỆT TIÊU TOÀN BỘ MARGIN/PADDING THỪA CỦA PHẦN TỬ CON BÊN TRONG Ô */
+    #table-body .cell-content, 
+    #table-body td > div,
+    #table-body td > p {
+        display: block !important; 
+        width: 100% !important; 
+        height: auto !important; 
+        min-height: 0 !important;
+        text-align: left !important; 
+        vertical-align: top !important; 
+        margin: 0 !important; 
+        padding: 0 !important; /* Xóa margin/padding thừa của div/p để chữ ôm sát mép trên */
+        border: none !important; 
+        background: transparent !important; 
+        box-shadow: none !important;
+        outline: none !important; 
+        word-break: break-word !important; 
+        white-space: pre-wrap !important;
+        user-select: text !important; 
+        -webkit-user-select: text !important;
+        line-height: inherit !important;
     }
 
     .col-collapsed .cell-content { display: block !important; }
@@ -692,7 +730,7 @@ td.batch-intersection-selected { background-color: rgba(239, 68, 68, 0.2) !impor
 /* GIAO DIỆN DANH SÁCH FILE NAME QT TRONG MODAL */
 .nameqt-file-list { display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; margin-bottom: 12px; padding-right: 4px; }
 .nameqt-file-item {
-    display: flex align-items: center; justify-content: space-between;
+    display: flex; align-items: center; justify-content: space-between;
     background: var(--bg-color); border: 1px solid var(--border-color);
     padding: 8px 12px; border-radius: 6px; transition: all 0.2s;
 }
@@ -839,6 +877,7 @@ body[data-current-theme="aqua"] table tbody td[data-col] {
     border-color: rgba(81, 196, 211, 0.25) !important; 
     vertical-align: top !important;
     text-align: left !important; 
+    padding: 6px 10px !important;
     height: auto !important;
 }
 
@@ -857,6 +896,7 @@ body[data-current-theme="aqua"] tr:hover:not(.active-row) td {
 /* Hiệu ứng khi lia chuột vào TỪNG Ô CỤ THỂ (không đè lên ô đang focus) */
 body[data-current-theme="aqua"] table tbody td[data-col]:hover:not(:focus):not(:focus-within) {
     background: #E2F6F8 !important;
+    vertical-align: top !important;
 }
 
 /* Hiệu ứng khi click chọn MỘT HÀNG (Active Row) */
@@ -870,6 +910,7 @@ body[data-current-theme="aqua"] table tbody td[data-col]:focus-within {
     background: #ffffff !important;
     box-shadow: inset 0 0 0 2px #51C4D3, inset 0 0 12px rgba(81, 196, 211, 0.25) !important;
     outline: none !important;
+    vertical-align: top !important;
 }
 
 /* Ô input, ô chọn, khung text phụ trong Theme Mây Lam Ngọc */

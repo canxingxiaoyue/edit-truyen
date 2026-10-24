@@ -283,7 +283,6 @@ button {
 
 /* =========================================================================
    BẮT BUỘC KHÓA BẢNG VÀ CĂN CHỮ LÊN TRÊN CÙNG DÀNH RIÊNG CHO DESKTOP
-   (Sửa triệt để lỗi khoảng trống và hàng bị kéo giãn trên máy tính)
    ========================================================================= */
 @media screen and (min-width: 769px) {
     #table-container { 
@@ -293,22 +292,21 @@ button {
         display: block !important;
     }
     
-    /* Ép bảng phải ôm khít nội dung, không được tự ý giãn dọc */
+    /* CHIỀU CAO TỰ ĐỘNG THEO NỘI DUNG (auto) THAY VÌ max-content ĐỂ TRÁNH LỖI CĂN GIỮA */
     #table-container table { 
         width: 100%; 
         min-width: 1200px; 
         table-layout: fixed; 
         border-collapse: collapse;
-        height: max-content !important; 
-        margin-bottom: auto !important; /* Đẩy bảng dồn sát lên trên */
+        height: auto !important; 
     }
 
     #table-container tbody {
-        height: max-content !important;
+        height: auto !important;
     }
 
     #table-container tbody tr {
-        height: max-content !important; /* Hàng tự động co lại bằng với nội dung */
+        height: auto !important; 
     }
 
     /* ĐẦU CỘT DÍNH (STICKY TH) */
@@ -355,7 +353,7 @@ button {
         vertical-align: top !important;   /* Bắt buộc chữ bám sát lề trên */
         text-align: left !important;      /* Bắt buộc chữ bám sát lề trái */
         padding: 10px 12px !important;    
-        height: max-content !important;   
+        height: auto !important;          /* Chiều cao tự nhiên khít nội dung */
         min-height: 24px !important;
         border: 1px solid var(--border-color) !important;
         outline: none !important;
@@ -402,7 +400,7 @@ button {
     #table-body .cell-content {
         display: block !important;
         width: 100% !important;
-        height: max-content !important;
+        height: auto !important;      /* KHÔNG DÙNG max-content Ở ĐÂY NỮA */
         min-height: 24px !important;
         text-align: left !important;
         vertical-align: top !important;
@@ -935,7 +933,7 @@ body[data-current-theme="aqua"] table tbody td[data-col] {
     border-color: rgba(81, 196, 211, 0.28) !important; 
     vertical-align: top !important;
     text-align: left !important;
-    height: max-content !important;
+    height: auto !important;
     transition: background 0.15s ease;
 }
 body[data-current-theme="aqua"] tr:hover:not(.active-row) td { background: rgba(255, 255, 255, 0.94) !important; }

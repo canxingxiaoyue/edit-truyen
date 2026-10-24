@@ -27,8 +27,9 @@
     <script src="js/search-replace.js" defer></script>
     <script src="js/modals-history.js" defer></script>
     <script src="js/quick-name.js" defer></script>
-    <!-- ĐÃ BỔ SUNG FILE TRA TỪ ĐIỂN NHANH -->
     <script src="js/dict-lookup.js" defer></script>
+    <!-- ĐÃ BỔ SUNG MODULE QUẢN LÝ VIẾT TẮT & TỰ ĐỘNG THAY THẾ -->
+    <script src="js/shortcuts.js" defer></script>
     <script src="js/google-drive.js" defer></script>
     <script src="js/project-manager.js" defer></script>
     <script src="js/app.js" defer></script>
@@ -134,12 +135,13 @@
                 
                 <button class="btn-tool" id="btn-replace-show">🔍 Tìm & Thay thế</button>
                 <button class="btn-tool" id="btn-history-show" title="Xem lịch sử sửa đổi biên dịch">📜 Lịch sử</button>
+                <!-- ĐÃ BỔ SUNG NÚT BẬT/TẮT VÀ QUẢN LÝ VIẾT TẮT -->
+                <button type="button" class="btn-tool" id="btn-shortcuts-manager" title="Quản lý và bật/tắt viết tắt tự động (Space/Enter)">⚡ Viết tắt</button>
 
                 <div class="divider"></div>
 
                 <button class="btn-file" id="btn-open-nameqt-modal" title="Quản lý & Cập nhật từ điển Name QT">📥 Tải Name QT</button>
                 <button class="btn-tool" id="btn-refresh-qt" title="Làm mới lại toàn bộ bản QT theo Name mới">🔄 Cập nhật QT</button>
-                <!-- BỔ SUNG NÚT BẬT/TẮT KHUNG TRA TỪ ĐIỂN TRỰC TIẾP TRÊN THANH CÔNG CỤ -->
                 <button type="button" class="btn-tool" id="btn-toggle-dict-panel" title="Bật/Tắt khung tra từ điển nhanh">📖 Tra từ điển</button>
             </div>
 
@@ -283,7 +285,6 @@
                 
                 <div class="story-header-actions">
                     <button class="btn-copy btn-sm" id="btn-copy-all-meta" title="Sao chép toàn bộ thông tin truyện">📋 Copy toàn bộ thông tin</button>
-                    <!-- ĐÃ CẬP NHẬT TÊN NÚT VÀ GÁN TRỰC TIẾP ONCLICK KHÔNG THỂ BỊ CHẶN -->
                     <button class="btn-file btn-sm btn-prose-import-trigger" id="btn-import-prose-meta" title="Tự động tạo bảng thông tin từ văn bản" onclick="openProseImportModal()">📄 Text tạo bảng</button>
                     <button class="btn-file btn-sm" id="btn-meta-undo" title="Hoàn tác thông tin (Ctrl+Z)" disabled>↩️ Undo</button>
                     <button class="btn-file btn-sm" id="btn-meta-redo" title="Làm lại thông tin (Ctrl+Y)" disabled>🔁 Redo</button>
@@ -494,14 +495,14 @@
     </div>
 
     <!-- =============================================================== -->
-    <!-- HỘP THOẠI MODAL: QUẢN LÝ DỰ ÁN CỦA TÔI (PHƯƠNG ÁN B HOÀN HẢO) -->
+    <!-- HỘP THOẠI MODAL: QUẢN LÝ DỰ ÁN CỦA TÔI -->
     <!-- =============================================================== -->
     <div class="modal-overlay" id="modal-my-data">
         <div class="modal-content modal-projects-box">
             <h3>📂 Dự án của tôi</h3>
             <p class="modal-desc" id="storage-summary-info">Đang tính toán dung lượng...</p>
 
-            <!-- THANH TÌM KIẾM, SẮP XẾP & NÚT CHỌN NHIỀU (GẮN TRỰC TIẾP ONCLICK) -->
+            <!-- THANH TÌM KIẾM, SẮP XẾP & NÚT CHỌN NHIỀU -->
             <div class="project-toolbar-bar" style="display:flex; gap:8px; align-items:center; margin: 8px 0; flex-wrap:wrap;">
                 <input type="text" id="project-search-input" placeholder="🔍 Tìm kiếm dự án / chương truyện..." style="flex:1; min-width:180px; padding:6px 10px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-color); color:var(--text-color); font-size:0.88rem;">
                 <select id="project-sort-select" class="font-select" style="margin:0; padding:6px 8px; font-size:0.85rem;">
@@ -513,7 +514,7 @@
                 <button type="button" class="btn-tool btn-sm" id="btn-toggle-project-batch" onclick="toggleProjectBatchMode()" title="Bật/Tắt chế độ chọn nhiều dự án">☑️ Chọn nhiều</button>
             </div>
 
-            <!-- THANH THAO TÁC HÀNG LOẠT (HIỆN KHI BẬT CHỌN NHIỀU) -->
+            <!-- THANH THAO TÁC HÀNG LOẠT -->
             <div id="project-batch-bar" class="project-batch-bar" style="display: none;">
                 <span id="project-batch-summary">Đã chọn: 0 dự án</span>
                 <button type="button" class="btn-danger btn-xs" id="btn-project-batch-delete" onclick="executeProjectBatchDelete()" disabled>🗑️ Xóa dự án đã chọn</button>
@@ -525,7 +526,6 @@
                 <table class="info-table projects-table">
                     <thead>
                         <tr>
-                            <!-- CỘT CHECKBOX CHỌN NHIỀU (ẨN MẶC ĐỊNH) -->
                             <th class="proj-batch-th" style="display: none; width: 38px; text-align: center;">
                                 <input type="checkbox" id="check-all-projects" title="Chọn tất cả dự án">
                             </th>
@@ -546,7 +546,7 @@
             </div>
         </div>
 
-        <!-- MENU BA CHẤM ĐỊNH VỊ NỔI (FLOATING DROPDOWN MENU) -->
+        <!-- MENU BA CHẤM ĐỊNH VỊ NỔI -->
         <div id="project-dropdown-menu" class="proj-dropdown-menu" style="display: none;">
             <button type="button" class="proj-menu-item" data-action="rename">
                 <span class="proj-menu-icon">✏️</span> Đổi tên
@@ -565,11 +565,10 @@
     </div>
 
     <!-- =============================================================== -->
-    <!-- CỬA SỔ RIÊNG GOOGLE DRIVE - VIBE XANH LÁ DỊU (SAGE DRIVE MODAL) -->
+    <!-- CỬA SỔ RIÊNG GOOGLE DRIVE -->
     <!-- =============================================================== -->
     <div class="modal-overlay" id="modal-gdrive-auth">
         <div class="modal-content sage-gdrive-card">
-            <!-- Header Vibe Xanh Thảo Mộc -->
             <div class="sage-gdrive-header">
                 <span class="sage-gdrive-icon">🌿📁</span>
                 <h3>Không Gian Google Drive Của Bạn</h3>
@@ -577,7 +576,6 @@
             </div>
 
             <div class="sage-gdrive-body">
-                <!-- Hộp thông báo trạng thái -->
                 <div id="gdrive-status-box" class="sage-gdrive-status">
                     <span>Trạng thái: <strong>🟡 Chưa kết nối Google Drive</strong></span>
                 </div>
@@ -587,7 +585,6 @@
                 </div>
             </div>
 
-            <!-- Nút bấm hành động -->
             <div class="modal-actions sage-gdrive-actions">
                 <button type="button" class="btn-file" id="btn-close-gdrive-modal">Đóng</button>
                 <button type="button" class="btn-danger" id="btn-disconnect-gdrive" style="display:none;">Ngắt kết nối</button>

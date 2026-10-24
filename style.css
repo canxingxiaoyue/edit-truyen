@@ -553,7 +553,7 @@ td.batch-intersection-selected {
     overflow: hidden;
 }
 .story-section-box {
-    display: flex; flex-direction: column;
+    display: flex flex-direction: column;
     border: 1px solid var(--border-color); border-radius: 6px;
     background: var(--header-bg); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
     overflow: hidden;
@@ -665,10 +665,43 @@ td.batch-intersection-selected {
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
 .modal-desc { font-size: 0.85rem; color: gray; margin-bottom: 12px; }
 
-/* ================= LỊCH SỬ ================= */
-.history-container { flex-grow: 1; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--border-color); border-radius: 4px; padding: 5px; }
-.history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color); border-radius: 4px; }
+/* ================= LỊCH SỬ SỬA ĐỔI (DANH SÁCH PHẲNG TRỰC QUAN GỐC) ================= */
+.history-container { 
+    flex-grow: 1; 
+    overflow-y: auto; 
+    margin-bottom: 15px; 
+    border: 1px solid var(--border-color); 
+    border-radius: 6px; 
+    padding: 8px;
+    background: var(--bg-color, #ffffff);
+    max-height: 52vh;
+}
+.history-item { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 10px 12px; 
+    border-bottom: 1px solid var(--border-color); 
+    border-radius: 6px; 
+    transition: background-color 0.15s ease;
+}
+.history-item:last-child { border-bottom: none; }
 .history-item:hover { background-color: var(--row-hover); }
+.history-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.history-item-time {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-color);
+}
+.history-item-desc {
+    font-size: 0.8rem;
+    color: var(--text-muted, #64748b);
+}
+.history-actions { display: flex; gap: 6px; }
 
 /* ================= TOAST THÔNG BÁO ================= */
 #toast {
@@ -747,6 +780,167 @@ td.batch-intersection-selected {
 .nameqt-file-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .btn-xs { padding: 3px 8px !important; font-size: 0.75rem !important; border-radius: 4px !important; }
 
+/* ================= 📂 DỰ ÁN CỦA TÔI (BỐ CỤC RỘNG RÃI, THOÁNG ĐÃNG) ================= */
+.modal-projects-box {
+    width: 920px !important; 
+    max-width: 96vw !important; 
+    max-height: 88vh !important;
+    padding: 20px 24px !important; 
+    border-radius: 14px !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28) !important; 
+    position: relative;
+    background: var(--header-bg);
+}
+.modal-projects-box h3 { font-size: 1.25rem !important; margin-bottom: 4px !important; }
+.modal-projects-box .modal-desc { font-size: 0.85rem !important; margin-bottom: 10px !important; opacity: 0.85; }
+
+#btn-toggle-project-batch.active {
+    background-color: var(--btn-danger) !important; color: #ffffff !important; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.35);
+}
+.project-batch-bar {
+    display: flex; align-items: center; gap: 8px; background: rgba(239, 68, 68, 0.08);
+    padding: 6px 12px; border-radius: 8px; border: 1.5px dashed var(--btn-danger); margin: 6px 0 10px 0;
+}
+#project-batch-summary { font-weight: 700; font-size: 0.85rem; color: var(--btn-danger); white-space: nowrap; }
+
+.projects-scroll-box {
+    max-height: 52vh !important; 
+    overflow-x: auto !important; 
+    overflow-y: auto !important;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-color);
+}
+.projects-table { 
+    width: 100% !important; 
+    min-width: 680px;
+    table-layout: auto !important; 
+    border-collapse: collapse !important; 
+}
+.projects-table th {
+    padding: 10px 12px !important; 
+    font-size: 0.85rem !important; 
+    font-weight: 700 !important;
+    color: var(--text-color) !important; 
+    background-color: var(--th-bg) !important;
+    border-bottom: 1.5px solid var(--border-color) !important; 
+    white-space: nowrap !important;
+}
+.projects-table td {
+    padding: 10px 12px !important; 
+    font-size: 0.88rem !important; 
+    vertical-align: middle !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+.projects-table td:last-child {
+    white-space: nowrap !important;
+    text-align: right !important;
+    width: 130px !important;
+}
+
+.proj-actions-cell {
+    display: inline-flex !important; 
+    align-items: center !important; 
+    justify-content: flex-end !important; 
+    gap: 6px !important;
+    white-space: nowrap !important;
+}
+.btn-proj-main-open {
+    background: var(--btn-primary, #2563eb) !important; 
+    color: #ffffff !important; 
+    border: none !important;
+    padding: 5px 12px !important; 
+    border-radius: 6px !important; 
+    font-weight: 600 !important;
+    font-size: 0.82rem !important; 
+    cursor: pointer !important; 
+    display: inline-flex !important;
+    align-items: center !important; 
+    gap: 4px !important;
+    transition: all 0.15s ease !important;
+}
+.btn-proj-main-open:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-proj-more-menu {
+    background: var(--bg-color) !important; 
+    color: var(--text-color) !important; 
+    border: 1px solid var(--border-color) !important;
+    width: 30px !important; 
+    height: 30px !important; 
+    padding: 0 !important; 
+    border-radius: 6px !important;
+    font-size: 1.1rem !important; 
+    font-weight: 800 !important; 
+    cursor: pointer !important;
+    display: inline-flex !important; 
+    align-items: center !important; 
+    justify-content: center !important;
+}
+
+.proj-dropdown-menu {
+    position: fixed !important; z-index: 100050 !important; background: var(--header-bg) !important;
+    border: 1px solid var(--border-color) !important; border-radius: 10px !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.18) !important; min-width: 185px !important;
+    padding: 5px !important; display: flex; flex-direction: column; gap: 2px; animation: fadeInDropdown 0.15s ease-out;
+}
+@keyframes fadeInDropdown {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.proj-menu-item {
+    width: 100% !important; background: transparent !important; border: none !important;
+    border-radius: 6px !important; padding: 7px 12px !important; font-size: 0.84rem !important;
+    font-weight: 600 !important; color: var(--text-color) !important; display: flex !important;
+    align-items: center !important; gap: 8px !important; cursor: pointer !important;
+    text-align: left !important; transition: background 0.15s ease, color 0.15s ease !important; box-shadow: none !important;
+}
+.proj-menu-item:hover { background: var(--row-hover) !important; color: var(--btn-primary) !important; }
+.proj-menu-item.text-danger { color: var(--btn-danger) !important; }
+.proj-menu-item.text-danger:hover { background: rgba(239, 68, 68, 0.1) !important; color: var(--btn-danger) !important; }
+.proj-menu-icon { font-size: 0.95rem; width: 18px; display: inline-block; text-align: center; }
+.proj-menu-divider { height: 1px; background: var(--border-color); margin: 4px 0; }
+
+/* ================= CỬA SỔ GOOGLE DRIVE ================= */
+.sage-gdrive-card {
+    max-width: 460px !important; width: 90% !important; padding: 0 !important;
+    border-radius: 20px !important; overflow: hidden !important; border: 1px solid #a7f3d0 !important;
+    background: #ffffff !important; box-shadow: 0 20px 45px rgba(16, 185, 129, 0.16) !important; font-family: inherit;
+}
+.sage-gdrive-header {
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 50%, #a7f3d0 100%);
+    padding: 26px 20px 22px; text-align: center; border-bottom: 1px solid #bbf7d0;
+}
+.sage-gdrive-icon { font-size: 2.3rem; display: inline-block; margin-bottom: 6px; filter: drop-shadow(0 2px 4px rgba(16, 185, 129, 0.25)); }
+.sage-gdrive-header h3 { margin: 0 0 6px 0 !important; color: #065f46 !important; font-size: 1.25rem; font-weight: 700; }
+.sage-gdrive-header p { margin: 0; font-size: 0.85rem; color: #047857; opacity: 0.9; }
+.sage-gdrive-body { padding: 22px 24px 10px; }
+.sage-gdrive-status {
+    background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px;
+    padding: 12px 16px; font-size: 0.9rem; color: #065f46; text-align: center; margin-bottom: 14px;
+}
+.sage-gdrive-desc { font-size: 0.85rem; color: #4b5563; line-height: 1.5; text-align: center; }
+.sage-gdrive-actions {
+    padding: 16px 24px 22px !important; background: #ffffff !important;
+    border-top: none !important; gap: 10px; display: flex; justify-content: flex-end; align-items: center;
+}
+.btn-sage-gdrive-login {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important; color: #ffffff !important;
+    border: none !important; padding: 10px 20px !important; border-radius: 10px !important;
+    font-weight: 600 !important; font-size: 0.9rem !important; cursor: pointer !important;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important; transition: all 0.2s ease !important;
+}
+.btn-sage-gdrive-login:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+    transform: translateY(-1px); box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
+}
+
+/* ================= HIỆU ỨNG THU GỌN THÔNG TIN TRUYỆN ================= */
+.section-collapse-toggle { cursor: pointer; display: inline-flex; align-items: center; gap: 8px; user-select: none; transition: color 0.2s; }
+.section-collapse-toggle:hover { color: var(--btn-primary); }
+.collapse-icon { font-style: normal; font-size: 0.8rem; transition: transform 0.3s ease; display: inline-block; }
+.story-section-box.collapsed .collapse-icon { transform: rotate(-90deg); }
+.story-section-box.collapsed .info-cards-scroll { display: none !important; }
+
 /* ================= CHỦ ĐỀ: 🌊 MÂY LAM NGỌC ================= */
 body[data-current-theme="aqua"] {
     background: linear-gradient(175deg, #EBF8FA 0%, #D2F0F3 25%, #C6E6E8 55%, #88D7E0 85%, #51C4D3 100%) fixed !important;
@@ -777,7 +971,8 @@ body[data-current-theme="aqua"] table tbody td[data-col] {
     text-align: left !important;
     height: auto !important;
 }
-/* Triệt tiêu màu nền của tất cả các thẻ con bên trong ô để tránh tạo khối trắng giả */
+
+/* TRIỆT TIÊU TOÀN BỘ MÀU NỀN CỦA CÁC THẺ CON ĐỂ XÓA MẢNG TRẮNG GIẢ */
 body[data-current-theme="aqua"] table tbody td[data-col] div,
 body[data-current-theme="aqua"] table tbody td[data-col] p,
 body[data-current-theme="aqua"] table tbody td[data-col] span:not(.sync-highlight):not(.search-highlight) {

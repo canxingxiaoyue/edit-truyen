@@ -319,7 +319,7 @@ textarea.is-invalid:focus {
     #table-container thead { display: table-header-group !important; }
     #table-container tbody { display: table-row-group !important; height: auto !important; }
     
-    /* 1. RÀNG BUỘC HÀNG: ÉP TOÀN BỘ CÁC HÀNG BẮT ĐẦU NỘI DUNG TỪ ĐỈNH */
+    /* 1. RÀNG BUỘC HÀNG: Ép toàn bộ các hàng căn từ đỉnh */
     #table-container tbody tr,
     #table-body tr { 
         display: table-row !important; 
@@ -354,9 +354,9 @@ textarea.is-invalid:focus {
     #table-body td[data-col="qt"],
     #table-body td[data-col="edit"] {
         display: table-cell !important; 
-        vertical-align: top !important; /* Luôn ôm sát mép trên ô */
+        vertical-align: top !important; /* Luôn ôm sát mép trên */
         text-align: left !important;     /* Luôn ôm sát mép trái */
-        padding: 6px 10px !important;    /* Lề trên-dưới nhỏ gọn (6px), tránh khoảng trống thừa */
+        padding: 6px 10px !important;    /* Lề nhỏ gọn, đồng nhất */
         height: auto !important; 
         min-height: 0 !important;
         border: 1px solid var(--border-color) !important; 
@@ -388,11 +388,28 @@ textarea.is-invalid:focus {
         vertical-align: top !important;
     }
 
-    /* KHỬ HOÀN TOÀN CÁC KHỐI MOBILE LÀM RÁC DOM TRÊN DESKTOP */
-    #table-body tr td.mobile-row-meta, td.mobile-row-meta, .mobile-row-meta, .cell-header, .mobile-view-bar {
-        display: none !important; visibility: hidden !important; width: 0 !important; height: 0 !important;
-        padding: 0 !important; border: none !important; margin: 0 !important;
-        position: absolute !important; pointer-events: none !important;
+    /* 3. KHỬ TRIỆT ĐỂ KHỐI CELL-HEADER VÀ CÁC THÀNH PHẦN MOBILE TRÊN DESKTOP */
+    #table-body td .cell-header,
+    #table-body .cell-header,
+    #table-body td > div.cell-header,
+    #table-body tr td.mobile-row-meta, 
+    #table-body td.mobile-row-meta, 
+    #table-body .mobile-row-meta, 
+    #table-body .mobile-view-bar,
+    .cell-header, 
+    .mobile-row-meta {
+        display: none !important; 
+        visibility: hidden !important; 
+        width: 0 !important; 
+        height: 0 !important;
+        min-height: 0 !important;
+        max-height: 0 !important;
+        padding: 0 !important; 
+        border: none !important; 
+        margin: 0 !important; 
+        position: absolute !important; 
+        pointer-events: none !important;
+        overflow: hidden !important;
     }
 
     #table-body tr td.batch-select-cell {
@@ -401,9 +418,9 @@ textarea.is-invalid:focus {
     }
     #table-body tr td.batch-select-cell[style*="display: none"] { display: none !important; }
 
-    /* 3. TRIỆT TIÊU TOÀN BỘ MARGIN/PADDING THỪA CỦA PHẦN TỬ CON BÊN TRONG Ô */
+    /* 4. VÙNG SOẠN THẢO VĂN BẢN THỰC SỰ (.cell-content): BẮT BUỘC ÔM SÁT ĐỈNH Ô */
     #table-body .cell-content, 
-    #table-body td > div,
+    #table-body td > .cell-content,
     #table-body td > p {
         display: block !important; 
         width: 100% !important; 
@@ -412,7 +429,7 @@ textarea.is-invalid:focus {
         text-align: left !important; 
         vertical-align: top !important; 
         margin: 0 !important; 
-        padding: 0 !important; /* Xóa margin/padding thừa của div/p để chữ ôm sát mép trên */
+        padding: 0 !important; /* Xóa triệt để padding thừa bên trong */
         border: none !important; 
         background: transparent !important; 
         box-shadow: none !important;
@@ -443,7 +460,7 @@ textarea.is-invalid:focus {
 }
 #batch-count-summary { font-weight: 700; font-size: 0.85rem; color: var(--btn-danger); white-space: nowrap; }
 .batch-col-toggle {
-    display: flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 700;
+    display: flex align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 700;
     color: var(--btn-primary); background: rgba(59, 130, 246, 0.1); padding: 2px 6px;
     border-radius: 4px; cursor: pointer; margin-bottom: 4px; border: 1px solid rgba(59, 130, 246, 0.3); user-select: none;
 }
@@ -730,7 +747,7 @@ td.batch-intersection-selected { background-color: rgba(239, 68, 68, 0.2) !impor
 /* GIAO DIỆN DANH SÁCH FILE NAME QT TRONG MODAL */
 .nameqt-file-list { display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; margin-bottom: 12px; padding-right: 4px; }
 .nameqt-file-item {
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex align-items: center; justify-content: space-between;
     background: var(--bg-color); border: 1px solid var(--border-color);
     padding: 8px 12px; border-radius: 6px; transition: all 0.2s;
 }

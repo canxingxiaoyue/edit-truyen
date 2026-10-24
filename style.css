@@ -778,26 +778,12 @@ td.batch-intersection-selected {
 
 /* ================= TOAST THÔNG BÁO ================= */
 #toast {
-    position: fixed !important; 
-    bottom: 30px !important;
-    right: 30px !important;
-    color: white;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-weight: 600;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    opacity: 0;
-    transform: translateY(20px);
-    transition: 0.3s;
-    pointer-events: none;
-    z-index: 99999;
-    display: none; 
+    position: fixed; bottom: 30px; right: 30px; color: white;
+    padding: 12px 24px; border-radius: 8px; font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0;
+    transform: translateY(20px); transition: 0.3s; pointer-events: none; z-index: 9999;
 }
-#toast.show {
-    display: block !important;
-    opacity: 1;
-    transform: translateY(0);
-}
+#toast.show { opacity: 1; transform: translateY(0); }
 
 /* NÚT NỔI KHI BÔI ĐEN CHỮ */
 .quick-name-btn {
@@ -954,7 +940,7 @@ td.batch-intersection-selected {
     border-radius: 4px !important;
 }
 
-/* Giao diện Lịch sử gập/mở theo ngày */
+/* Giao diện Lịch sử dịch gập/mở theo ngày */
 .history-date-group { margin-bottom: 10px; }
 .history-date-header {
     font-weight: 700;
@@ -1359,78 +1345,6 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     display: none !important; /* Ẩn toàn bộ danh sách thẻ bên dưới */
 }
 
-/* =========================================================================
-   CHỦ ĐỀ: 🌊 MÂY LAM NGỌC - VIBE MÂY TUYẾT TRONG TRẺO (AQUA SNOW-MIST)
-   ========================================================================= */
-body[data-current-theme="aqua"] {
-    /* Dải chuyển sắc mây tuyết: Đỉnh sáng bừng thanh thoát, đáy xanh lam ngọc dịu mát */
-    background: linear-gradient(175deg, #EBF8FA 0%, #D2F0F3 25%, #C6E6E8 55%, #88D7E0 85%, #51C4D3 100%) fixed !important;
-    color: #18434D;
-}
-
-/* Thanh Header & Toolbar phủ sương tuyết mờ (Frosted Mist) */
-body[data-current-theme="aqua"] header,
-body[data-current-theme="aqua"] .top-nav-bar,
-body[data-current-theme="aqua"] .story-title-bar,
-body[data-current-theme="aqua"] .toolbar,
-body[data-current-theme="aqua"] .format-toolbar {
-    background: rgba(235, 248, 250, 0.85) !important;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-color: #B2DCE0 !important;
-}
-
-/* Tiêu đề bảng dịch */
-body[data-current-theme="aqua"] table thead th {
-    background: rgba(226, 246, 248, 0.95) !important;
-    color: #18434D !important;
-    border-color: #B2DCE0 !important;
-    font-weight: 700;
-}
-
-/* CÁC Ô BẢNG DỊCH: Phủ lớp tuyết trắng mờ 82% để chữ nổi bần bật, không bị lem màu tối */
-body[data-current-theme="aqua"] table tbody td {
-    background: rgba(255, 255, 255, 0.82) !important;
-    color: #18434D !important;
-    border-color: rgba(81, 196, 211, 0.28) !important;
-    transition: background 0.15s ease;
-}
-
-/* Hàng đang rê chuột: Trắng sáng tuyết tinh khôi */
-body[data-current-theme="aqua"] tr:hover:not(.active-row) td {
-    background: rgba(255, 255, 255, 0.94) !important;
-}
-
-/* Hàng đang chọn: Nổi ánh ngọc lam trong vắt */
-body[data-current-theme="aqua"] tr.active-row td {
-    background: rgba(182, 238, 245, 0.55) !important;
-}
-
-/* Ô đang focus gõ chữ: Trắng tinh khiết 100% với viền xanh ngọc */
-body[data-current-theme="aqua"] table tbody td:focus {
-    background: #ffffff !important;
-    box-shadow: inset 0 0 0 2px #51C4D3 !important;
-    outline: none !important;
-}
-
-/* Các ô nhập liệu, dropdown, ô tìm kiếm */
-body[data-current-theme="aqua"] .font-select,
-body[data-current-theme="aqua"] input[type="text"],
-body[data-current-theme="aqua"] textarea {
-    background: rgba(255, 255, 255, 0.9) !important;
-    border-color: #B2DCE0 !important;
-    color: #18434D !important;
-}
-
-/* Thẻ dữ liệu ở mục 2. Thông tin truyện */
-body[data-current-theme="aqua"] .meta-card-block,
-body[data-current-theme="aqua"] .term-line-item,
-body[data-current-theme="aqua"] .story-section-box {
-    background: rgba(255, 255, 255, 0.88) !important;
-    border-color: #B2DCE0 !important;
-    color: #18434D !important;
-}
-
 /* ========================================================================= */
 /* 📱 TỐI ƯU HÓA DI ĐỘNG - MỞ KHÓA CUỘN DỌC & SỬA LỖI DÍNH TAB */
 /* ========================================================================= */
@@ -1466,7 +1380,7 @@ body[data-current-theme="aqua"] .story-section-box {
         overflow-x: auto !important;    
         -webkit-overflow-scrolling: touch !important;
         width: 100% !important;
-        padding-bottom: 0 !important; /* ĐÃ SỬA THÀNH 0 */
+        padding-bottom: 50px !important;
     }
 
     /* 2. CHỐNG ZOOM MÀN HÌNH KHI GÕ CHỮ */

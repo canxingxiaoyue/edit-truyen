@@ -1,6 +1,7 @@
 // =========================================================================
 // KHUNG TRA TỪ ĐIỂN NHANH ĐA NGUỒN (NAME QT, VIETPHRASE, LẠC VIỆT...)
-// BÔI ĐEN VÀ CTRL+C TỰ DO TRONG NGHĨA - CHỈ TỰ MỞ KHI CÓ MỤC TỪ RAW/QT HỢP LỆ
+// BẢO TOÀN VÙNG CHỌN NGUYÊN BẢN - CHỈ TỰ MỞ KHI CÓ MỤC TỪ RAW/QT HỢP LỆ
+// KHÔNG CƯỚP FOCUS - KHÔNG ẢNH HƯỞNG ĐẾN CTRL+C VÀ SAO CHÉP CÂU DÀI
 // =========================================================================
 
 (function () {
@@ -11,7 +12,7 @@
     let currentQuery = '';
     let isPinned = localStorage.getItem('dict_lookup_pinned') !== 'false';
     let isCollapsed = localStorage.getItem('dict_lookup_collapsed') === 'true';
-    let isMouseDown = false;
+    let isPointerSelecting = false;
 
     // 1. TỰ ĐỘNG TIÊM CSS GIAO DIỆN KHUNG TRA TỪ ĐIỂN
     (function injectStyles() {
@@ -406,9 +407,11 @@
         return text;
     }
 
-    // 5. HIỂN THỊ KẾT QUẢ RA GIAO DIỆN KHUNG
+    // 5. HIỂN THỊ KẾT QUẢ RA GIAO DIỆN KHUNG (TUYỆT ĐỐI KHÔNG CƯỚP FOCUS CỦA Ô)
     function displayLookupResults(query) {
         currentQuery = query || '';
+        
+        // Cập nhật giá trị ô input nhưng KHÔNG gọi .focus() hoặc .select()
         if (queryInputEl && queryInputEl.value !== currentQuery) {
             queryInputEl.value = currentQuery;
         }
@@ -573,15 +576,16 @@
         displayLookupResults('');
     }
 
-    // 7. XỬ LÝ TRA CỨU VĂN BẢN ĐÃ CHỌN VỚI QUY TẮC CHẶT CHẼ
+    // 7. XỬ LÝ TRA CỨU VĂN BẢN ĐÃ CHỌN VỚI CÁC ĐIỀU KIỆN CHẶT CHẼ
     function processSelectedTextLookup() {
-        if (isMouseDown) return;
+        if (isPointerSelecting) return;
 
         const selection = window.getSelection();
         if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
 
         const rawText = selection.toString();
-        const selectedText = rawText.trim();
+        // Loại bỏ dấu câu ở đầu và cuối khi tra cứu mà KHÔNG làm thay đổi văn bản trên ô
+        const selectedText = rawText.trim().replace(/^[\s\p{P}+]+|[\s\p{P}+]+$/gu, '');
         if (!selectedText) return;
 
         const range = selection.getRangeAt(0);
@@ -602,7 +606,7 @@
         // QUY TẮC 2: Bỏ qua khi người dùng chọn câu dài, đoạn văn hoặc nhấn Ctrl+C
         if (rawText.includes('\n') || rawText.includes('\r')) return;
         if (/[。！？!?；…\t]/.test(selectedText)) return;
-        if (selectedText.length > 25) return;
+        if (selectedText.length > 20) return;
 
         // QUY TẮC 3: Kiểm tra mục từ hợp lệ trước khi quyết định mở khung
         if (!checkHasValidDictionaryEntry(selectedText)) {
@@ -610,7 +614,7 @@
             return;
         }
 
-        // HỢP LỆ: Mở khung và hiển thị nghĩa
+        // HỢP LỆ: Mở khung và hiển thị nghĩa (Không cướp focus của ô bảng)
         if (!dictPanelEl) createDictLookupPanel();
 
         if (dictPanelEl.style.display === 'none') {
@@ -657,19 +661,28 @@
         return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    // 9. KHỞI CHẠY HỆ THỐNG
+    // 9. KHỞI CHẠY HỆ THỐNG (HỖ TRỢ CẢ CHUỘT VÀ CHẠM GIỮ TRÊN MOBILE)
     function initDictionaryLookupModule() {
         createDictLookupPanel();
         ensureToolbarButton();
 
-        // Chỉ kích hoạt tra cứu SAU KHI người dùng đã nhả chuột (mouseup),
-        // tránh làm phiền khi đang kéo rê chuột chọn câu dài
-        document.addEventListener('mousedown', () => { isMouseDown = true; });
+        // 1. Dành cho Desktop (Chuột)
+        document.addEventListener('mousedown', () => { isPointerSelecting = true; });
         document.addEventListener('mouseup', () => {
-            isMouseDown = false;
+            isPointerSelecting = false;
             clearTimeout(lookupDebounce);
             lookupDebounce = setTimeout(processSelectedTextLookup, 150);
         });
+
+        // 2. Dành cho Mobile (Chạm giữ để chọn chữ)
+        document.addEventListener('touchstart', () => { isPointerSelecting = true; }, { passive: true });
+        document.addEventListener('touchend', () => {
+            isPointerSelecting = false;
+            clearTimeout(lookupDebounce);
+            lookupDebounce = setTimeout(processSelectedTextLookup, 250);
+        }, { passive: true });
+
+        // 3. Dành cho Bàn phím (Shift + Mũi tên)
         document.addEventListener('keyup', (e) => {
             if (e.shiftKey || e.key.startsWith('Arrow')) {
                 clearTimeout(lookupDebounce);

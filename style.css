@@ -877,85 +877,123 @@ td.batch-intersection-selected { background-color: rgba(239, 68, 68, 0.2) !impor
 .story-section-box.collapsed .collapse-icon { transform: rotate(-90deg); }
 .story-section-box.collapsed .info-cards-scroll { display: none !important; }
 
-/* ================= CHỦ ĐỀ: 🌊 MÂY LAM NGỌC ================= */
+/* ================= CHỦ ĐỀ: 🌊 MÂY LAM NGỌC (MISTY CYAN VIBE) ================= */
+/* Khai báo hệ biến màu độc quyền cho theme Aqua */
 body[data-current-theme="aqua"] {
-    /* Nền trang: Gradient dọc từ sương mờ #C6E6E8 chuyển êm xuống ngọc #51C4D3 */
-    background: linear-gradient(180deg, #C6E6E8 0%, #9ddae0 55%, #51C4D3 100%) fixed !important;
-    color: #14404a; /* Chữ sẫm màu, dễ đọc */
+    --mist: #C6E6E8;
+    --jade: #51C4D3;
+    --line: #B7DDE0;
+    --cell: #E7F6F7;
+    --cell-2: #D4F0F3;
+    --bar: #F4FBFB;
+    --text-aqua: #243033; /* Giữ chữ tối, dễ đọc */
 }
 
-/* Các thanh công cụ: Trong suốt, pha trắng và sương mờ */
+/* 1. Nền lớn phía sau bảng (CHỈ áp dụng cho tab Edit) */
+body[data-current-theme="aqua"] #edit-tool-section {
+    background: linear-gradient(180deg, var(--mist) 0%, #D7F1F3 55%, #B7E6EC 100%) !important;
+}
+
+/* 2 & 3. Header, Top Nav, và Hàng Tab */
 body[data-current-theme="aqua"] header,
 body[data-current-theme="aqua"] .top-nav-bar,
-body[data-current-theme="aqua"] .story-title-bar,
-body[data-current-theme="aqua"] .toolbar,
-body[data-current-theme="aqua"] .format-toolbar {
-    background: rgba(240, 249, 250, 0.75) !important;
-    backdrop-filter: blur(12px); 
-    -webkit-backdrop-filter: blur(12px); 
-    border-color: #B7DDE0 !important;
+body[data-current-theme="aqua"] .nav-tabs {
+    background: var(--bar) !important;
+    border-color: var(--line) !important;
+}
+body[data-current-theme="aqua"] .nav-brand, 
+body[data-current-theme="aqua"] .nav-link,
+body[data-current-theme="aqua"] .font-controls,
+body[data-current-theme="aqua"] .tab-btn {
+    color: var(--text-aqua) !important;
+}
+body[data-current-theme="aqua"] .tab-btn.active {
+    border-bottom-color: var(--jade) !important;
+    color: var(--jade) !important;
+    font-weight: 700 !important;
+    background: transparent !important;
 }
 
-/* Tiêu đề cột bảng */
-body[data-current-theme="aqua"] table thead th {
-    background: #D4F0F3 !important; 
-    color: #14404a !important;
-    border-color: #B7DDE0 !important; 
-    font-weight: 700;
+/* 6 & 7. Thanh Toolbar (Chỉ tác động Toolbar của Tab Edit) */
+body[data-current-theme="aqua"] #edit-tool-toolbars .story-title-bar,
+body[data-current-theme="aqua"] #edit-tool-toolbars .toolbar,
+body[data-current-theme="aqua"] #edit-tool-toolbars .format-toolbar {
+    background: var(--bar) !important;
+    border-color: var(--line) !important;
 }
 
-/* Nền ô bảng mặc định (Hàng lẻ) */
-body[data-current-theme="aqua"] table tbody td[data-col] {
-    background: rgba(231, 246, 247, 0.92) !important; /* #E7F6F7 */
-    color: #14404a !important;
-    border-color: rgba(183, 221, 224, 0.7) !important; /* #B7DDE0 */
-    vertical-align: top !important;
-    text-align: left !important;
-    height: auto !important;
+/* 5. Input Tên file / Select (Focus ring màu Ngọc) */
+body[data-current-theme="aqua"] #edit-tool-toolbars input[type="text"],
+body[data-current-theme="aqua"] #edit-tool-toolbars select {
+    background: #ffffff !important;
+    border: 1px solid var(--line) !important;
+    color: var(--text-aqua) !important;
+}
+body[data-current-theme="aqua"] #edit-tool-toolbars input[type="text"]:focus,
+body[data-current-theme="aqua"] #edit-tool-toolbars select:focus {
+    border-color: var(--jade) !important;
+    box-shadow: 0 0 0 2px rgba(81, 196, 211, 0.3) !important;
 }
 
-/* Nền ô bảng xen kẽ (Hàng chẵn) */
-body[data-current-theme="aqua"] table tbody tr:nth-child(even) td[data-col] {
-    background: rgba(212, 240, 243, 0.92) !important; /* #D4F0F3 */
+/* 8. BẢNG 6 CỘT (Căn cứ qua id #table-container) */
+body[data-current-theme="aqua"] #table-container table thead th {
+    background: var(--cell-2) !important; 
+    color: var(--text-aqua) !important;
+    border-color: var(--line) !important; 
 }
-
-/* Triệt tiêu màu nền của thẻ con để không tạo mảng trắng giả */
-body[data-current-theme="aqua"] table tbody td[data-col] div,
-body[data-current-theme="aqua"] table tbody td[data-col] p,
-body[data-current-theme="aqua"] table tbody td[data-col] span:not(.sync-highlight):not(.search-highlight) {
+/* Ô bảng mặc định */
+body[data-current-theme="aqua"] #table-container table tbody td[data-col] {
+    background: var(--cell) !important; 
+    color: var(--text-aqua) !important;
+    border-color: #C5E4E6 !important; /* Viền mỏng 1px như yc */
+}
+/* Ô bảng xen kẽ (Zebra) */
+body[data-current-theme="aqua"] #table-container table tbody tr:nth-child(even) td[data-col] {
+    background: var(--cell-2) !important;
+}
+/* Triệt tiêu màu giả của thẻ con */
+body[data-current-theme="aqua"] #table-container table tbody td[data-col] div,
+body[data-current-theme="aqua"] #table-container table tbody td[data-col] p,
+body[data-current-theme="aqua"] #table-container table tbody td[data-col] span:not(.sync-highlight):not(.search-highlight) {
     background-color: transparent !important;
 }
-
-/* Trạng thái Hover / Focus / Active */
-body[data-current-theme="aqua"] tr:hover:not(.active-row) td { 
+/* Trạng thái Hover / Active / Focus */
+body[data-current-theme="aqua"] #table-container tr:hover:not(.active-row) td { 
     background: #ffffff !important; 
 }
-body[data-current-theme="aqua"] tr.active-row td { 
-    background: rgba(198, 230, 232, 0.65) !important; /* #C6E6E8 */
+body[data-current-theme="aqua"] #table-container tr.active-row td { 
+    background: var(--mist) !important; 
 }
-body[data-current-theme="aqua"] table tbody td:focus {
+body[data-current-theme="aqua"] #table-container table tbody td:focus {
     background: #ffffff !important; 
-    box-shadow: inset 0 0 0 2px #51C4D3 !important; /* Accent viền focus */
+    box-shadow: inset 0 0 0 2px var(--jade) !important; 
     outline: none !important;
 }
 
-/* Khu vực nhập liệu & Các thẻ thông tin truyện */
-body[data-current-theme="aqua"] .font-select,
-body[data-current-theme="aqua"] input[type="text"],
-body[data-current-theme="aqua"] textarea {
-    background: rgba(255, 255, 255, 0.85) !important; 
-    border-color: #B7DDE0 !important; 
-    color: #14404a !important;
+/* 4. Khối Tra Từ Điển */
+body[data-current-theme="aqua"] .dict-lookup-panel {
+    background: #fcfefe !important; /* Trắng pha nền sương */
+    border: 1px solid var(--line) !important;
+}
+body[data-current-theme="aqua"] .dict-lookup-header {
+    background: var(--cell) !important;
+    border-bottom: 1px solid var(--line) !important;
+}
+body[data-current-theme="aqua"] .dict-lookup-title {
+    color: var(--text-aqua) !important;
 }
 
-body[data-current-theme="aqua"] .meta-card-block,
-body[data-current-theme="aqua"] .term-line-item,
-body[data-current-theme="aqua"] .story-section-box {
-    background: rgba(231, 246, 247, 0.95) !important; 
-    border-color: #B7DDE0 !important; 
-    color: #14404a !important;
+/* 9. Scrollbar Tone Sur Tone */
+body[data-current-theme="aqua"] #table-container::-webkit-scrollbar {
+    width: 10px; height: 10px;
 }
-
+body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-track {
+    background: var(--cell);
+}
+body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb {
+    background: #8FD4DC;
+    border-radius: 5px;
+}
 /* =========================================================================
    GIAO DIỆN QUẢN LÝ VIẾT TẮT (SHORTCUTS) - PHONG CÁCH TỐI GIẢN & ĐỒNG BỘ
    ========================================================================= */

@@ -879,113 +879,81 @@ td.batch-intersection-selected { background-color: rgba(239, 68, 68, 0.2) !impor
 
 /* ================= CHỦ ĐỀ: 🌊 MÂY LAM NGỌC ================= */
 body[data-current-theme="aqua"] {
-    background: linear-gradient(180deg, #C6E6E8 0%, #51C4D3 100%) fixed !important;
-    color: #0c383e;
-
-    /* Tùy biến biến tương tác ô nhập liệu cho Theme Mây Lam Ngọc */
-    --input-bg: rgba(255, 255, 255, 0.75);
-    --input-border: #79d2df;
-    --input-text: #0c383e;
-    --input-hover-bg: #e2f6f8;
-    --input-hover-border: #51c4d3;
-    --input-focus-bg: #ffffff;
-    --input-focus-border: #51c4d3;
-    --input-focus-ring: rgba(81, 196, 211, 0.25);
+    /* Nền trang: Gradient dọc từ sương mờ #C6E6E8 chuyển êm xuống ngọc #51C4D3 */
+    background: linear-gradient(180deg, #C6E6E8 0%, #9ddae0 55%, #51C4D3 100%) fixed !important;
+    color: #14404a; /* Chữ sẫm màu, dễ đọc */
 }
 
-/* Thanh Header, Toolbar và Tabs làm hiệu ứng kính mờ (Glassmorphism) */
+/* Các thanh công cụ: Trong suốt, pha trắng và sương mờ */
 body[data-current-theme="aqua"] header,
 body[data-current-theme="aqua"] .top-nav-bar,
 body[data-current-theme="aqua"] .story-title-bar,
 body[data-current-theme="aqua"] .toolbar,
-body[data-current-theme="aqua"] .format-toolbar,
-body[data-current-theme="aqua"] .nav-tabs {
-    background: rgba(255, 255, 255, 0.55) !important;
+body[data-current-theme="aqua"] .format-toolbar {
+    background: rgba(240, 249, 250, 0.75) !important;
     backdrop-filter: blur(12px); 
     -webkit-backdrop-filter: blur(12px); 
-    border-color: rgba(81, 196, 211, 0.4) !important;
+    border-color: #B7DDE0 !important;
 }
 
-/* Tiêu đề cột của bảng dịch */
+/* Tiêu đề cột bảng */
 body[data-current-theme="aqua"] table thead th {
-    background: rgba(198, 230, 232, 0.8) !important;
-    color: #0c383e !important; 
-    border-color: rgba(81, 196, 211, 0.4) !important; 
+    background: #D4F0F3 !important; 
+    color: #14404a !important;
+    border-color: #B7DDE0 !important; 
     font-weight: 700;
 }
 
-/* Ô nhập liệu trong bảng dịch */
+/* Nền ô bảng mặc định (Hàng lẻ) */
 body[data-current-theme="aqua"] table tbody td[data-col] {
-    background: rgba(255, 255, 255, 0.82) !important;
-    color: #123136 !important;
-    border-color: rgba(81, 196, 211, 0.25) !important; 
+    background: rgba(231, 246, 247, 0.92) !important; /* #E7F6F7 */
+    color: #14404a !important;
+    border-color: rgba(183, 221, 224, 0.7) !important; /* #B7DDE0 */
     vertical-align: top !important;
-    text-align: left !important; 
-    padding: 6px 10px !important;
+    text-align: left !important;
     height: auto !important;
 }
 
-/* Xóa màu nền thừa bên trong thẻ div, span của ô */
+/* Nền ô bảng xen kẽ (Hàng chẵn) */
+body[data-current-theme="aqua"] table tbody tr:nth-child(even) td[data-col] {
+    background: rgba(212, 240, 243, 0.92) !important; /* #D4F0F3 */
+}
+
+/* Triệt tiêu màu nền của thẻ con để không tạo mảng trắng giả */
 body[data-current-theme="aqua"] table tbody td[data-col] div,
 body[data-current-theme="aqua"] table tbody td[data-col] p,
 body[data-current-theme="aqua"] table tbody td[data-col] span:not(.sync-highlight):not(.search-highlight) {
     background-color: transparent !important;
 }
 
-/* Hiệu ứng khi di chuột (Hover) vào MỘT HÀNG */
+/* Trạng thái Hover / Focus / Active */
 body[data-current-theme="aqua"] tr:hover:not(.active-row) td { 
-    background: rgba(255, 255, 255, 0.95) !important; 
+    background: #ffffff !important; 
 }
-
-/* Hiệu ứng khi lia chuột vào TỪNG Ô CỤ THỂ */
-body[data-current-theme="aqua"] table tbody td[data-col]:hover:not(:focus):not(:focus-within) {
-    background: #E2F6F8 !important;
-    vertical-align: top !important;
-}
-
-/* Hiệu ứng khi click chọn MỘT HÀNG (Active Row) */
 body[data-current-theme="aqua"] tr.active-row td { 
-    background: rgba(198, 230, 232, 0.5) !important;
+    background: rgba(198, 230, 232, 0.65) !important; /* #C6E6E8 */
 }
-
-/* Hiệu ứng khi BẤM VÀO Ô ĐỂ GÕ CHỮ (Focus / Focus-within) */
-body[data-current-theme="aqua"] table tbody td[data-col]:focus,
-body[data-current-theme="aqua"] table tbody td[data-col]:focus-within {
-    background: #ffffff !important;
-    box-shadow: inset 0 0 0 2px #51C4D3, inset 0 0 12px rgba(81, 196, 211, 0.25) !important;
+body[data-current-theme="aqua"] table tbody td:focus {
+    background: #ffffff !important; 
+    box-shadow: inset 0 0 0 2px #51C4D3 !important; /* Accent viền focus */
     outline: none !important;
-    vertical-align: top !important;
 }
 
-/* Ô input, ô chọn, khung text phụ trong Theme Mây Lam Ngọc */
+/* Khu vực nhập liệu & Các thẻ thông tin truyện */
 body[data-current-theme="aqua"] .font-select,
 body[data-current-theme="aqua"] input[type="text"],
 body[data-current-theme="aqua"] textarea {
-    background: rgba(255, 255, 255, 0.75) !important; 
-    border-color: #79d2df !important; 
-    color: #0c383e !important;
-}
-body[data-current-theme="aqua"] input[type="text"]:hover:not(:focus):not(:disabled),
-body[data-current-theme="aqua"] textarea:hover:not(:focus):not(:disabled),
-body[data-current-theme="aqua"] .font-select:hover:not(:focus) {
-    background: #e2f6f8 !important;
-    border-color: #51c4d3 !important;
-}
-body[data-current-theme="aqua"] .font-select:focus,
-body[data-current-theme="aqua"] input[type="text"]:focus,
-body[data-current-theme="aqua"] textarea:focus {
-    background: #ffffff !important;
-    border-color: #51C4D3 !important;
-    box-shadow: 0 0 0 3px rgba(81, 196, 211, 0.25) !important;
+    background: rgba(255, 255, 255, 0.85) !important; 
+    border-color: #B7DDE0 !important; 
+    color: #14404a !important;
 }
 
-/* Bảng thông tin truyện Mục 2 */
 body[data-current-theme="aqua"] .meta-card-block,
 body[data-current-theme="aqua"] .term-line-item,
 body[data-current-theme="aqua"] .story-section-box {
-    background: rgba(255, 255, 255, 0.75) !important; 
-    border-color: rgba(81, 196, 211, 0.4) !important; 
-    color: #0c383e !important;
+    background: rgba(231, 246, 247, 0.95) !important; 
+    border-color: #B7DDE0 !important; 
+    color: #14404a !important;
 }
 
 /* =========================================================================

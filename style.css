@@ -1557,3 +1557,151 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb {
     .modal-actions, .sage-gdrive-actions { flex-wrap: wrap !important; justify-content: center !important; }
     .modal-actions button { flex: 1 1 auto !important; text-align: center !important; }
 }
+/* =========================================================================
+   LÀM ĐẸP GIAO DIỆN HỘP THOẠI: TÌM KIẾM & THAY THẾ (MODAL REPLACE)
+   ========================================================================= */
+
+/* Định hình lại tổng thể hộp thoại */
+#modal-replace .modal-content {
+    width: 600px !important;
+    max-width: 95vw !important;
+    border-radius: 16px !important;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15) !important;
+    padding: 24px 28px !important;
+    background: var(--header-bg) !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+/* Tiêu đề Modal (Căn trái, thêm icon dễ nhìn) */
+#modal-replace h3 {
+    font-size: 1.35rem !important;
+    font-weight: 800 !important;
+    color: var(--text-color) !important;
+    margin-bottom: 20px !important;
+    padding-bottom: 12px !important;
+    border-bottom: 2px dashed var(--border-color) !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Các nhóm Input và Nhãn (Labels) */
+#modal-replace .modal-group {
+    margin-bottom: 16px !important;
+}
+#modal-replace .modal-group label {
+    font-size: 0.9rem !important;
+    font-weight: 700 !important;
+    color: var(--text-color) !important;
+    margin-bottom: 8px !important;
+    opacity: 0.9;
+}
+
+/* Box nhập liệu Tìm kiếm / Thay thế */
+#modal-replace input[type="text"],
+#modal-replace select {
+    width: 100% !important;
+    padding: 10px 14px !important;
+    font-size: 0.95rem !important;
+    border-radius: 8px !important;
+    border: 1.5px solid var(--input-border) !important;
+    background: var(--input-bg) !important;
+    color: var(--input-text) !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02) !important;
+}
+#modal-replace input[type="text"]:focus,
+#modal-replace select:focus {
+    border-color: var(--btn-primary) !important;
+    box-shadow: 0 0 0 3px var(--input-focus-ring) !important;
+    background: var(--header-bg) !important;
+}
+
+/* Phần Tiêu đề phụ (Tùy chọn nâng cao) */
+#modal-replace .modal-sub-title {
+    font-size: 1rem !important;
+    font-weight: 800 !important;
+    color: var(--text-color) !important;
+    margin: 24px 0 12px 0 !important;
+    padding-bottom: 6px !important;
+    border-bottom: 1.5px solid var(--border-color) !important;
+}
+
+/* Căn chỉnh các Checkbox Tùy chọn */
+#modal-replace .modal-checkbox-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important; /* Xếp thành 2 cột cho gọn */
+    gap: 12px 16px !important;
+    background: var(--bg-color);
+    padding: 16px !important;
+    border-radius: 10px !important;
+    border: 1px dashed var(--border-color);
+}
+#modal-replace .modal-checkbox-grid label {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    color: var(--text-color) !important;
+    cursor: pointer !important;
+    margin: 0 !important;
+}
+/* Trọng tâm check "Chỉ thay thế chữ tô sáng" (Giữ màu xanh nổi bật) */
+#modal-replace .modal-checkbox-grid label:last-child {
+    grid-column: 1 / -1 !important; /* Cho hàng cuối chiếm toàn bộ chiều rộng */
+    color: var(--btn-primary) !important;
+    font-weight: 700 !important;
+    background: rgba(59, 130, 246, 0.08) !important;
+    padding: 8px 12px !important;
+    border-radius: 6px !important;
+    border: 1px dashed rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Các Nút Bấm Thao Tác (Actions) */
+#modal-replace .modal-actions {
+    display: flex !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin-top: 24px !important;
+    padding-top: 16px !important;
+    border-top: 1px solid var(--border-color) !important;
+}
+
+#modal-replace .modal-actions button {
+    padding: 8px 16px !important;
+    font-size: 0.9rem !important;
+    font-weight: 700 !important;
+    border-radius: 8px !important;
+    transition: all 0.2s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+#modal-replace .modal-actions button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Mobile Responsive riêng cho Modal Replace */
+@media screen and (max-width: 768px) {
+    #modal-replace .modal-content {
+        padding: 16px !important;
+    }
+    #modal-replace .modal-checkbox-grid {
+        grid-template-columns: 1fr !important; /* Thu về 1 cột trên Mobile */
+    }
+    #modal-replace .modal-actions {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    #modal-replace .modal-actions button {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+    #modal-replace #btn-close-modal {
+        margin-right: 0 !important;
+        order: 5 !important; /* Đẩy nút Hủy xuống cuối cùng */
+    }
+}

@@ -882,13 +882,17 @@ td.batch-intersection-selected { background-color: rgba(239, 68, 68, 0.2) !impor
 body[data-current-theme="aqua"] {
     --mist: #C6E6E8;
     --jade: #51C4D3;
-    --line: #B7DDE0;
+    --jade-deep: #2A9DB0;   /* jade đậm: viền ô đang sửa / hàng đang chọn (≥3:1 trên nền trắng) */
     --cell: #E7F6F7;
     --cell-2: #D4F0F3;
-    --bar: #F4FBFB;
-    --text-aqua: #243033; /* Giữ chữ tối, dễ đọc */
+    --field: #F7FDFD;       /* nền ô nhập liệu: trắng ngả xanh rất nhạt */
+    --text-muted: #527982;  /* chữ phụ */
+    /* Màu chữ / viền / gradient lấy từ themes.aqua (state.js) qua biến applyTheme() đã đặt sẵn;
+       giá trị sau dấu phẩy chỉ là dự phòng, trùng với bảng màu của theme. */
+    --line: var(--border-color, #B2DCE0);
+    --text-aqua: var(--text-color, #234B55);
     /* Dải nền 云岫蓝 (#C6E6E8) → 玉瀑蓝 (#51C4D3): nhạt ở trên, đậm dần xuống dưới */
-    --flow: linear-gradient(180deg, var(--mist) 0%, var(--jade) 100%);
+    --flow: var(--bg-gradient, linear-gradient(180deg, #C6E6E8 0%, #8ED6DD 50%, #51C4D3 100%));
     --glass: rgba(244, 251, 251, 0.48);      /* lớp kính mờ cho thanh toolbar */
     --cell-glass: rgba(231, 246, 247, 0.62); /* ô bảng: trong mờ để lộ nền */
     --cell-glass-2: rgba(212, 240, 243, 0.50); /* ô bảng xen kẽ */
@@ -903,11 +907,15 @@ body[data-current-theme="aqua"] #edit-tool-toolbars {
     background: var(--flow) fixed !important;
 }
 
-/* 2 & 3. Header, Top Nav, và Hàng Tab */
-body[data-current-theme="aqua"] header,
+/* 2 & 3. Header, Top Nav, và Hàng Tab: kính mờ đặt lên nền gradient của body
+   (body dùng cùng --bg-gradient, fixed) => cùng một dải màu với toolbar và bảng bên dưới */
+body[data-current-theme="aqua"] header {
+    background: var(--glass) !important;
+    border-color: var(--line) !important;
+}
 body[data-current-theme="aqua"] .top-nav-bar,
 body[data-current-theme="aqua"] .nav-tabs {
-    background: var(--bar) !important;
+    background: transparent !important;
     border-color: var(--line) !important;
 }
 body[data-current-theme="aqua"] .nav-brand, 
@@ -917,8 +925,8 @@ body[data-current-theme="aqua"] .tab-btn {
     color: var(--text-aqua) !important;
 }
 body[data-current-theme="aqua"] .tab-btn.active {
-    border-bottom-color: var(--jade) !important;
-    color: var(--jade) !important;
+    border-bottom-color: var(--jade-deep) !important;
+    color: var(--text-aqua) !important; /* jade nhạt trên nền sáng chỉ ~1.8:1 => dùng chữ đậm, gạch chân jade-deep */
     font-weight: 700 !important;
     background: transparent !important;
 }
@@ -934,7 +942,7 @@ body[data-current-theme="aqua"] #edit-tool-toolbars .format-toolbar {
 /* 5. Input Tên file / Select (Focus ring màu Ngọc) */
 body[data-current-theme="aqua"] #edit-tool-toolbars input[type="text"],
 body[data-current-theme="aqua"] #edit-tool-toolbars select {
-    background: #ffffff !important;
+    background: var(--field) !important;
     border: 1px solid var(--line) !important;
     color: var(--text-aqua) !important;
 }
@@ -954,7 +962,7 @@ body[data-current-theme="aqua"] #table-container table thead th {
 body[data-current-theme="aqua"] #table-container table tbody td[data-col] {
     background: var(--cell-glass) !important;
     color: var(--text-aqua) !important;
-    border-color: #C5E4E6 !important; /* Viền mỏng 1px như yc */
+    border-color: var(--line) !important; /* Viền mỏng 1px như yc */
 }
 /* Ô bảng xen kẽ (Zebra) */
 body[data-current-theme="aqua"] #table-container table tbody tr:nth-child(even) td[data-col] {
@@ -966,16 +974,28 @@ body[data-current-theme="aqua"] #table-container table tbody td[data-col] p,
 body[data-current-theme="aqua"] #table-container table tbody td[data-col] span:not(.sync-highlight):not(.search-highlight) {
     background-color: transparent !important;
 }
-/* Trạng thái Hover / Active / Focus */
-body[data-current-theme="aqua"] #table-container tr:hover:not(.active-row) td { 
-    background: #ffffff !important; 
+/* Trạng thái Hover / Hàng đang chọn / Ô đang sửa / Chọn để xóa.
+   Các rule này PHẢI có #table-body (và tr) để thắng rule ô mặc định + zebra ở trên;
+   trước đây chúng bị đè nên hàng đang chọn, ô đang sửa và hàng chọn-xóa không hiện ra.
+   Thứ tự từ trên xuống = độ ưu tiên tăng dần khi cùng độ đặc hiệu. */
+body[data-current-theme="aqua"] #table-container #table-body tr:hover:not(.active-row):not(.batch-row-selected) td[data-col] {
+    background: rgba(255, 255, 255, 0.62) !important;      /* hover: trắng mờ */
 }
-body[data-current-theme="aqua"] #table-container tr.active-row td { 
-    background: var(--mist) !important; 
+body[data-current-theme="aqua"] #table-container #table-body tr.active-row td[data-col] {
+    background: rgba(255, 255, 255, 0.82) !important;      /* hàng đang làm việc: trắng đậm + 2 đường jade trên/dưới */
+    box-shadow: inset 0 2px 0 var(--jade-deep), inset 0 -2px 0 var(--jade-deep) !important;
 }
-body[data-current-theme="aqua"] #table-container table tbody td:focus {
-    background: #ffffff !important; 
-    box-shadow: inset 0 0 0 2px var(--jade) !important; 
+body[data-current-theme="aqua"] #table-container #table-body tr.batch-row-selected td[data-col],
+body[data-current-theme="aqua"] #table-container #table-body tr td.batch-col-selected[data-col] {
+    background: rgba(59, 130, 246, 0.20) !important;       /* chọn để xóa: xanh dương như các theme khác, đậm hơn để lộ trên nền teal */
+}
+body[data-current-theme="aqua"] #table-container #table-body tr td.batch-intersection-selected[data-col] {
+    background: rgba(239, 68, 68, 0.28) !important;        /* giao hàng × cột sẽ bị xóa */
+    box-shadow: inset 0 0 0 2px var(--btn-danger) !important;
+}
+body[data-current-theme="aqua"] #table-container #table-body tr td[data-col]:focus-within {
+    background: #ffffff !important;                        /* ô đang gõ: trắng + viền jade-deep 2px */
+    box-shadow: inset 0 0 0 2px var(--jade-deep) !important;
     outline: none !important;
 }
 

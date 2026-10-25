@@ -233,7 +233,7 @@ textarea,
     transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
-/* 1. Trạng thái Hover: Nền nhấn nhẹ, viền đậm hơn, KHÔNG ghi đè khi ô đang focus */
+/* 1. Trạng thái Hover */
 input[type="text"]:hover:not(:disabled):not([readonly]):not(:focus):not(:focus-visible),
 input[type="search"]:hover:not(:disabled):not([readonly]):not(:focus):not(:focus-visible),
 input[type="password"]:hover:not(:disabled):not([readonly]):not(:focus):not(:focus-visible),
@@ -244,7 +244,7 @@ textarea:hover:not(:disabled):not([readonly]):not(:focus):not(:focus-visible),
     border-color: var(--input-hover-border);
 }
 
-/* 2. Trạng thái Focus & Focus-visible: Nền rõ nét, viền màu chủ đạo, vòng ring tinh tế */
+/* 2. Trạng thái Focus & Focus-visible */
 input[type="text"]:focus,
 input[type="text"]:focus-visible,
 input[type="search"]:focus,
@@ -287,7 +287,7 @@ textarea[readonly]:hover,
     box-shadow: none !important;
 }
 
-/* 4. Trạng thái Invalid (Báo lỗi dữ liệu) */
+/* 4. Trạng thái Invalid */
 input[type="text"]:invalid:not(:placeholder-shown):not(:focus),
 textarea:invalid:not(:placeholder-shown):not(:focus),
 input[type="text"].is-invalid,
@@ -319,7 +319,7 @@ textarea.is-invalid:focus {
     #table-container thead { display: table-header-group !important; }
     #table-container tbody { display: table-row-group !important; height: auto !important; }
     
-    /* 1. RÀNG BUỘC HÀNG: Ép toàn bộ các hàng căn từ đỉnh */
+    /* 1. Ép toàn bộ các hàng căn từ đỉnh */
     #table-container tbody tr,
     #table-body tr { 
         display: table-row !important; 
@@ -342,7 +342,7 @@ textarea.is-invalid:focus {
     .col-copy-btn { background-color: var(--btn-success); color: white; }
     .col-copy-btn:hover { background-color: var(--btn-success-hover); transform: scale(1.05); }
 
-    /* 2. CĂN CHỮ BẮT BUỘC Ở ĐẦU Ô (TOP-LEFT) CHO TẤT CẢ CÁC CỘT DỮ LIỆU */
+    /* 2. CĂN CHỮ BẮT BUỘC Ở ĐẦU Ô (TOP-LEFT) CHO TẤT CẢ 6 CỘT DỮ LIỆU */
     body #table-body td,
     body #table-body td[data-col],
     body[data-current-theme] #table-body td,
@@ -354,9 +354,9 @@ textarea.is-invalid:focus {
     #table-body td[data-col="qt"],
     #table-body td[data-col="edit"] {
         display: table-cell !important; 
-        vertical-align: top !important; /* Luôn ôm sát mép trên */
-        text-align: left !important;     /* Luôn ôm sát mép trái */
-        padding: 6px 10px !important;    /* Lề nhỏ gọn, đồng nhất */
+        vertical-align: top !important; 
+        text-align: left !important;     
+        padding: 6px 10px !important;    
         height: auto !important; 
         min-height: 0 !important;
         border: 1px solid var(--border-color) !important; 
@@ -427,9 +427,8 @@ textarea.is-invalid:focus {
         height: auto !important; 
         min-height: 0 !important;
         text-align: left !important; 
-        vertical-align: top !important; 
         margin: 0 !important; 
-        padding: 0 !important; /* Xóa triệt để padding thừa bên trong */
+        padding: 0 !important; 
         border: none !important; 
         background: transparent !important; 
         box-shadow: none !important;
@@ -460,7 +459,7 @@ textarea.is-invalid:focus {
 }
 #batch-count-summary { font-weight: 700; font-size: 0.85rem; color: var(--btn-danger); white-space: nowrap; }
 .batch-col-toggle {
-    display: flex align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 700;
+    display: flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 700;
     color: var(--btn-primary); background: rgba(59, 130, 246, 0.1); padding: 2px 6px;
     border-radius: 4px; cursor: pointer; margin-bottom: 4px; border: 1px solid rgba(59, 130, 246, 0.3); user-select: none;
 }
@@ -747,9 +746,14 @@ td.batch-intersection-selected { background-color: rgba(239, 68, 68, 0.2) !impor
 /* GIAO DIỆN DANH SÁCH FILE NAME QT TRONG MODAL */
 .nameqt-file-list { display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; margin-bottom: 12px; padding-right: 4px; }
 .nameqt-file-item {
-    display: flex align-items: center; justify-content: space-between;
-    background: var(--bg-color); border: 1px solid var(--border-color);
-    padding: 8px 12px; border-radius: 6px; transition: all 0.2s;
+    display: flex; /* ĐÃ SỬA LỖI THIẾU CHẤM PHẨY TẠI ĐÂY */
+    align-items: center; 
+    justify-content: space-between;
+    background: var(--bg-color); 
+    border: 1px solid var(--border-color);
+    padding: 8px 12px; 
+    border-radius: 6px; 
+    transition: all 0.2s;
 }
 .nameqt-file-item:hover { border-color: var(--btn-primary); }
 .nameqt-file-item.editing { border-color: var(--btn-warning); background: rgba(245, 158, 11, 0.1); }
@@ -910,7 +914,7 @@ body[data-current-theme="aqua"] tr:hover:not(.active-row) td {
     background: rgba(255, 255, 255, 0.95) !important; 
 }
 
-/* Hiệu ứng khi lia chuột vào TỪNG Ô CỤ THỂ (không đè lên ô đang focus) */
+/* Hiệu ứng khi lia chuột vào TỪNG Ô CỤ THỂ */
 body[data-current-theme="aqua"] table tbody td[data-col]:hover:not(:focus):not(:focus-within) {
     background: #E2F6F8 !important;
     vertical-align: top !important;

@@ -1122,22 +1122,23 @@ body[data-current-theme="aqua"] #edit-tool-toolbars select:focus {
     box-shadow: 0 0 0 3px rgba(85, 199, 214, 0.25) !important;
 }
 
-/* 3. LÀM SÁNG BẢNG BIÊN TẬP (Giúp đọc chữ dễ dàng, không bị trầm) */
+/* 3. LÀM SÁNG BẢNG BIÊN TẬP (MÀU NỀN MẶC ĐỊNH ÊM DỊU, CHỐNG CHÓI) */
 body[data-current-theme="aqua"] #table-container table thead th {
-    background: var(--th-solid) !important;
+    background: #D1EEF0 !important;
     color: var(--text-aqua) !important;
     border-color: var(--line) !important; 
     font-weight: 800 !important;
 }
-/* Hàng lẻ */
+/* Ô bình thường (Hàng lẻ): Màu trắng sương ngọc dịu mắt */
 body[data-current-theme="aqua"] #table-container table tbody td[data-col] {
-    background: var(--cell-1) !important;
+    background: #F3F9FA !important;
     color: var(--text-aqua) !important;
     border-color: var(--line) !important;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
-/* Hàng chẵn (Zebra) */
+/* Hàng chẵn (Zebra nhạt): Hơi đậm hơn một chút để phân biệt dòng */
 body[data-current-theme="aqua"] #table-container table tbody tr:nth-child(even) td[data-col] {
-    background: var(--cell-2) !important;
+    background: #EAF5F6 !important;
 }
 
 /* Xóa màu nền rác của thẻ con */
@@ -1147,17 +1148,31 @@ body[data-current-theme="aqua"] #table-container table tbody td[data-col] span:n
     background-color: transparent !important;
 }
 
-/* 4. TƯƠNG TÁC (HOVER / ACTIVE / FOCUS) MỀM MẠI, KHÔNG GẮT */
-/* Hover cả dòng: Trắng tinh */
+/* 4. TƯƠNG TÁC PHÂN CẤP RÕ RÀNG (CHỐNG LÓA 100%) */
+
+/* [CẤP 1] LIA CHUỘT (Hover cả dòng): 
+   Dùng màu xanh sương êm ái, KHÔNG dùng màu trắng tinh để không bị chớp lóa mắt khi lướt chuột */
 body[data-current-theme="aqua"] #table-container #table-body tr:hover:not(.active-row):not(.batch-row-selected) td[data-col] {
-    background: rgba(255, 255, 255, 0.95) !important;      
+    background: #D8F1F4 !important;      
 }
-/* Hàng đang chọn (Active): Trắng tinh + Viền ngọc mảnh trên/dưới */
+
+/* [CẤP 2] HÀNG ĐANG LÀM VIỆC (Active Row): 
+   Chuyển sang nền lam ngọc mát mắt + 2 đường chỉ ngọc trên dưới để định vị hàng */
 body[data-current-theme="aqua"] #table-container #table-body tr.active-row td[data-col] {
-    background: #ffffff !important;      
+    background: #DCF2F5 !important;      
     box-shadow: inset 0 1px 0 var(--jade-deep), inset 0 -1px 0 var(--jade-deep) !important;
 }
-/* Chọn để xóa: Đỏ nhạt chuẩn hệ thống */
+
+/* [CẤP 3] DUY NHẤT Ô ĐANG GÕ CHỮ (Focus): 
+   ĐÂY LÀ NƠI DUY NHẤT BIẾN THÀNH MÀU TRẮNG TINH + VIỀN NGỌC ĐẬM!
+   Tạo độ tương phản cực mạnh với 5 ô còn lại cùng hàng, nhìn phát biết ngay đang gõ chữ ở đâu */
+body[data-current-theme="aqua"] #table-container #table-body tr td[data-col]:focus-within {
+    background: #FFFFFF !important;                        
+    box-shadow: inset 0 0 0 2px var(--jade-deep) !important;
+    outline: none !important;
+}
+
+/* Chọn để xóa hàng loạt: Giữ nguyên chuẩn cảnh báo */
 body[data-current-theme="aqua"] #table-container #table-body tr.batch-row-selected td[data-col],
 body[data-current-theme="aqua"] #table-container #table-body tr td.batch-col-selected[data-col] {
     background: rgba(239, 68, 68, 0.08) !important;
@@ -1165,12 +1180,6 @@ body[data-current-theme="aqua"] #table-container #table-body tr td.batch-col-sel
 body[data-current-theme="aqua"] #table-container #table-body tr td.batch-intersection-selected[data-col] {
     background: rgba(239, 68, 68, 0.2) !important;
     box-shadow: inset 0 0 0 2px var(--btn-danger) !important;
-}
-/* Ô ĐANG GÕ CHỮ (Focus): Viền ngọc lục bảo sắc nét */
-body[data-current-theme="aqua"] #table-container #table-body tr td[data-col]:focus-within {
-    background: #ffffff !important;                        
-    box-shadow: inset 0 0 0 2px var(--jade-deep) !important;
-    outline: none !important;
 }
 
 /* 5. KHUNG TỪ ĐIỂN NỔI & TÌM KIẾM */

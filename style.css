@@ -887,11 +887,20 @@ body[data-current-theme="aqua"] {
     --cell-2: #D4F0F3;
     --bar: #F4FBFB;
     --text-aqua: #243033; /* Giữ chữ tối, dễ đọc */
+    /* Dải nền 云岫蓝 (#C6E6E8) → 玉瀑蓝 (#51C4D3): nhạt ở trên, đậm dần xuống dưới */
+    --flow: linear-gradient(180deg, var(--mist) 0%, var(--jade) 100%);
+    --glass: rgba(244, 251, 251, 0.48);      /* lớp kính mờ cho thanh toolbar */
+    --cell-glass: rgba(231, 246, 247, 0.62); /* ô bảng: trong mờ để lộ nền */
+    --cell-glass-2: rgba(212, 240, 243, 0.50); /* ô bảng xen kẽ */
+    --th-solid: #B8E2E7;                     /* tiêu đề cột dính (sticky) phải đặc để không lộ chữ phía dưới */
 }
 
-/* 1. Nền lớn phía sau bảng (CHỈ áp dụng cho tab Edit) */
-body[data-current-theme="aqua"] #edit-tool-section {
-    background: linear-gradient(180deg, var(--mist) 0%, #D7F1F3 55%, #B7E6EC 100%) !important;
+/* 1. Nền lớn của tab Edit: thanh toolbar + vùng bảng dùng chung MỘT dải gradient
+   (fixed => hai khối nằm riêng nhưng nhìn liền mạch như một nền duy nhất).
+   Cả hai đều KHÔNG nằm trong vùng cuộn của bảng nên không ảnh hưởng hiệu năng cuộn. */
+body[data-current-theme="aqua"] #edit-tool-section,
+body[data-current-theme="aqua"] #edit-tool-toolbars {
+    background: var(--flow) fixed !important;
 }
 
 /* 2 & 3. Header, Top Nav, và Hàng Tab */
@@ -918,7 +927,7 @@ body[data-current-theme="aqua"] .tab-btn.active {
 body[data-current-theme="aqua"] #edit-tool-toolbars .story-title-bar,
 body[data-current-theme="aqua"] #edit-tool-toolbars .toolbar,
 body[data-current-theme="aqua"] #edit-tool-toolbars .format-toolbar {
-    background: var(--bar) !important;
+    background: var(--glass) !important;
     border-color: var(--line) !important;
 }
 
@@ -937,19 +946,19 @@ body[data-current-theme="aqua"] #edit-tool-toolbars select:focus {
 
 /* 8. BẢNG 6 CỘT (Căn cứ qua id #table-container) */
 body[data-current-theme="aqua"] #table-container table thead th {
-    background: var(--cell-2) !important; 
+    background: var(--th-solid) !important;
     color: var(--text-aqua) !important;
     border-color: var(--line) !important; 
 }
 /* Ô bảng mặc định */
 body[data-current-theme="aqua"] #table-container table tbody td[data-col] {
-    background: var(--cell) !important; 
+    background: var(--cell-glass) !important;
     color: var(--text-aqua) !important;
     border-color: #C5E4E6 !important; /* Viền mỏng 1px như yc */
 }
 /* Ô bảng xen kẽ (Zebra) */
 body[data-current-theme="aqua"] #table-container table tbody tr:nth-child(even) td[data-col] {
-    background: var(--cell-2) !important;
+    background: var(--cell-glass-2) !important;
 }
 /* Triệt tiêu màu giả của thẻ con */
 body[data-current-theme="aqua"] #table-container table tbody td[data-col] div,
@@ -988,7 +997,7 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar {
     width: 10px; height: 10px;
 }
 body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-track {
-    background: var(--cell);
+    background: var(--cell-glass);
 }
 body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb {
     background: #8FD4DC;
@@ -997,8 +1006,7 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb {
 /* =========================================================================
    GIAO DIỆN QUẢN LÝ VIẾT TẮT (SHORTCUTS) - PHONG CÁCH TỐI GIẢN & ĐỒNG BỘ
    ========================================================================= */
-.shortcut-modal-box {
-    width: 660px !important;
+.shortcut-modal-box {    width: 660px !important;
     max-width: 95vw !important;
     border-radius: 12px !important;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;

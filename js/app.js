@@ -4,31 +4,36 @@
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Gán các phím Hộp thoại Modal
     try {
-        modalReplace = document.getElementById('modal-replace');
-        modalHistory = document.getElementById('modal-history');
-        modalNameQT = document.getElementById('modal-nameqt');
-    } catch (e) { console.error("Lỗi Modal:", e); }
+        window.modalReplace = document.getElementById('modal-replace');
+        window.modalHistory = document.getElementById('modal-history');
+        window.modalNameQT = document.getElementById('modal-nameqt');
+    } catch (e) { console.error("Lỗi gán biến Modal:", e); }
 
     // 2. Khởi chạy độc lập từng tính năng (Lỗi 1 cái không làm ảnh hưởng cái khác)
     try { initSettings(); } catch (e) { console.error("Lỗi initSettings:", e); }
     try { initTabEvents(); } catch (e) { console.error("Lỗi initTabEvents:", e); }
     try { initEditorEvents(); } catch (e) { console.error("Lỗi initEditorEvents:", e); }
     try { initMetadataEvents(); } catch (e) { console.error("Lỗi initMetadataEvents:", e); }
-    try { initNameQTModalEvents(); } catch (e) { console.error("Lỗi initNameQTModalEvents:", e); }
-    try { initProjectManagerEvents(); } catch (e) { console.error("Lỗi initProjectManagerEvents:", e); }
     
+    // Khởi chạy các sự kiện Modal quan trọng
+    try { if (typeof initNameQTModalEvents === 'function') initNameQTModalEvents(); } catch (e) { console.error("Lỗi initNameQTModalEvents:", e); }
+    try { if (typeof initHistoryModalEvents === 'function') initHistoryModalEvents(); } catch (e) { console.error("Lỗi initHistoryModalEvents:", e); }
+    try { if (typeof initProjectManagerEvents === 'function') initProjectManagerEvents(); } catch (e) { console.error("Lỗi initProjectManagerEvents:", e); }
+    
+    // Ghi chú: Modal Viết tắt (shortcuts.js) tự động khởi chạy độc lập trong file của nó.
+
     // 3. Luôn luôn vẽ Bảng dịch và Bảng thông tin ra màn hình
-    try { renderTable(); } catch (e) { console.error("Lỗi renderTable:", e); }
-    try { renderMetadata(); } catch (e) { console.error("Lỗi renderMetadata:", e); }
+    try { if (typeof renderTable === 'function') renderTable(); } catch (e) { console.error("Lỗi renderTable:", e); }
+    try { if (typeof renderMetadata === 'function') renderMetadata(); } catch (e) { console.error("Lỗi renderMetadata:", e); }
     if (typeof updateUndoRedoButtonsState === 'function') updateUndoRedoButtonsState();
 
     // 4. Nạp từ điển Name QT từ IndexedDB
     if (typeof nameQTEngine !== 'undefined' && nameQTEngine.loadFromStorage) {
         nameQTEngine.loadFromStorage().then(() => {
-            refreshAllQT(false);
+            if (typeof refreshAllQT === 'function') refreshAllQT(false);
             const statusText = document.getElementById('nameqt-status');
             if (statusText) {
-                statusText.innerHTML = `Hiện có: <strong style="color:var(--btn-primary); font-size:1.1rem;">${nameQTEngine.dict.size}</strong> từ trong từ điển Name QT.`;
+                statusText.innerHTML = `Hiện có: <strong style="color:var(--btn-primary); font-size:1.1rem;">${nameQTEngine.dict.size.toLocaleString('vi-VN')}</strong> từ trong từ điển Name QT.`;
             }
         }).catch(e => console.error("Lỗi nạp từ điển Name QT:", e));
     }
@@ -72,6 +77,10 @@ function initSettings() {
 }
 
 function applyTheme(themeKey) {
+    if (typeof themes === 'undefined') {
+        console.warn("Chưa định nghĩa biến 'themes' trong state.js");
+        return;
+    }
     const selected = themes[themeKey] || themes.light;
 
     // 1. Xử lý nền Gradient chuyển màu mềm mại (Theme aqua - Mây Lam Ngọc)
@@ -79,7 +88,7 @@ function applyTheme(themeKey) {
         document.documentElement.style.setProperty('--bg-color', selected.bg);
         document.documentElement.style.setProperty('--bg-gradient', selected.gradient);
         document.body.style.background = selected.gradient;
-        document.body.style.backgroundAttachment = 'fixed'; // Giữ gradient cố định khi cuộn trang dài
+        document.body.style.backgroundAttachment = 'fixed'; // Giữ gradient cố định khi cuộn
     } else {
         document.documentElement.style.setProperty('--bg-color', selected.bg);
         document.documentElement.style.removeProperty('--bg-gradient');
@@ -88,11 +97,10 @@ function applyTheme(themeKey) {
         document.body.style.backgroundAttachment = '';
     }
 
-    // 2. Cập nhật các biến CSS màu sắc
+    // 2. Cập nhật các biến CSS màu sắc (Không can thiệp vào --selection-bg để giữ màu bôi đen chuẩn)
     document.documentElement.style.setProperty('--text-color', selected.text);
     document.documentElement.style.setProperty('--row-active', selected.active);
     document.documentElement.style.setProperty('--row-hover', selected.hover);
-    document.documentElement.style.setProperty('--selection-bg', selected.active);
 
     if (selected.border) {
         document.documentElement.style.setProperty('--border-color', selected.border);
@@ -130,16 +138,20 @@ function switchTab(tabId) {
     document.querySelectorAll('.tab-section-content').forEach(section => section.classList.remove('active'));
     
     if (tabId === 'edit-tool') {
-        activeTab = 'edit-tool';
+        if (typeof activeTab !== 'undefined') window.activeTab = 'edit-tool';
         document.getElementById('tab-edit')?.classList.add('active');
         document.getElementById('edit-tool-section')?.classList.add('active');
-        document.getElementById('edit-tool-toolbars').style.display = 'block';
+        const toolbars = document.getElementById('edit-tool-toolbars');
+        if (toolbars) toolbars.style.display = 'block';
     } else {
-        activeTab = 'story-info';
+        if (typeof activeTab !== 'undefined') window.activeTab = 'story-info';
         document.getElementById('tab-story')?.classList.add('active');
         document.getElementById('story-info-section')?.classList.add('active');
-        document.getElementById('edit-tool-toolbars').style.display = 'none';
-        renderMetadata();
+        const toolbars = document.getElementById('edit-tool-toolbars');
+        if (toolbars) toolbars.style.display = 'none';
+        
+        if (typeof renderMetadata === 'function') renderMetadata();
     }
+    
     if (typeof updateUndoRedoButtonsState === 'function') updateUndoRedoButtonsState();
 }

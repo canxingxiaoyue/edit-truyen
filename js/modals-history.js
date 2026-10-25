@@ -13,6 +13,7 @@ function escapeHTML(str) {
 
 // HÀM TỰ ĐỘNG ĐẨY LỊCH SỬ LÊN GOOGLE DRIVE (CHẠY NGẦM SAU 10S)
 function pushToCloudHistory(type, currentData) {
+    type = type || 'editor';
     const histArray = window.appCloudHistory[type] || [];
     const currentDataCopy = JSON.parse(JSON.stringify(currentData));
 
@@ -38,9 +39,9 @@ function pushToCloudHistory(type, currentData) {
     }, 10000);
 }
 
-// MỚI: HÀM ÉP ĐẨY LỊCH SỬ LÊN DRIVE NGAY LẬP TỨC (DÙNG KHI BẤM LƯU DỰ ÁN)
+// HÀM ÉP ĐẨY LỊCH SỬ LÊN DRIVE NGAY LẬP TỨC (DÙNG KHI BẤM LƯU DỰ ÁN)
 async function forceSyncHistoryToCloud() {
-    clearTimeout(historySyncTimer); // Hủy bộ đếm 10 giây, ép chạy ngay
+    clearTimeout(historySyncTimer);
     if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
         if (window.appCloudHistory.editor.length > 0) {
             await gdriveSaveHistoryCloud('editor', window.appCloudHistory.editor);
@@ -61,30 +62,36 @@ async function forceSyncHistoryToCloud() {
 // HÀM KÉO LỊCH SỬ TỪ GOOGLE DRIVE XUỐNG MÁY
 async function syncHistoryFromDrive() {
     if (typeof isGDriveConnected !== 'function' || !isGDriveConnected()) {
-        window.appCloudHistory.editor = JSON.parse(localStorage.getItem('translationHistory')) || [];
-        window.appCloudHistory.meta = JSON.parse(localStorage.getItem('metadataHistory')) || [];
+        try { window.appCloudHistory.editor = JSON.parse(localStorage.getItem('translationHistory')) || []; } catch(e) { window.appCloudHistory.editor = []; }
+        try { window.appCloudHistory.meta = JSON.parse(localStorage.getItem('metadataHistory')) || []; } catch(e) { window.appCloudHistory.meta = []; }
         return;
     }
     
-    showToast("⏳ Đang đồng bộ Lịch sử từ Google Drive...", "var(--btn-info)");
+    if (typeof showToast === 'function') showToast("⏳ Đang đồng bộ Lịch sử từ Google Drive...", "var(--btn-info)");
     
-    const ed = await gdriveLoadHistoryCloud('editor');
-    const mt = await gdriveLoadHistoryCloud('meta');
-    
-    if (ed) window.appCloudHistory.editor = ed;
-    if (mt) window.appCloudHistory.meta = mt;
-    
-    showToast("✅ Đã nạp xong Lịch sử từ Google Drive!", "var(--btn-success)");
-    
-    const modal = document.getElementById('modal-history');
-    if (modal && modal.classList.contains('show')) {
-        renderHistoryList(modal.getAttribute('data-type') || 'editor');
+    try {
+        const ed = await gdriveLoadHistoryCloud('editor');
+        const mt = await gdriveLoadHistoryCloud('meta');
+        
+        if (ed && Array.isArray(ed)) window.appCloudHistory.editor = ed;
+        if (mt && Array.isArray(mt)) window.appCloudHistory.meta = mt;
+        
+        if (typeof showToast === 'function') showToast("✅ Đã nạp xong Lịch sử từ Google Drive!", "var(--btn-success)");
+        
+        const modal = document.getElementById('modal-history');
+        if (modal && modal.classList.contains('show')) {
+            renderHistoryList(modal.getAttribute('data-type') || 'editor');
+        }
+    } catch (err) {
+        console.warn("Lỗi đồng bộ lịch sử từ Drive:", err);
     }
 }
 
 window.addEventListener('load', () => { setTimeout(() => { syncHistoryFromDrive(); }, 3000); });
 
+// HÀM MỞ HỘP THOẠI LỊCH SỬ (ĐÃ FIX: MẶC ĐỊNH 'editor' NẾU THIẾU THAM SỐ)
 function openHistoryModal(type) {
+    type = type || 'editor';
     const modal = document.getElementById('modal-history');
     if (!modal) return;
     modal.setAttribute('data-type', type);
@@ -92,57 +99,68 @@ function openHistoryModal(type) {
     modal.classList.add('show');
 }
 
+function closeHistoryModal() {
+    const modal = document.getElementById('modal-history');
+    if (modal) modal.classList.remove('show');
+}
+
 // CÁC HÀM XÓA LỊCH SỬ
 async function deleteHistoryEntry(type, timestamp) {
+    type = type || 'editor';
     if (confirm("🗑️ Bạn có chắc chắn muốn xóa bản sao lưu này không?")) {
-        window.appCloudHistory[type] = window.appCloudHistory[type].filter(item => item.timestamp !== timestamp);
+        window.appCloudHistory[type] = (window.appCloudHistory[type] || []).filter(item => item.timestamp !== timestamp);
         renderHistoryList(type); 
         
         if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
-            showToast("⏳ Đang đồng bộ xóa lên Google Drive...", "var(--btn-info)");
+            if (typeof showToast === 'function') showToast("⏳ Đang đồng bộ xóa lên Google Drive...", "var(--btn-info)");
             await gdriveSaveHistoryCloud(type, window.appCloudHistory[type]);
-            showToast("☁️ Đã xóa và đồng bộ với Google Drive!", "var(--btn-success)");
+            if (typeof showToast === 'function') showToast("☁️ Đã xóa và đồng bộ với Google Drive!", "var(--btn-success)");
         } else {
             localStorage.setItem(type === 'editor' ? 'translationHistory' : 'metadataHistory', JSON.stringify(window.appCloudHistory[type]));
-            showToast("🗑️ Đã xóa bản sao lưu ở máy!", "var(--btn-danger)");
+            if (typeof showToast === 'function') showToast("🗑️ Đã xóa bản sao lưu ở máy!", "var(--btn-danger)");
         }
     }
 }
 
 async function deleteHistoryByDate(type, dateStr, entriesToDelete) {
+    type = type || 'editor';
     if (confirm(`🗑️ Bạn có muốn XÓA SẠCH toàn bộ lịch sử của ngày "${dateStr}" không?`)) {
         const timestampsToDelete = new Set(entriesToDelete.map(e => e.timestamp));
-        window.appCloudHistory[type] = window.appCloudHistory[type].filter(entry => !timestampsToDelete.has(entry.timestamp));
+        window.appCloudHistory[type] = (window.appCloudHistory[type] || []).filter(entry => !timestampsToDelete.has(entry.timestamp));
         renderHistoryList(type); 
         
         if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
-            showToast("⏳ Đang đồng bộ xóa lên Google Drive...", "var(--btn-info)");
+            if (typeof showToast === 'function') showToast("⏳ Đang đồng bộ xóa lên Google Drive...", "var(--btn-info)");
             await gdriveSaveHistoryCloud(type, window.appCloudHistory[type]);
-            showToast(`☁️ Đã xóa sạch lịch sử ngày ${dateStr} trên Drive!`, "var(--btn-success)");
+            if (typeof showToast === 'function') showToast(`☁️ Đã xóa sạch lịch sử ngày ${dateStr} trên Drive!`, "var(--btn-success)");
         } else {
             localStorage.setItem(type === 'editor' ? 'translationHistory' : 'metadataHistory', JSON.stringify(window.appCloudHistory[type]));
-            showToast(`🗑️ Đã xóa sạch lịch sử ngày ${dateStr}!`, "var(--btn-danger)");
+            if (typeof showToast === 'function') showToast(`🗑️ Đã xóa sạch lịch sử ngày ${dateStr}!`, "var(--btn-danger)");
         }
     }
 }
 
 async function deleteAllHistory(type) {
+    type = type || 'editor';
     if (confirm("⚠️ NGUY HIỂM: Xóa SẠCH TOÀN BỘ lịch sử hiện có? Hành động này không thể hoàn tác!")) {
         window.appCloudHistory[type] = [];
         renderHistoryList(type); 
         
         if (typeof isGDriveConnected === 'function' && isGDriveConnected()) {
-            showToast("⏳ Đang dọn sạch lịch sử trên Google Drive...", "var(--btn-info)");
+            if (typeof showToast === 'function') showToast("⏳ Đang dọn sạch lịch sử trên Google Drive...", "var(--btn-info)");
             await gdriveSaveHistoryCloud(type, []);
-            showToast("☁️ Đã dọn sạch toàn bộ lịch sử trên Drive!", "var(--btn-success)");
+            if (typeof showToast === 'function') showToast("☁️ Đã dọn sạch toàn bộ lịch sử trên Drive!", "var(--btn-success)");
         } else {
             localStorage.setItem(type === 'editor' ? 'translationHistory' : 'metadataHistory', "[]");
-            showToast("🗑️ Đã dọn sạch toàn bộ lịch sử ở máy!", "var(--btn-danger)");
+            if (typeof showToast === 'function') showToast("🗑️ Đã dọn sạch toàn bộ lịch sử ở máy!", "var(--btn-danger)");
         }
     }
 }
 
 function renderHistoryList(type) {
+    const modal = document.getElementById('modal-history');
+    type = type || (modal ? modal.getAttribute('data-type') : 'editor') || 'editor';
+
     const historyListDiv = document.getElementById('history-list');
     const modalTitle = document.querySelector('#modal-history h3');
     const modalDesc = document.querySelector('#modal-history .modal-desc');
@@ -191,7 +209,7 @@ function renderHistoryList(type) {
     }
 
     if (history.length === 0) {
-        historyListDiv.innerHTML = '<p style="text-align:center; color:gray; padding: 20px 0; font-style:italic;">Chưa có lịch sử sửa đổi nào được lưu.</p>';
+        historyListDiv.innerHTML = '<p style="text-align:center; color:gray; padding: 25px 0; font-style:italic;">Chưa có lịch sử sửa đổi nào được lưu.</p>';
         return;
     }
 
@@ -253,15 +271,19 @@ function renderHistoryList(type) {
             restoreBtn.onclick = () => {
                 if (confirm(`Khôi phục lại phiên bản lúc ${timeStr}?`)) {
                     if (type === 'editor') {
-                        data = JSON.parse(JSON.stringify(entry.data));
+                        if (typeof data !== 'undefined') {
+                            data = JSON.parse(JSON.stringify(entry.data));
+                        }
                         if (typeof renderTable === 'function') renderTable();
-                        pushToCloudHistory('editor', data);
-                        showToast('🕒 Khôi phục bản dịch thành công!', 'var(--btn-success)');
+                        pushToCloudHistory('editor', entry.data);
+                        if (typeof showToast === 'function') showToast('🕒 Khôi phục bản dịch thành công!', 'var(--btn-success)');
                     } else {
-                        metadata = JSON.parse(JSON.stringify(entry.data));
+                        if (typeof metadata !== 'undefined') {
+                            metadata = JSON.parse(JSON.stringify(entry.data));
+                        }
                         if (typeof renderMetadata === 'function') renderMetadata();
-                        pushToCloudHistory('meta', metadata);
-                        showToast('🕒 Khôi phục thông tin truyện thành công!', 'var(--btn-success)');
+                        pushToCloudHistory('meta', entry.data);
+                        if (typeof showToast === 'function') showToast('🕒 Khôi phục thông tin truyện thành công!', 'var(--btn-success)');
                     }
                     document.getElementById('modal-history')?.classList.remove('show');
                 }
@@ -357,7 +379,7 @@ function renderNameQTFileList() {
             if (file && confirm(`Bạn có chắc chắn muốn XÓA file Name "${file.fileName}"?`)) {
                 await nameQTEngine.removeFile(id);
                 if (editingFileId === id) cancelEditingFile();
-                showToast(`🗑️ Đã xóa file "${file.fileName}"!`, 'var(--btn-danger)');
+                if (typeof showToast === 'function') showToast(`🗑️ Đã xóa file "${file.fileName}"!`, 'var(--btn-danger)');
                 updateNameQTModalUI();
                 if (typeof refreshAllQT === 'function') refreshAllQT(false);
             }
@@ -416,6 +438,9 @@ function openNameQTModal() {
     if (modal) modal.classList.add('show');
 }
 
+// =========================================================================
+// KHỞI TẠO CÁC SỰ KIỆN CHO TẤT CẢ CÁC MODAL (NAME QT & LỊCH SỬ)
+// =========================================================================
 function initNameQTModalEvents() {
     document.getElementById('btn-open-nameqt-modal')?.addEventListener('click', (e) => { e.preventDefault(); openNameQTModal(); });
     document.getElementById('btn-close-nameqt-modal')?.addEventListener('click', () => document.getElementById('modal-nameqt')?.classList.remove('show'));
@@ -428,7 +453,7 @@ function initNameQTModalEvents() {
         let customFileName = document.getElementById('nameqt-filename-input')?.value.trim();
 
         if (!file && !rawText) { 
-            showToast('⚠️ Vui lòng chọn file .txt hoặc dán nội dung Name!', 'var(--btn-warning)'); 
+            if (typeof showToast === 'function') showToast('⚠️ Vui lòng chọn file .txt hoặc dán nội dung Name!', 'var(--btn-warning)'); 
             return; 
         }
 
@@ -464,7 +489,7 @@ function initNameQTModalEvents() {
                 if (userAgreed) {
                     nameToUse = candidateFileName;
                 } else {
-                    showToast(`⚠️ Đã hủy thao tác để giữ nguyên dữ liệu gốc!`, 'var(--btn-warning)');
+                    if (typeof showToast === 'function') showToast(`⚠️ Đã hủy thao tác để giữ nguyên dữ liệu gốc!`, 'var(--btn-warning)');
                     return; 
                 }
             }
@@ -490,7 +515,7 @@ function initNameQTModalEvents() {
         }
 
         function finishUpdate() {
-            showToast(`✅ Đã lưu thành công ${updatedCount.toLocaleString('vi-VN')} từ vào file "${nameToUse}"!`, 'var(--btn-success)');
+            if (typeof showToast === 'function') showToast(`✅ Đã lưu thành công ${updatedCount.toLocaleString('vi-VN')} từ vào file "${nameToUse}"!`, 'var(--btn-success)');
             cancelEditingFile(); 
             updateNameQTModalUI();
             if (typeof refreshAllQT === 'function') refreshAllQT(false);
@@ -501,7 +526,7 @@ function initNameQTModalEvents() {
     document.getElementById('btn-reset-nameqt')?.addEventListener('click', async () => {
         if (confirm("⚠️ Bạn có chắc chắn muốn XÓA TOÀN BỘ tất cả các file Name QT khỏi bộ nhớ không?")) {
             if (typeof nameQTEngine !== 'undefined') await nameQTEngine.clearStorage();
-            showToast('🗑️ Đã xóa sạch toàn bộ từ điển Name QT!', 'var(--btn-danger)');
+            if (typeof showToast === 'function') showToast('🗑️ Đã xóa sạch toàn bộ từ điển Name QT!', 'var(--btn-danger)');
             cancelEditingFile(); updateNameQTModalUI();
             if (typeof refreshAllQT === 'function') refreshAllQT(true);
             document.getElementById('modal-nameqt')?.classList.remove('show');
@@ -509,29 +534,90 @@ function initNameQTModalEvents() {
     });
 }
 
+// BỔ SUNG: KHỞI TẠO RIÊNG SỰ KIỆN CHO CẢ 2 NÚT LỊCH SỬ
+function initHistoryModalEvents() {
+    // 1. Nút Lịch sử ở Tab 1 (Dịch thuật)
+    document.getElementById('btn-history-show')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        openHistoryModal('editor');
+    });
+
+    // 2. Nút Lịch sử ở Tab 2 (Thông tin truyện)
+    document.getElementById('btn-history-meta-show')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        openHistoryModal('meta');
+    });
+
+    // Nút đóng modal lịch sử
+    document.getElementById('btn-close-history')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        closeHistoryModal();
+    });
+}
+
+// CƠ CHẾ BẢO VỆ DỰ PHÒNG: BẮT SỰ KIỆN CLICK TOÀN CỤC CHO CẢ 3 MODAL
 document.addEventListener('click', (e) => {
+    // Nút mở Name QT
     if (e.target && (e.target.id === 'btn-open-nameqt-modal' || e.target.closest('#btn-open-nameqt-modal'))) {
         e.preventDefault();
         openNameQTModal();
+        return;
+    }
+
+    // Nút mở Lịch sử dịch (Tab 1)
+    if (e.target && (e.target.id === 'btn-history-show' || e.target.closest('#btn-history-show'))) {
+        e.preventDefault();
+        openHistoryModal('editor');
+        return;
+    }
+
+    // Nút mở Lịch sử thông tin (Tab 2)
+    if (e.target && (e.target.id === 'btn-history-meta-show' || e.target.closest('#btn-history-meta-show'))) {
+        e.preventDefault();
+        openHistoryModal('meta');
+        return;
     }
 });
 
+// ĐÓNG MODAL KHI CLICK RA NGOÀI VÙNG ĐỆM HOẶC BẤM NÚT HỦY/ĐÓNG
 window.addEventListener('click', (e) => {
     const modalReplace = document.getElementById('modal-replace');
     const modalHistory = document.getElementById('modal-history');
     const modalNameQT = document.getElementById('modal-nameqt');
 
-    if (e.target === modalReplace) modalReplace.classList.remove('show');
-    if (e.target === modalHistory) modalHistory.classList.remove('show');
-    if (e.target === modalNameQT) modalNameQT.classList.remove('show');
+    if (e.target === modalReplace) modalReplace?.classList.remove('show');
+    if (e.target === modalHistory) modalHistory?.classList.remove('show');
+    if (e.target === modalNameQT) modalNameQT?.classList.remove('show');
     
     if (e.target.id === 'btn-close-history' || e.target.closest('#btn-close-history')) {
-        if (modalHistory) modalHistory.classList.remove('show');
+        modalHistory?.classList.remove('show');
     }
     if (e.target.id === 'btn-close-modal' || e.target.closest('#btn-close-modal')) {
-        if (modalReplace) modalReplace.classList.remove('show');
+        modalReplace?.classList.remove('show');
     }
     if (e.target.id === 'btn-close-nameqt-modal' || e.target.closest('#btn-close-nameqt-modal')) {
-        if (modalNameQT) modalNameQT.classList.remove('show');
+        modalNameQT?.classList.remove('show');
     }
 });
+
+// XUẤT CÁC HÀM RA WINDOW ĐỂ GỌI TOÀN CỤC
+window.openHistoryModal = openHistoryModal;
+window.closeHistoryModal = closeHistoryModal;
+window.renderHistoryList = renderHistoryList;
+window.syncHistoryFromDrive = syncHistoryFromDrive;
+window.pushToCloudHistory = pushToCloudHistory;
+window.forceSyncHistoryToCloud = forceSyncHistoryToCloud;
+window.initHistoryModalEvents = initHistoryModalEvents;
+window.initNameQTModalEvents = initNameQTModalEvents;
+window.openNameQTModal = openNameQTModal;
+
+// TỰ ĐỘNG CHẠY KHI TẢI FILE
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        initHistoryModalEvents();
+        initNameQTModalEvents();
+    });
+} else {
+    initHistoryModalEvents();
+    initNameQTModalEvents();
+}

@@ -105,6 +105,27 @@ body.selecting-rows, body.selecting-rows * {
     cursor: row-resize !important;
 }
 
+/* ================= KHÓA TRIỆT ĐỂ CÁC PHẦN TỬ MOBILE TRÊN MÁY TÍNH ================= */
+.cell-header,
+.mobile-row-meta,
+.mobile-view-bar {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    min-height: 0 !important;
+    width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    pointer-events: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
 /* ================= KHUNG GIAO DIỆN CHÍNH ================= */
 header {
     flex-shrink: 0;
@@ -410,6 +431,8 @@ textarea.is-invalid:focus {
         position: absolute !important; 
         pointer-events: none !important;
         overflow: hidden !important;
+        user-select: none !important;
+        -webkit-user-select: none !important;
     }
 
     #table-body tr td.batch-select-cell {
@@ -746,7 +769,7 @@ td.batch-intersection-selected { background-color: rgba(239, 68, 68, 0.2) !impor
 /* GIAO DIỆN DANH SÁCH FILE NAME QT TRONG MODAL */
 .nameqt-file-list { display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; margin-bottom: 12px; padding-right: 4px; }
 .nameqt-file-item {
-    display: flex; /* ĐÃ SỬA LỖI THIẾU CHẤM PHẨY TẠI ĐÂY */
+    display: flex; /* ĐÃ SỬA LỖI THIẾU CHẤM PHẨY */
     align-items: center; 
     justify-content: space-between;
     background: var(--bg-color); 
@@ -1412,10 +1435,24 @@ body[data-current-theme="aqua"] .story-section-box {
     }
     td[data-col]:last-child { border-bottom: none !important; }
 
+    /* BẬT LẠI CELL-HEADER DUY NHẤT TRÊN GIAO DIỆN MOBILE */
     .cell-header {
-        display: flex !important; align-items: center !important; justify-content: space-between !important;
-        padding: 7px 12px !important; min-height: 42px !important; background: rgba(0, 0, 0, 0.015) !important;
-        cursor: pointer !important; user-select: none !important;
+        display: flex !important; 
+        visibility: visible !important;
+        opacity: 1 !important;
+        height: auto !important;
+        min-height: 42px !important;
+        max-height: none !important;
+        width: 100% !important;
+        position: static !important;
+        pointer-events: auto !important;
+        align-items: center !important; 
+        justify-content: space-between !important;
+        padding: 7px 12px !important; 
+        background: rgba(0, 0, 0, 0.015) !important;
+        cursor: pointer !important; 
+        user-select: none !important;
+        -webkit-user-select: none !important;
     }
     .cell-label { font-size: 0.72rem !important; font-weight: 800 !important; letter-spacing: 0.5px !important; padding: 2px 7px !important; border-radius: 4px !important; text-transform: uppercase !important; }
 

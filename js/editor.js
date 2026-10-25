@@ -102,7 +102,7 @@ function renderTable() {
         `;
         tr.appendChild(rowMetaTd);
 
-        // 3. CÁC CỘT DỮ LIỆU CHÍNH (TÁCH BIỆT CELL-HEADER VÀ CELL-CONTENT ĐỂ DỮ LIỆU SẠCH)
+        // 3. CÁC CỘT DỮ LIỆU CHÍNH (KHÓA HIỂN THỊ VÀ VÙNG CHỌN TRÊN CELL-HEADER TRÊN DESKTOP)
         columns.forEach(col => {
             const td = document.createElement('td');
             td.dataset.col = col;
@@ -116,7 +116,7 @@ function renderTable() {
             const contentHtml = normalizeUnicodeText(row[col] || '');
 
             td.innerHTML = `
-                <div class="cell-header" contenteditable="false">
+                <div class="cell-header" contenteditable="false" style="display: none; user-select: none; -webkit-user-select: none;">
                     <span class="cell-label ${meta.badgeClass}">${meta.label}</span>
                     <div class="cell-header-actions">
                         <button type="button" class="btn-cell-copy" title="Sao chép khối này">📋</button>
@@ -197,7 +197,7 @@ function appendRowToDOM(rowObj, index) {
         const contentHtml = normalizeUnicodeText(rowObj[col] || '');
 
         td.innerHTML = `
-            <div class="cell-header" contenteditable="false">
+            <div class="cell-header" contenteditable="false" style="display: none; user-select: none; -webkit-user-select: none;">
                 <span class="cell-label ${meta.badgeClass}">${meta.label}</span>
                 <div class="cell-header-actions">
                     <button type="button" class="btn-cell-copy" title="Sao chép khối này">📋</button>
@@ -216,7 +216,6 @@ function appendRowToDOM(rowObj, index) {
 // =========================================================================
 function setMobileViewMode(mode) {
     if (mode === 'edit-only') {
-        // Chỉ xem Bản edit: mở Bản edit, thu gọn toàn bộ các cột còn lại
         mobileColCollapsed = {
             raw: true,
             pinyin: true,
@@ -227,7 +226,6 @@ function setMobileViewMode(mode) {
         };
         if (typeof showToast === 'function') showToast('👁️ Chế độ: Chỉ xem Bản edit', 'var(--btn-info)');
     } else if (mode === 'expand-all') {
-        // Mở rộng tất cả các cột
         mobileColCollapsed = {
             raw: false,
             pinyin: false,
@@ -238,7 +236,6 @@ function setMobileViewMode(mode) {
         };
         if (typeof showToast === 'function') showToast('🔽 Đã mở rộng toàn bộ các khối', 'var(--btn-success)');
     } else if (mode === 'collapse-all') {
-        // Thu gọn tất cả chỉ còn thanh tiêu đề nhãn
         mobileColCollapsed = {
             raw: true,
             pinyin: true,

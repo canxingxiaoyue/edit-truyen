@@ -1,6 +1,6 @@
 // =========================================================================
 // QUẢN LÝ BẢNG DỊCH CHÍNH (MỤC 1) - KIẾN TRÚC ZERO-DOM CHO DESKTOP
-// TỐI ƯU BỘ NHỚ RAM - BẢO VỆ CHỐNG EXTENSION - AUTO SANITIZE DATA
+// TỐI ƯU BỘ NHỚ RAM - BẢO VỆ CHỐNG EXTENSION - BẢO TOÀN DỮ LIỆU TUYỆT ĐỐI
 // =========================================================================
 let saveTimeout;
 let countTimeout;
@@ -30,17 +30,74 @@ function normalizeUnicodeText(text) {
     try { return text.normalize('NFC'); } catch (e) { return text; }
 }
 
+// Ép lấy dữ liệu từ ô đang đặt con trỏ vào mảng data ngay lập tức
+function syncActiveCellToData() {
+    const activeEl = document.activeElement;
+    if (!activeEl) return;
+    const contentEl = activeEl.closest('.cell-content') || activeEl.closest('td[data-col]');
+    if (!contentEl) return;
+    const targetTd = contentEl.closest('td[data-col]');
+    if (!targetTd) return;
+    const tr = targetTd.closest('tr');
+    if (!tr) return;
+
+    const rowIndex = parseInt(tr.dataset.index, 10);
+    const colName = targetTd.dataset.col;
+
+    if (!isNaN(rowIndex) && colName && data[rowIndex]) {
+        let rawHtml = contentEl.innerHTML;
+        let plainText = normalizeUnicodeText(contentEl.innerText);
+        if (rawHtml === '<br>' || plainText.trim() === '') {
+            rawHtml = '';
+        }
+        data[rowIndex][colName] = rawHtml;
+    }
+}
+
+// Lưu đồng bộ lập tức xuống LocalStorage (Dùng khi F5, đóng tab hoặc bấm Lưu)
+function flushSave() {
+    clearTimeout(saveTimeout);
+    syncActiveCellToData();
+
+    try {
+        localStorage.setItem('translationData', JSON.stringify(data));
+        localStorage.setItem('manualQTState', JSON.stringify(manualQTState));
+        if (typeof chapterTitle !== 'undefined' && chapterTitle) {
+            localStorage.setItem('chapterTitle', chapterTitle);
+        }
+
+        // ĐỒNG BỘ 2 CHIỀU: Cập nhật ngay vào Dự án đang mở trong 'savedProjects'
+        if (typeof currentProjectId !== 'undefined' && currentProjectId) {
+            const rawProj = localStorage.getItem('savedProjects_v2') || localStorage.getItem('savedProjects');
+            if (rawProj) {
+                let projects = JSON.parse(rawProj);
+                if (Array.isArray(projects)) {
+                    const idx = projects.findIndex(p => p.id === currentProjectId);
+                    if (idx >= 0) {
+                        projects[idx].data = data;
+                        projects[idx].rowCount = data.length;
+                        projects[idx].title = chapterTitle || projects[idx].title;
+                        projects[idx].updatedAt = Date.now();
+                        localStorage.setItem('savedProjects_v2', JSON.stringify(projects));
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Lỗi flushSave:", e);
+    }
+}
+
 function debounceSave() {
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
-        localStorage.setItem('translationData', JSON.stringify(data));
-        localStorage.setItem('manualQTState', JSON.stringify(manualQTState));
+        flushSave();
         const now = Date.now();
         if (now - lastHistoryTime > 15000) { 
             if (typeof addEditorHistoryEntry === 'function') addEditorHistoryEntry();
             lastHistoryTime = now;
         }
-    }, 500);
+    }, 400);
 
     clearTimeout(countTimeout);
     countTimeout = setTimeout(() => { updateWordCounts(); }, 300);
@@ -51,7 +108,6 @@ function debounceSave() {
 // =========================================================================
 let currentIsMobile = window.innerWidth <= 768;
 
-// Lắng nghe thay đổi kích thước màn hình để tự động Render lại cho Mobile/Desktop
 window.addEventListener('resize', () => {
     const newIsMobile = window.innerWidth <= 768;
     if (newIsMobile !== currentIsMobile) {
@@ -60,7 +116,6 @@ window.addEventListener('resize', () => {
     }
 });
 
-// Hàm tạo mã HTML cho 1 dòng (Dùng chung để đồng bộ giữa renderTable và appendRow)
 function generateRowHTML(rowObj, rowIndex, isMobile) {
     let html = '';
     
@@ -91,7 +146,6 @@ function generateRowHTML(rowObj, rowIndex, isMobile) {
         
         html += `<td data-col="${col}" class="${collapsedClass}">`;
         
-        // CỰC KỲ QUAN TRỌNG: Chỉ render Header nếu trên Mobile. Lột sạch rác trên Desktop.
         if (isMobile) {
             html += `
                 <div class="cell-header" contenteditable="false" style="user-select: none; -webkit-user-select: none;">
@@ -103,7 +157,7 @@ function generateRowHTML(rowObj, rowIndex, isMobile) {
                 </div>`;
         }
         
-        // KHÓA MÕM EXTENSION (Google Translate, Grammarly) bằng translate="no" data-gramm="false"
+        // Khóa extension dịch tự động can thiệp làm hỏng chữ
         html += `<div class="cell-content" contenteditable="true" spellcheck="false" translate="no" data-gramm="false">${contentHtml}</div>
              </td>`;
     });
@@ -120,17 +174,15 @@ function renderTable() {
     tbody.innerHTML = '';
     const fragment = document.createDocumentFragment();
     
-    // Tự động Sanitize (hút rác) toàn bộ dữ liệu 1 lần trước khi render
     data.forEach((row, rowIndex) => {
         if (!row._sanitized) {
             columns.forEach(col => {
                 if (typeof row[col] === 'string') {
-                    // Xóa sạch mọi thẻ rỗng, <br>, khoảng trắng dư thừa ở đầu và cuối do copy/paste
                     row[col] = row[col].replace(/^(?:<br\s*\/?>|\s|&nbsp;|<div><br><\/div>|<p><br><\/p>)+/i, '')
                                        .replace(/(?:<br\s*\/?>|\s|&nbsp;|<div><br><\/div>|<p><br><\/p>)+$/i, '');
                 }
             });
-            row._sanitized = true; // Đánh dấu đã lọc để không quét lại lần sau
+            row._sanitized = true;
         }
 
         const tr = document.createElement('tr');
@@ -144,6 +196,12 @@ function renderTable() {
 
     tbody.appendChild(fragment);
     
+    // Đồng bộ lại tiêu đề chương lên ô input
+    const titleInput = document.getElementById('chapter-title-input');
+    if (titleInput && typeof chapterTitle !== 'undefined' && titleInput.value !== chapterTitle) {
+        titleInput.value = chapterTitle || '';
+    }
+
     if (isBatchDeleteMode) updateBatchHighlightsAndSummary();
 
     if (typeof nameQTEngine !== 'undefined' && nameQTEngine.process) {
@@ -179,7 +237,7 @@ function setMobileViewMode(mode) {
         if (typeof showToast === 'function') showToast('🔼 Đã thu gọn toàn bộ các khối', 'var(--btn-secondary)');
     }
     localStorage.setItem('mobile_col_collapsed', JSON.stringify(mobileColCollapsed));
-    renderTable(); // Gọi renderTable sẽ tự đồng bộ thẻ trên mobile
+    renderTable();
 }
 
 function toggleColumnCollapse(colKey) {
@@ -189,6 +247,7 @@ function toggleColumnCollapse(colKey) {
 }
 
 function saveEditorUndoState() {
+    syncActiveCellToData();
     const currentStateStr = JSON.stringify(data);
     if (editorUndoStack.length > 0 && editorUndoStack[editorUndoStack.length - 1] === currentStateStr) return;
     editorUndoStack.push(currentStateStr);
@@ -211,6 +270,7 @@ function handleEditorTypingInput() {
 
 function editorUndo() {
     if (editorUndoStack.length === 0) return;
+    syncActiveCellToData();
     if (editorIsTyping) {
         clearTimeout(editorTypingUndoTimeout);
         saveEditorUndoState();
@@ -235,6 +295,7 @@ function editorUndo() {
 
 function editorRedo() {
     if (editorRedoStack.length === 0) return;
+    syncActiveCellToData();
     editorUndoStack.push(JSON.stringify(data));
     data = JSON.parse(editorRedoStack.pop());
     
@@ -450,10 +511,10 @@ function parseClipboardToSmartMatrix(clipboard) {
 }
 
 // =========================================================================
-// THIẾT LẬP TOÀN BỘ SỰ KIỆN BIÊN DỊCH VÀ ỦY QUYỀN (CHỐNG TRÙNG LẶP EVENT)
+// THIẾT LẬP TOÀN BỘ SỰ KIỆN BIÊN DỊCH VÀ ỦY QUYỀN
 // =========================================================================
 function initEditorEvents() {
-    if (window._editorEventsBound) return; // Ngăn ngừa chạy nhiều lần làm rò rỉ RAM
+    if (window._editorEventsBound) return;
     window._editorEventsBound = true;
 
     const chapterInput = document.getElementById('chapter-title-input');
@@ -462,6 +523,7 @@ function initEditorEvents() {
         chapterInput.addEventListener('input', (e) => {
             chapterTitle = e.target.value;
             localStorage.setItem('chapterTitle', chapterTitle);
+            debounceSave();
         });
     }
 
@@ -482,7 +544,7 @@ function initEditorEvents() {
         updateBatchHighlightsAndSummary();
     });
 
-    // 2. SỰ KIỆN DÁN THÔNG MINH (XỬ LÝ DỮ LIỆU ĐẦU VÀO)
+    // 2. SỰ KIỆN DÁN THÔNG MINH
     tbody.addEventListener('paste', (e) => {
         const targetCell = e.target.closest('td[data-col]');
         if (!targetCell) return;
@@ -585,7 +647,6 @@ function initEditorEvents() {
 
         handleEditorTypingInput();
 
-        // Máy dọn rác tức thì: Xóa sạch các thẻ <br> tàng hình do phím Delete/Backspace sinh ra
         let rawHtml = contentEl.innerHTML;
         let plainText = normalizeUnicodeText(contentEl.innerText);
         if (rawHtml === '<br>' || plainText.trim() === '') {
@@ -659,7 +720,6 @@ function initEditorEvents() {
             return;
         }
         
-        // Cập nhật Highlight cho Checkbox (Ủy quyền thay vì change)
         if (e.target.classList.contains('batch-row-checkbox')) {
             const rIdx = parseInt(e.target.dataset.row, 10);
             if (e.target.checked) selectedBatchRows.add(rIdx); else selectedBatchRows.delete(rIdx);
@@ -688,16 +748,37 @@ function initEditorEvents() {
     });
 
     // CÁC NÚT THANH CÔNG CỤ TRÊN CÙNG
-    document.getElementById('btn-add')?.addEventListener('click', (e) => { e.preventDefault(); insertRowAt(data.length); const c = document.getElementById('table-container'); if(c) c.scrollTop = c.scrollHeight; });
-    document.getElementById('btn-delete')?.addEventListener('click', (e) => { e.preventDefault(); if (currentRowIndex >= 0) deleteSingleRow(currentRowIndex); });
+    document.getElementById('btn-add')?.addEventListener('click', (e) => { 
+        e.preventDefault(); 
+        insertRowAt(data.length); 
+        const c = document.getElementById('table-container'); 
+        if(c) c.scrollTop = c.scrollHeight; 
+    });
+    
+    document.getElementById('btn-delete')?.addEventListener('click', (e) => { 
+        e.preventDefault(); 
+        if (currentRowIndex >= 0) deleteSingleRow(currentRowIndex); 
+    });
+
     document.getElementById('btn-reset')?.addEventListener('click', (e) => {
         e.preventDefault();
-        if (confirm("⚠️ Xóa TOÀN BỘ dữ liệu trên bảng?")) {
+        if (confirm("⚠️ Xóa TOÀN BỘ dữ liệu trên bảng? Bản hiện tại sẽ được lưu vào Lịch sử trước khi xóa.")) {
+            flushSave();
+            if (typeof pushToCloudHistory === 'function') pushToCloudHistory('editor', data);
+
             saveEditorUndoState();
             data = [createEmptyRow()];
             currentRowIndex = -1; selectedRowIndices = []; manualQTState = {}; rowTokensMap = {};
             selectedBatchRows.clear(); selectedBatchCols.clear();
-            renderTable(); debounceSave();
+            
+            // Xóa mã ID dự án hiện tại để không ghi đè dự án cũ
+            if (typeof currentProjectId !== 'undefined') {
+                currentProjectId = null;
+                localStorage.removeItem('currentProjectId');
+            }
+
+            renderTable(); 
+            flushSave();
             showToast('🔄 Đã làm mới toàn bộ bảng!', 'var(--btn-warning)');
         }
     });
@@ -732,18 +813,31 @@ function initEditorEvents() {
         }
     });
 
-    // EXPORT / IMPORT
+    // EXPORT JSON ĐẦY ĐỦ CẢ METADATA VÀ DATA
     document.getElementById('btn-export')?.addEventListener('click', (e) => {
         e.preventDefault();
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+        flushSave();
+
+        const exportPayload = {
+            app: "công cụ edit",
+            version: "2.0",
+            exportedAt: new Date().toISOString(),
+            id: (typeof currentProjectId !== 'undefined' && currentProjectId) ? currentProjectId : ('proj_' + Date.now()),
+            title: (typeof chapterTitle !== 'undefined' && chapterTitle) ? chapterTitle : 'Chương 1',
+            data: data,
+            metadata: (typeof metadata !== 'undefined') ? metadata : null
+        };
+
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
         const dlAnchor = document.createElement('a');
         dlAnchor.setAttribute("href", dataStr);
         let safeTitle = (typeof chapterTitle !== 'undefined' && chapterTitle) ? chapterTitle.trim().replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_') : "chuong_truyen";
-        dlAnchor.setAttribute("download", `${safeTitle}_${Date.now()}.json`);
+        dlAnchor.setAttribute("download", `${safeTitle}.json`);
         dlAnchor.click();
-        showToast(`💾 Đã tải file xuống máy!`, 'var(--btn-success)');
+        showToast(`💾 Đã xuất file "${safeTitle}.json" đầy đủ!`, 'var(--btn-success)');
     });
 
+    // IMPORT JSON ĐA ĐỊNH DẠNG (NHẬN CẢ ARRAY VÀ OBJECT DỰ ÁN)
     const fileInput = document.getElementById('file-input');
     document.getElementById('btn-import')?.addEventListener('click', (e) => { e.preventDefault(); fileInput?.click(); });
     fileInput?.addEventListener('change', (e) => {
@@ -752,14 +846,42 @@ function initEditorEvents() {
         const reader = new FileReader();
         reader.onload = function(evt) {
             try {
-                const importedData = JSON.parse(evt.target.result);
-                if (Array.isArray(importedData)) {
-                    saveEditorUndoState();
-                    data = importedData.map(row => ({ ...row, qt: row.qt || '' }));
-                    renderTable();
-                    debounceSave();
-                    showToast('📂 Mở file thành công!', 'var(--btn-success)');
+                const parsed = JSON.parse(evt.target.result);
+                let loadedData = null;
+                let loadedTitle = file.name.replace(/\.[^/.]+$/, "");
+                let loadedMeta = null;
+
+                if (Array.isArray(parsed)) {
+                    loadedData = parsed;
+                } else if (parsed && Array.isArray(parsed.data)) {
+                    loadedData = parsed.data;
+                    if (parsed.title) loadedTitle = parsed.title;
+                    if (parsed.metadata) loadedMeta = parsed.metadata;
                 }
+
+                if (!loadedData || loadedData.length === 0) {
+                    alert("⚠️ File JSON không chứa dữ liệu hàng hợp lệ!");
+                    return;
+                }
+
+                flushSave();
+                if (typeof pushToCloudHistory === 'function') pushToCloudHistory('editor', data);
+
+                saveEditorUndoState();
+                data = loadedData.map(row => ({ ...row, qt: row.qt || '' }));
+                chapterTitle = loadedTitle;
+                if (typeof currentProjectId !== 'undefined') {
+                    currentProjectId = null;
+                    localStorage.removeItem('currentProjectId');
+                }
+                if (loadedMeta && typeof metadata !== 'undefined') {
+                    metadata = loadedMeta;
+                    if (typeof renderMetadata === 'function') renderMetadata();
+                }
+
+                renderTable();
+                flushSave();
+                showToast(`📂 Nạp file thành công (${data.length} hàng)!`, 'var(--btn-success)');
             } catch (err) { alert("Lỗi đọc file: " + err); }
         };
         reader.readAsText(file);
@@ -789,6 +911,14 @@ function initEditorEvents() {
             await copyAdvancedToClipboard(textBlocks, `✅ Đã copy cột ${colKey.toUpperCase()}!`);
         });
     });
+
+    // ÉP LƯU TỨC THÌ KHI TẮT TAB HOẶC RỜI TRANG (CHỐNG MẤT DỮ LIỆU HOÀN TOÀN)
+    window.addEventListener('beforeunload', () => flushSave());
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            flushSave();
+        }
+    });
 }
 
 // =========================================================================
@@ -797,7 +927,7 @@ function initEditorEvents() {
 function insertRowAt(index) {
     saveEditorUndoState();
     data.splice(index, 0, createEmptyRow());
-    renderTable(); // Gọi lại hàm render để duy trì Auto Sanitize
+    renderTable();
     debounceSave();
     if (typeof showToast === 'function') showToast(`➕ Đã thêm Dòng ${index + 1}`, 'var(--btn-primary)');
 }
@@ -893,3 +1023,5 @@ window.setMobileViewMode = setMobileViewMode;
 window.toggleColumnCollapse = toggleColumnCollapse;
 window.refreshAllQT = refreshAllQT;
 window.toggleBatchDeleteMode = toggleBatchDeleteMode;
+window.flushSave = flushSave;
+window.syncActiveCellToData = syncActiveCellToData;

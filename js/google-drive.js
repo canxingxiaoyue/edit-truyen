@@ -1,14 +1,17 @@
 // =========================================================================
-// GOOGLE DRIVE API V3 - HỖ TRỢ ĐẦY ĐỦ FILE TẢI LÊN THỦ CÔNG & CHỐNG DUPLICATE
+// GOOGLE DRIVE API V3 - QUẢN LÝ DỰ ÁN, TỪ ĐIỂN NAME QT, LỊCH SỬ & VIẾT TẮT
+// BẢO MẬT TOKEN - TÁI SỬ DỤNG FILE ID - CHỐNG TRÙNG LẶP & ĐÈ NHẦM DỮ LIỆU
 // =========================================================================
 
 const CLIENT_ID = '214662773459-nepa84k1u7uhp1j08p250f9v42q0mbk6.apps.googleusercontent.com';
-// NÂNG CẤP SCOPE ĐỂ ĐỌC ĐƯỢC CẢ CÁC FILE DO NGƯỜI DÙNG TẢI LÊN THỦ CÔNG QUA WEB DRIVE
 const SCOPES = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file';
 
 const FOLDER_PROJECTS = 'CongCuEdit_ChuongTruyen';  
 const FOLDER_NAMEQT   = 'CongCuEdit_TuDienNameQT';  
 const NAMEQT_PREFIX   = '[TỪ ĐIỂN NAME QT] - ';
+
+const FILE_VIETTAT      = 'VietTat.json';
+const CACHE_VIETTAT_ID  = 'viettat_gdrive_file_id';
 
 let accessToken = localStorage.getItem('gdrive_access_token') || null;
 let tokenExpiresAt = Number(localStorage.getItem('gdrive_token_expires')) || 0;
@@ -26,15 +29,14 @@ async function getValidToken() {
 
     return new Promise((resolve) => {
         if (typeof google === 'undefined' || !google.accounts) { 
-            localStorage.removeItem('gdrive_auto_login');
             resolve(null); 
             return; 
         }
 
+        // Tăng thời gian chờ lên 6s tránh mạng chậm tự ý logout
         const timeoutId = setTimeout(() => {
-            localStorage.removeItem('gdrive_auto_login');
-            resolve(null);
-        }, 2500);
+            resolve(accessToken || null);
+        }, 6000);
 
         try {
             const tc = google.accounts.oauth2.initTokenClient({
@@ -43,7 +45,9 @@ async function getValidToken() {
                 callback: (resp) => {
                     clearTimeout(timeoutId);
                     if (resp.error) {
-                        localStorage.removeItem('gdrive_auto_login');
+                        if (resp.error === 'interaction_required') {
+                            localStorage.removeItem('gdrive_auto_login');
+                        }
                         resolve(null); 
                     } else {
                         accessToken = resp.access_token;
@@ -58,7 +62,6 @@ async function getValidToken() {
             tc.requestAccessToken({ prompt: '' });
         } catch (e) { 
             clearTimeout(timeoutId);
-            localStorage.removeItem('gdrive_auto_login');
             resolve(null); 
         }
     });
@@ -79,7 +82,7 @@ function checkUrlForOAuthToken() {
             localStorage.setItem('gdrive_auto_login', 'true'); 
 
             history.replaceState(null, null, window.location.pathname + window.location.search);
-            showToast("🟢 Đã kết nối Google Drive thành công!", "var(--btn-success)");
+            if (typeof showToast === 'function') showToast("🟢 Đã kết nối Google Drive thành công!", "var(--btn-success)");
             
             if (typeof loadSavedProjects === 'function') loadSavedProjects();
             if (typeof syncHistoryFromDrive === 'function') syncHistoryFromDrive();
@@ -107,7 +110,7 @@ function disconnectGDrive() {
         localStorage.removeItem('gdrive_access_token');
         localStorage.removeItem('gdrive_token_expires');
         localStorage.removeItem('gdrive_auto_login'); 
-        showToast("Đã ngắt kết nối Google Drive!", "var(--btn-info)");
+        if (typeof showToast === 'function') showToast("Đã ngắt kết nối Google Drive!", "var(--btn-info)");
         updateGDriveModalUI();
         if (typeof calculateStorageMetrics === 'function') calculateStorageMetrics();
     }
@@ -142,7 +145,7 @@ function updateGDriveModalUI() {
 }
 
 // =========================================================================
-// HÀM TIỆN ÍCH
+// HÀM TIỆN ÍCH FILE NAME VÀ THƯ MỤC
 // =========================================================================
 function splitFileNameAndExt(fullName) {
     if (!fullName) return { baseName: 'Chua_dat_ten', ext: '' };
@@ -169,9 +172,6 @@ function resolveDriveFileNameConflict(desiredFullName, existingNamesList) {
     return candidate;
 }
 
-// =========================================================================
-// QUẢN LÝ THƯ MỤC TRÊN DRIVE
-// =========================================================================
 async function getOrCreateFolder(folderName) {
     const token = await getValidToken();
     if (!token) return null;
@@ -221,7 +221,7 @@ async function gdriveFetchAllFileNames(folderId) {
 }
 
 // =========================================================================
-// Ổ CHƯƠNG TRUYỆN (LƯU MỚI, THAY THẾ/GHI ĐÈ, ĐỔI TÊN, MỞ, XÓA)
+// Ổ CHƯƠNG TRUYỆN (ĐÃ LOẠI TRỪ TỆP VIẾT TẮT VÀ LỊCH SỬ)
 // =========================================================================
 async function gdriveListProjects() {
     const token = await getValidToken();
@@ -238,7 +238,14 @@ async function gdriveListProjects() {
         if (res.ok) {
             const data = await res.json();
             const files = data.files || [];
-            const validProjects = files.filter(f => !f.name.startsWith('[LỊCH SỬ]'));
+
+            // BỘ LỌC CHUẨN XÁC: Loại trừ tệp Lịch sử VÀ tệp Viết tắt khỏi danh sách chương truyện
+            const validProjects = files.filter(f => {
+                const fn = (f.name || '').toLowerCase();
+                if (f.name.startsWith('[LỊCH SỬ]')) return false;
+                if (fn === 'viettat.json' || fn === 'viettat' || fn === 'edit-truyen-shortcuts.json') return false;
+                return true;
+            });
 
             return validProjects.map(f => {
                 const props = f.appProperties || {};
@@ -350,9 +357,7 @@ async function gdriveRenameProject(fileId, newName) {
     const newFileName = `${newName}.json`;
     const metadata = {
         name: newFileName,
-        appProperties: {
-            name: newName
-        }
+        appProperties: { name: newName }
     };
 
     try {
@@ -395,10 +400,8 @@ async function gdriveDeleteProject(fileId) {
 }
 
 // =========================================================================
-// Ổ TỪ ĐIỂN NAME QT (ĐÃ FIX: NHẬN DIỆN MỌI FILE TRONG THƯ MỤC & GHI ĐÈ THÔNG MINH)
+// Ổ TỪ ĐIỂN NAME QT (QUẢN LÝ THƯ MỤC CongCuEdit_TuDienNameQT)
 // =========================================================================
-
-// LƯU FILE NAME QT LÊN DRIVE (CẬP NHẬT GHI ĐÈ NẾU FILE ĐÃ CÓ, KHÔNG SINH BIẾN THỂ (1))
 async function gdriveSaveNameQTFile(fileObj) {
     const token = await getValidToken();
     if (!token) return { success: false };
@@ -406,7 +409,6 @@ async function gdriveSaveNameQTFile(fileObj) {
     const folderId = await getOrCreateFolder(FOLDER_NAMEQT);
     const cleanFileName = fileObj.fileName || 'Name.txt';
 
-    // 1. Kiểm tra xem file này đã tồn tại trong thư mục chưa (theo tên gốc hoặc tên có tiền tố)
     let existingFileId = null;
     try {
         const checkQ = `'${folderId}' in parents and (name='${cleanFileName}' or name='${NAMEQT_PREFIX}${cleanFileName}') and trashed=false`;
@@ -425,7 +427,7 @@ async function gdriveSaveNameQTFile(fileObj) {
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
 
     const metadata = {
-        name: cleanFileName, // Lưu với tên sạch sẽ (ví dụ Name.txt, VietPhrase.txt)
+        name: cleanFileName,
         mimeType: 'text/plain',
         appProperties: {
             type: 'nameqt',
@@ -435,7 +437,6 @@ async function gdriveSaveNameQTFile(fileObj) {
         }
     };
 
-    // 2. Nếu file ĐÃ TỒN TẠI trên Drive: Ghi đè (PATCH) để cập nhật, KHÔNG TẠO FILE MỚI
     if (existingFileId) {
         const uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=media`, {
             method: 'PATCH',
@@ -446,7 +447,6 @@ async function gdriveSaveNameQTFile(fileObj) {
             body: blob
         });
         if (uploadRes.ok) {
-            // Cập nhật lại metadata
             await fetch(`https://www.googleapis.com/drive/v3/files/${existingFileId}`, {
                 method: 'PATCH',
                 headers: {
@@ -460,7 +460,6 @@ async function gdriveSaveNameQTFile(fileObj) {
         return { success: false };
     }
 
-    // 3. Nếu file CHƯA CÓ trên Drive: Tạo mới qua Resumable Upload
     if (folderId) metadata.parents = [folderId];
 
     const initRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable`, {
@@ -488,7 +487,6 @@ async function gdriveSaveNameQTFile(fileObj) {
     return { success: false };
 }
 
-// LIỆT KÊ TOÀN BỘ FILE TRONG THƯ MỤC CongCuEdit_TuDienNameQT (ĐÃ FIX: NHẬN DIỆN CẢ FILE TẢI LÊN BẰNG TAY)
 async function gdriveListNameQTFiles() {
     const token = await getValidToken();
     if (!token) return [];
@@ -496,9 +494,7 @@ async function gdriveListNameQTFiles() {
     if (!folderId) return [];
 
     try {
-        // CÂU TRUY VẤN MỚI: BỎ BỎ LỌC appProperties -> QUÉT TOÀN BỘ FILE TRONG THƯ MỤC
         let q = `'${folderId}' in parents and trashed=false and mimeType != 'application/vnd.google-apps.folder'`;
-        
         const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,appProperties,size,modifiedTime)&orderBy=name asc&pageSize=1000`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -633,17 +629,15 @@ async function gdriveLoadHistoryCloud(type) {
 }
 
 // =========================================================================
-// QUẢN LÝ VIẾT TẮT (VietTat.json - TÁI SỬ DỤNG fileId, CHỐNG TRÙNG LẶP)
+// QUẢN LÝ VIẾT TẮT (VietTat.json - TÁI SỬ DỤNG fileId, CHỐNG TẠO FILE TRÙNG)
 // =========================================================================
-const FILE_VIETTAT = 'VietTat.json';
-const CACHE_VIETTAT_ID = 'viettat_gdrive_file_id';
 
-// 1. Tìm hoặc kiểm tra fileId của VietTat.json (tái sử dụng, chống sinh file trùng)
+// 1. TÌM FILE VIẾT TẮT DUY NHẤT (QUÉT CẢ VietTat.json VÀ viettat)
 async function gdriveFindVietTatFileId() {
     const token = await getValidToken();
     if (!token) return null;
 
-    // A. Kiểm tra fileId đã lưu trong cache
+    // A. Kiểm tra cache
     const cachedId = localStorage.getItem(CACHE_VIETTAT_ID);
     if (cachedId) {
         try {
@@ -652,18 +646,15 @@ async function gdriveFindVietTatFileId() {
             });
             if (res.ok) {
                 const data = await res.json();
-                if (!data.trashed && data.name === FILE_VIETTAT) {
-                    return cachedId;
-                }
+                if (!data.trashed) return cachedId;
             }
         } catch (e) {}
-        // Nếu fileId cũ bị xóa hoặc vào thùng rác -> xóa cache tìm lại
         localStorage.removeItem(CACHE_VIETTAT_ID);
     }
 
-    // B. Quét tìm trên Drive theo tên file VietTat.json
+    // B. Quét tìm trên Drive theo tên file VietTat.json hoặc viettat
     try {
-        const q = `name='${FILE_VIETTAT}' and trashed=false`;
+        const q = `(name='${FILE_VIETTAT}' or name='viettat.json' or name='viettat') and trashed=false`;
         const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&pageSize=10`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -682,7 +673,7 @@ async function gdriveFindVietTatFileId() {
     return null;
 }
 
-// 2. Lưu / Cập nhật danh sách viết tắt vào đúng 1 file VietTat.json duy nhất
+// 2. LƯU / CẬP NHẬT DANH SÁCH VIẾT TẮT VÀO ĐÚNG 1 FILE DUY NHẤT
 async function gdriveSaveShortcuts(shortcutsArray) {
     const token = await getValidToken();
     if (!token) return { success: false, reason: 'not_connected' };
@@ -715,7 +706,7 @@ async function gdriveSaveShortcuts(shortcutsArray) {
         JSON.stringify(payload, null, 2) +
         `\r\n--${boundary}--`;
 
-    // Nếu file ĐÃ TỒN TẠI -> PATCH ghi đè vào đúng fileId đó (Không tạo thêm file mới)
+    // GHI ĐÈ (PATCH) VÀO FILE ĐÃ CÓ (KHÔNG TẠO FILE THỨ 2)
     if (existingFileId) {
         const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=multipart`, {
             method: 'PATCH',
@@ -732,7 +723,7 @@ async function gdriveSaveShortcuts(shortcutsArray) {
         return { success: false, reason: 'patch_failed' };
     }
 
-    // Nếu CHƯA CÓ file -> POST tạo mới vào thư mục CongCuEdit_ChuongTruyen
+    // NẾU CHƯA CÓ FILE THÌ TẠO MỚI (POST)
     if (folderId) metadata.parents = [folderId];
 
     const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`, {
@@ -753,7 +744,7 @@ async function gdriveSaveShortcuts(shortcutsArray) {
     return { success: false, reason: 'create_failed' };
 }
 
-// 3. Tải nội dung từ VietTat.json trên Drive về máy
+// 3. TẢI NỘI DUNG TỪ VietTat.json VỀ MÁY
 async function gdriveLoadShortcuts() {
     const token = await getValidToken();
     if (!token) return { success: false, reason: 'not_connected' };
@@ -778,8 +769,37 @@ async function gdriveLoadShortcuts() {
 
     return { success: false, reason: 'fetch_failed' };
 }
-// LẮNG NGHE SỰ KIỆN GIAO DIỆN
+
 // =========================================================================
+// XUẤT HÀM RA WINDOW VÀ LẮNG NGHE SỰ KIỆN GIAO DIỆN
+// =========================================================================
+window.isGDriveConnected = isGDriveConnected;
+window.getValidToken = getValidToken;
+window.triggerGoogleRedirectLogin = triggerGoogleRedirectLogin;
+window.disconnectGDrive = disconnectGDrive;
+window.openGDriveModal = openGDriveModal;
+window.closeGDriveModal = closeGDriveModal;
+window.updateGDriveModalUI = updateGDriveModalUI;
+
+window.gdriveListProjects = gdriveListProjects;
+window.gdriveSaveProject = gdriveSaveProject;
+window.gdriveUpdateProject = gdriveUpdateProject;
+window.gdriveRenameProject = gdriveRenameProject;
+window.gdriveGetProjectContent = gdriveGetProjectContent;
+window.gdriveDeleteProject = gdriveDeleteProject;
+
+window.gdriveSaveNameQTFile = gdriveSaveNameQTFile;
+window.gdriveListNameQTFiles = gdriveListNameQTFiles;
+window.gdriveDownloadNameQTContent = gdriveDownloadNameQTContent;
+window.gdriveDeleteNameQTFile = gdriveDeleteNameQTFile;
+
+window.gdriveSaveHistoryCloud = gdriveSaveHistoryCloud;
+window.gdriveLoadHistoryCloud = gdriveLoadHistoryCloud;
+
+window.gdriveFindVietTatFileId = gdriveFindVietTatFileId;
+window.gdriveSaveShortcuts = gdriveSaveShortcuts;
+window.gdriveLoadShortcuts = gdriveLoadShortcuts;
+
 window.addEventListener('load', () => {
     checkUrlForOAuthToken();
     document.getElementById('btn-login-gdrive')?.addEventListener('click', triggerGoogleRedirectLogin);

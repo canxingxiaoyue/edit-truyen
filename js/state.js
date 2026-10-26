@@ -72,15 +72,15 @@ let metaTypingUndoTimeout = null;
 let metaIsTyping = false;
 let lastMetaHistoryTime = 0;
 
-// Bộ màu sắc giao diện (ĐÃ XÓA BĂNG NGỌC TUYẾT)
+// Bộ màu sắc giao diện (Đã bổ sung màu focusBorder và focusBg chuẩn hóa cho từng theme)
 const themes = {
     // Sáng & Pastel
-    light:   { bg: '#f8fafc', text: '#334155', active: '#cbd5e1', hover: 'rgba(0,0,0,0.03)' },
-    sepia:   { bg: '#f5eedc', text: '#4a3622', active: '#d6c5a3', hover: '#ebdcb9' },
-    sage:    { bg: '#e3ede3', text: '#1e301e', active: '#b8ccb8', hover: '#d1dfd1' },
-    dreamy:  { bg: '#faf0f5', text: '#522d42', active: '#e8c1db', hover: '#f3d9ea' },
-    peach:   { bg: '#fdf4ed', text: '#523628', active: '#f8d2be', hover: '#faeade' }, // 🍑 Mơ đào hoàng hôn
-    coral:   { bg: '#fdf1f3', text: '#542834', active: '#f6cbd3', hover: '#fae3e7' }, // 🍓 Hồng trà san hô
+    light:   { bg: '#f8fafc', text: '#334155', active: '#cbd5e1', hover: 'rgba(0,0,0,0.03)', focusBorder: '#2563eb', focusBg: '#ffffff' },
+    sepia:   { bg: '#f5eedc', text: '#4a3622', active: '#d6c5a3', hover: '#ebdcb9',         focusBorder: '#965b2a', focusBg: '#fffdf9' },
+    sage:    { bg: '#e3ede3', text: '#1e301e', active: '#b8ccb8', hover: '#d1dfd1',         focusBorder: '#2d6a4f', focusBg: '#f7faf7' },
+    dreamy:  { bg: '#faf0f5', text: '#522d42', active: '#e8c1db', hover: '#f3d9ea',         focusBorder: '#862876', focusBg: '#fffaff' },
+    peach:   { bg: '#fdf4ed', text: '#523628', active: '#f8d2be', hover: '#faeade',         focusBorder: '#c25e1a', focusBg: '#fffcf9' },
+    coral:   { bg: '#fdf1f3', text: '#542834', active: '#f6cbd3', hover: '#fae3e7',         focusBorder: '#c0264b', focusBg: '#fffbfa' },
     aqua: { 
         bg: '#EBF8FA', 
         gradient: 'linear-gradient(180deg, #C6E6E8 0%, #8ED6DD 50%, #51C4D3 100%)',
@@ -88,15 +88,16 @@ const themes = {
         active: 'rgba(182, 238, 245, 0.55)', 
         hover: 'rgba(255, 255, 255, 0.94)',
         border: '#B2DCE0',
-        textMuted: '#527982'
-    }, // 🌊 Mây Lam Ngọc
+        textMuted: '#527982',
+        focusBorder: '#1a92a6',
+        focusBg: '#ffffff'
+    },
 
-    // Tối & Dịu mắt (Đã tinh chỉnh active sang xanh than trầm #24344d chống chói)
-    dark:    { bg: '#1e293b', text: '#cbd5e1', active: '#24344d', hover: '#24304a' },
-    night:   { bg: '#0d1b2a', text: '#e0e1dd', active: '#1b2d42', hover: '#12253b' },
-    oled:    { bg: '#000000', text: '#e2e8f0', active: '#2d2d30', hover: '#161618' }
+    // Tối & Dịu mắt
+    dark:    { bg: '#1e293b', text: '#cbd5e1', active: '#24344d', hover: '#24304a', focusBorder: '#38bdf8', focusBg: '#1e293b' },
+    night:   { bg: '#0d1b2a', text: '#e0e1dd', active: '#1b2d42', hover: '#12253b', focusBorder: '#38bdf8', focusBg: '#0d1b2a' },
+    oled:    { bg: '#000000', text: '#e2e8f0', active: '#2d2d30', hover: '#161618', focusBorder: '#38bdf8', focusBg: '#000000' }
 };
-
 // =========================================================================
 // HÀM LƯU & KHÔI PHỤC PHIÊN LÀM VIỆC AN TOÀN (CHỐNG MẤT DỮ LIỆU)
 // =========================================================================

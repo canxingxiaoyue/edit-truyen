@@ -40,6 +40,86 @@
 
     --input-invalid-border: var(--btn-danger);
     --input-invalid-ring: rgba(239, 68, 68, 0.2);
+
+    /* Màu focus mặc định cho ô bảng */
+    --cell-focus-bg: #ffffff;
+    --cell-focus-border: #2563eb;
+    --cell-focus-text: #1e293b;
+}
+
+/* =========================================================================
+   HỆ THỐNG MÀU FOCUS BẢNG BIÊN TẬP THEO THEME (CELL FOCUS SYSTEM)
+   ========================================================================= */
+
+/* 1. Sáng sữa (Light) */
+body[data-current-theme="light"], :root {
+    --cell-focus-bg: #ffffff;
+    --cell-focus-border: #2563eb;
+    --cell-focus-text: #1e293b;
+}
+
+/* 2. Giấy ấm (Sepia) - ĐÃ FIX: Viền nâu hổ phách ấm áp thay vì xanh dương */
+body[data-current-theme="sepia"] {
+    --cell-focus-bg: #fffdf9;
+    --cell-focus-border: #965b2a;
+    --cell-focus-text: #3d2b19;
+}
+
+/* 3. Xanh lục dịu (Sage) */
+body[data-current-theme="sage"] {
+    --cell-focus-bg: #f7faf7;
+    --cell-focus-border: #2d6a4f;
+    --cell-focus-text: #142914;
+}
+
+/* 4. Hồng tím pastel (Dreamy) */
+body[data-current-theme="dreamy"] {
+    --cell-focus-bg: #fffaff;
+    --cell-focus-border: #862876;
+    --cell-focus-text: #3e1e32;
+}
+
+/* 5. Mơ đào hoàng hôn (Peach) */
+body[data-current-theme="peach"] {
+    --cell-focus-bg: #fffcf9;
+    --cell-focus-border: #c25e1a;
+    --cell-focus-text: #3d2315;
+}
+
+/* 6. Hồng trà san hô (Coral) */
+body[data-current-theme="coral"] {
+    --cell-focus-bg: #fffbfa;
+    --cell-focus-border: #c0264b;
+    --cell-focus-text: #401c25;
+}
+
+/* 7. Mây Lam Ngọc (Aqua) */
+body[data-current-theme="aqua"] {
+    --cell-focus-bg: #ffffff;
+    --cell-focus-border: #1a92a6;
+    --cell-focus-text: #12363d;
+}
+
+/* 8. Tối xám dịu (Dark) */
+body[data-current-theme="dark"],
+[data-theme="dark"]:not([data-current-theme="night"]):not([data-current-theme="oled"]) {
+    --cell-focus-bg: #1e293b;
+    --cell-focus-border: #38bdf8;
+    --cell-focus-text: #f8fafc;
+}
+
+/* 9. Đêm biển thẳm (Night) */
+body[data-current-theme="night"] {
+    --cell-focus-bg: #0d1b2a;
+    --cell-focus-border: #38bdf8;
+    --cell-focus-text: #f0f4f8;
+}
+
+/* 10. OLED Đen tuyền (OLED) */
+body[data-current-theme="oled"] {
+    --cell-focus-bg: #000000;
+    --cell-focus-border: #38bdf8;
+    --cell-focus-text: #ffffff;
 }
 
 [data-theme="dark"] {
@@ -50,7 +130,7 @@
     --btn-warning: #d97706; --btn-warning-hover: #b45309;
     --btn-info: #8b5cf6; --btn-info-hover: #a78bfa;
     --row-hover: rgba(255, 255, 255, 0.04); 
-    --row-active: #24344d; /* ĐÃ BỔ SUNG: Màu xanh than trầm chống chói lóa */
+    --row-active: #24344d;
     --th-bg: #1e293b;
 
     --info-blue-bg: #223a5e;
@@ -401,11 +481,14 @@ textarea.is-invalid:focus {
         vertical-align: top !important;
     }
 
-    /* Focus vào ô soạn thảo bảng để gõ chữ - Dành cho Theme Sáng */
-    body:not([data-theme="dark"]):not([data-current-theme="aqua"]) #table-body td[data-col]:focus,
-    body:not([data-theme="dark"]):not([data-current-theme="aqua"]) #table-body td[data-col]:focus-within {
-        background-color: var(--header-bg) !important;
-        box-shadow: inset 0 0 0 2px var(--btn-primary) !important;
+    /* =========================================================
+       FOCUS VÀO Ô SOẠN THẢO BẢNG ĐỒNG BỘ THEO TỪNG THEME
+       ========================================================= */
+    #table-body td[data-col]:focus,
+    #table-body td[data-col]:focus-within {
+        background-color: var(--cell-focus-bg) !important;
+        box-shadow: inset 0 0 0 2px var(--cell-focus-border) !important;
+        color: var(--cell-focus-text) !important;
         outline: none !important;
         vertical-align: top !important;
     }
@@ -419,17 +502,10 @@ textarea.is-invalid:focus {
     [data-theme="dark"] #table-body tr:hover:not(.active-row):not(.batch-row-selected) td[data-col] {
         background-color: rgba(255, 255, 255, 0.04) !important;
     }
-    /* Hàng đang chọn trong theme tối: Xanh than trầm (#24344d), cực kỳ êm dịu */
+    /* Hàng đang chọn trong theme tối: Xanh than trầm (#24344d) */
     [data-theme="dark"] #table-body tr.active-row td[data-col] {
         background-color: #24344d !important;
         color: #f1f5f9 !important;
-    }
-    /* Riêng ô đang đặt con trỏ gõ: Nền xám than chuẩn (#1e293b), viền xanh sáng (#38bdf8) */
-    [data-theme="dark"] #table-body tr.active-row td[data-col]:focus,
-    [data-theme="dark"] #table-body tr.active-row td[data-col]:focus-within {
-        background-color: #1e293b !important;
-        box-shadow: inset 0 0 0 2px #38bdf8 !important;
-        color: #ffffff !important;
     }
 
     /* 3. KHỬ TRIỆT ĐỂ KHỐI CELL-HEADER VÀ CÁC THÀNH PHẦN MOBILE TRÊN DESKTOP */

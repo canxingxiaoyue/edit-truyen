@@ -48,8 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (statusText) {
                 statusText.innerHTML = `Hiện có: <strong style="color:var(--btn-primary); font-size:1.1rem;">${nameQTEngine.dict.size.toLocaleString('vi-VN')}</strong> từ trong từ điển Name QT.`;
             }
-            // Chỉ nạp dữ liệu từ điển vào bộ nhớ RAM để tra cứu, KHÔNG gọi refreshAllQT(false)
-            // để bảo vệ 100% các câu từ người dùng đã sửa tay trong cột Bản QT!
         }).catch(e => console.error("Lỗi nạp từ điển Name QT:", e));
     }
 });
@@ -123,8 +121,7 @@ function applyTheme(themeKey) {
         document.body.style.backgroundAttachment = '';
     }
 
-    // 3. Cập nhật các biến CSS màu sắc cơ bản (KHÔNG ghi đè inline-style lên --row-hover và --row-active
-    // để tránh xung đột làm mất màu chống lóa trong style.css)
+    // 3. Cập nhật các biến CSS màu sắc cơ bản
     document.documentElement.style.setProperty('--text-color', selected.text);
 
     if (selected.border) {
@@ -139,7 +136,19 @@ function applyTheme(themeKey) {
         document.documentElement.style.removeProperty('--header-bg');
     }
 
-    // 4. Lưu lựa chọn theme vào LocalStorage
+    // 4. ĐỒNG BỘ 2 TẦNG: Cập nhật màu viền Focus theo Theme
+    if (selected.focusBorder) {
+        document.documentElement.style.setProperty('--cell-focus-border', selected.focusBorder);
+    } else {
+        document.documentElement.style.removeProperty('--cell-focus-border');
+    }
+    if (selected.focusBg) {
+        document.documentElement.style.setProperty('--cell-focus-bg', selected.focusBg);
+    } else {
+        document.documentElement.style.removeProperty('--cell-focus-bg');
+    }
+
+    // 5. Lưu lựa chọn theme vào LocalStorage
     const themeSelect = document.getElementById('theme-select');
     if (themeSelect) themeSelect.value = themeKey;
     localStorage.setItem('appTheme', themeKey);

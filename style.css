@@ -49,7 +49,8 @@
     --btn-danger: #ef4444; --btn-danger-hover: #f87171;
     --btn-warning: #d97706; --btn-warning-hover: #b45309;
     --btn-info: #8b5cf6; --btn-info-hover: #a78bfa;
-    --row-hover: rgba(255, 255, 255, 0.05); 
+    --row-hover: rgba(255, 255, 255, 0.04); 
+    --row-active: #24344d; /* ĐÃ BỔ SUNG: Màu xanh than trầm chống chói lóa */
     --th-bg: #1e293b;
 
     --info-blue-bg: #223a5e;
@@ -394,19 +395,41 @@ textarea.is-invalid:focus {
     tr:hover td { background-color: var(--row-hover) !important; }
     tr.active-row td { background-color: var(--row-active) !important; }
 
-    /* Hover vào từng ô soạn thảo bảng (chưa focus) */
-    body:not([data-current-theme="aqua"]) #table-body td[data-col]:hover:not(:focus):not(:focus-within) {
+    /* Hover vào từng ô soạn thảo bảng (chưa focus) - Dành cho Theme Sáng */
+    body:not([data-theme="dark"]):not([data-current-theme="aqua"]) #table-body td[data-col]:hover:not(:focus):not(:focus-within) {
         background-color: rgba(59, 130, 246, 0.06) !important;
         vertical-align: top !important;
     }
 
-    /* Focus vào ô soạn thảo bảng để gõ chữ */
-    body:not([data-current-theme="aqua"]) #table-body td[data-col]:focus,
-    body:not([data-current-theme="aqua"]) #table-body td[data-col]:focus-within {
+    /* Focus vào ô soạn thảo bảng để gõ chữ - Dành cho Theme Sáng */
+    body:not([data-theme="dark"]):not([data-current-theme="aqua"]) #table-body td[data-col]:focus,
+    body:not([data-theme="dark"]):not([data-current-theme="aqua"]) #table-body td[data-col]:focus-within {
         background-color: var(--header-bg) !important;
         box-shadow: inset 0 0 0 2px var(--btn-primary) !important;
         outline: none !important;
         vertical-align: top !important;
+    }
+
+    /* =========================================================
+       ĐỊNH NGHĨA RIÊNG CHO THEME TỐI (CHỐNG CHÓI KHI GÕ / HOVER)
+       ========================================================= */
+    [data-theme="dark"] #table-body td[data-col] {
+        color: #cbd5e1 !important;
+    }
+    [data-theme="dark"] #table-body tr:hover:not(.active-row):not(.batch-row-selected) td[data-col] {
+        background-color: rgba(255, 255, 255, 0.04) !important;
+    }
+    /* Hàng đang chọn trong theme tối: Xanh than trầm (#24344d), cực kỳ êm dịu */
+    [data-theme="dark"] #table-body tr.active-row td[data-col] {
+        background-color: #24344d !important;
+        color: #f1f5f9 !important;
+    }
+    /* Riêng ô đang đặt con trỏ gõ: Nền xám than chuẩn (#1e293b), viền xanh sáng (#38bdf8) */
+    [data-theme="dark"] #table-body tr.active-row td[data-col]:focus,
+    [data-theme="dark"] #table-body tr.active-row td[data-col]:focus-within {
+        background-color: #1e293b !important;
+        box-shadow: inset 0 0 0 2px #38bdf8 !important;
+        color: #ffffff !important;
     }
 
     /* 3. KHỬ TRIỆT ĐỂ KHỐI CELL-HEADER VÀ CÁC THÀNH PHẦN MOBILE TRÊN DESKTOP */
@@ -1362,7 +1385,7 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
 .form-inputs-wrap {
     display: flex;
     gap: 8px;
-    flex: 1;
+    flex: 1; 
     min-width: 0;
 }
 .shortcut-input-field {

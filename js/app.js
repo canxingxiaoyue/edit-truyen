@@ -85,7 +85,13 @@ function initSettings() {
     });
 
     const themeSelector = document.getElementById('theme-select');
-    const savedTheme = localStorage.getItem('appTheme') || 'aqua';
+    
+    // PHÒNG THỦ CHỦ ĐỘNG: Nếu máy đang lưu 'mint' (đã xóa) hoặc theme không tồn tại -> chuyển ngay về 'aqua'
+    let savedTheme = localStorage.getItem('appTheme') || 'aqua';
+    if (savedTheme === 'mint' || (typeof themes !== 'undefined' && !themes[savedTheme])) {
+        savedTheme = 'aqua';
+        localStorage.setItem('appTheme', 'aqua');
+    }
     applyTheme(savedTheme);
 
     themeSelector?.addEventListener('change', (e) => applyTheme(e.target.value));

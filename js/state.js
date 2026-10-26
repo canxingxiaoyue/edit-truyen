@@ -72,7 +72,7 @@ let metaTypingUndoTimeout = null;
 let metaIsTyping = false;
 let lastMetaHistoryTime = 0;
 
-// Bộ màu sắc giao diện (Giữ nguyên vẹn toàn bộ 11 theme)
+// Bộ màu sắc giao diện (ĐÃ XÓA BĂNG NGỌC TUYẾT)
 const themes = {
     // Sáng & Pastel
     light:   { bg: '#f8fafc', text: '#334155', active: '#cbd5e1', hover: 'rgba(0,0,0,0.03)' },
@@ -80,7 +80,6 @@ const themes = {
     sage:    { bg: '#e3ede3', text: '#1e301e', active: '#b8ccb8', hover: '#d1dfd1' },
     dreamy:  { bg: '#faf0f5', text: '#522d42', active: '#e8c1db', hover: '#f3d9ea' },
     peach:   { bg: '#fdf4ed', text: '#523628', active: '#f8d2be', hover: '#faeade' }, // 🍑 Mơ đào hoàng hôn
-    mint:    { bg: '#eef7f6', text: '#1f4844', active: '#c7eae6', hover: '#e1f3f1' }, // 🧊 Băng ngọc tuyết
     coral:   { bg: '#fdf1f3', text: '#542834', active: '#f6cbd3', hover: '#fae3e7' }, // 🍓 Hồng trà san hô
     aqua: { 
         bg: '#EBF8FA', 
@@ -92,8 +91,8 @@ const themes = {
         textMuted: '#527982'
     }, // 🌊 Mây Lam Ngọc
 
-    // Tối & Dịu mắt
-    dark:    { bg: '#1e293b', text: '#cbd5e1', active: '#334155', hover: '#24304a' },
+    // Tối & Dịu mắt (Đã tinh chỉnh active sang xanh than trầm #24344d chống chói)
+    dark:    { bg: '#1e293b', text: '#cbd5e1', active: '#24344d', hover: '#24304a' },
     night:   { bg: '#0d1b2a', text: '#e0e1dd', active: '#1b2d42', hover: '#12253b' },
     oled:    { bg: '#000000', text: '#e2e8f0', active: '#2d2d30', hover: '#161618' }
 };
@@ -117,13 +116,14 @@ function saveActiveStateToStorage() {
 
         // Tự động đồng bộ vào bản ghi trong 'savedProjects' nếu đang mở 1 dự án
         if (currentProjectId) {
-            const rawProjects = localStorage.getItem('savedProjects_v2') || localStorage.getItem('savedProjects');
+            const rawProjects = localStorage.getItem('savedProjects_v2') || localStorage.getItem('savedProjects') || localStorage.getItem('mySavedProjects');
             if (rawProjects) {
                 let projects = JSON.parse(rawProjects);
                 if (Array.isArray(projects)) {
                     const idx = projects.findIndex(p => p.id === currentProjectId);
                     if (idx >= 0) {
                         projects[idx].title = chapterTitle;
+                        projects[idx].chapterTitle = chapterTitle;
                         projects[idx].data = data;
                         projects[idx].rowCount = data.length;
                         projects[idx].metadata = metadata;

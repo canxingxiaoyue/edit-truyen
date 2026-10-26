@@ -48,18 +48,23 @@
 }
 
 /* =========================================================================
-   HỆ THỐNG MÀU FOCUS BẢNG BIÊN TẬP THEO THEME (CELL FOCUS SYSTEM)
+   HỆ THỐNG MÀU FOCUS & HÀNG ACTIVE/HOVER THEO TỪNG THEME
+   (TRIỆT TIÊU 100% HIỆN TƯỢNG HÀNG BỊ XÁM LÈ TRÊN CÁC THEME ẤM)
    ========================================================================= */
 
 /* 1. Sáng sữa (Light) */
 body[data-current-theme="light"], :root {
+    --row-hover: #f1f5f9;
+    --row-active: #e2e8f0;
     --cell-focus-bg: #ffffff;
     --cell-focus-border: #2563eb;
     --cell-focus-text: #1e293b;
 }
 
-/* 2. Giấy ấm (Sepia) - ĐÃ FIX: Viền nâu hổ phách ấm áp thay vì xanh dương */
+/* 2. Giấy ấm (Sepia) - ĐÃ FIX: Màu hàng active là vàng cát ấm #e6d3b1, KHÔNG CÒN XÁM LÈ */
 body[data-current-theme="sepia"] {
+    --row-hover: #f2e6cf;
+    --row-active: #e6d3b1 !important;
     --cell-focus-bg: #fffdf9;
     --cell-focus-border: #965b2a;
     --cell-focus-text: #3d2b19;
@@ -67,6 +72,8 @@ body[data-current-theme="sepia"] {
 
 /* 3. Xanh lục dịu (Sage) */
 body[data-current-theme="sage"] {
+    --row-hover: #dae8dc;
+    --row-active: #c5dcce !important;
     --cell-focus-bg: #f7faf7;
     --cell-focus-border: #2d6a4f;
     --cell-focus-text: #142914;
@@ -74,6 +81,8 @@ body[data-current-theme="sage"] {
 
 /* 4. Hồng tím pastel (Dreamy) */
 body[data-current-theme="dreamy"] {
+    --row-hover: #f6e4f3;
+    --row-active: #ebd0e7 !important;
     --cell-focus-bg: #fffaff;
     --cell-focus-border: #862876;
     --cell-focus-text: #3e1e32;
@@ -81,6 +90,8 @@ body[data-current-theme="dreamy"] {
 
 /* 5. Mơ đào hoàng hôn (Peach) */
 body[data-current-theme="peach"] {
+    --row-hover: #fbe6d8;
+    --row-active: #f7d2bd !important;
     --cell-focus-bg: #fffcf9;
     --cell-focus-border: #c25e1a;
     --cell-focus-text: #3d2315;
@@ -88,6 +99,8 @@ body[data-current-theme="peach"] {
 
 /* 6. Hồng trà san hô (Coral) */
 body[data-current-theme="coral"] {
+    --row-hover: #fbe5e8;
+    --row-active: #f7ced5 !important;
     --cell-focus-bg: #fffbfa;
     --cell-focus-border: #c0264b;
     --cell-focus-text: #401c25;
@@ -95,6 +108,8 @@ body[data-current-theme="coral"] {
 
 /* 7. Mây Lam Ngọc (Aqua) */
 body[data-current-theme="aqua"] {
+    --row-hover: #D8F1F4;
+    --row-active: #DCF2F5 !important;
     --cell-focus-bg: #ffffff;
     --cell-focus-border: #1a92a6;
     --cell-focus-text: #12363d;
@@ -103,6 +118,8 @@ body[data-current-theme="aqua"] {
 /* 8. Tối xám dịu (Dark) */
 body[data-current-theme="dark"],
 [data-theme="dark"]:not([data-current-theme="night"]):not([data-current-theme="oled"]) {
+    --row-hover: #24304a;
+    --row-active: #24344d !important;
     --cell-focus-bg: #1e293b;
     --cell-focus-border: #38bdf8;
     --cell-focus-text: #f8fafc;
@@ -110,6 +127,8 @@ body[data-current-theme="dark"],
 
 /* 9. Đêm biển thẳm (Night) */
 body[data-current-theme="night"] {
+    --row-hover: #12253b;
+    --row-active: #172a45 !important;
     --cell-focus-bg: #0d1b2a;
     --cell-focus-border: #38bdf8;
     --cell-focus-text: #f0f4f8;
@@ -117,6 +136,8 @@ body[data-current-theme="night"] {
 
 /* 10. OLED Đen tuyền (OLED) */
 body[data-current-theme="oled"] {
+    --row-hover: #161618;
+    --row-active: #242426 !important;
     --cell-focus-bg: #000000;
     --cell-focus-border: #38bdf8;
     --cell-focus-text: #ffffff;
@@ -472,12 +493,13 @@ textarea.is-invalid:focus {
         transition: background-color 180ms ease, box-shadow 180ms ease;
     }
 
+    /* Áp dụng biến --row-hover và --row-active của từng theme */
     tr:hover td { background-color: var(--row-hover) !important; }
     tr.active-row td { background-color: var(--row-active) !important; }
 
     /* Hover vào từng ô soạn thảo bảng (chưa focus) - Dành cho Theme Sáng */
     body:not([data-theme="dark"]):not([data-current-theme="aqua"]) #table-body td[data-col]:hover:not(:focus):not(:focus-within) {
-        background-color: rgba(59, 130, 246, 0.06) !important;
+        background-color: rgba(0, 0, 0, 0.04) !important;
         vertical-align: top !important;
     }
 

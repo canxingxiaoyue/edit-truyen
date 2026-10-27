@@ -133,7 +133,6 @@
                 
                 <button class="btn-tool" id="btn-replace-show">🔍 Tìm & Thay thế</button>
                 <button class="btn-tool" id="btn-history-show" title="Xem lịch sử sửa đổi biên dịch">📜 Lịch sử</button>
-                <!-- NÚT MỞ HỘP THOẠI QUẢN LÝ VIẾT TẮT -->
                 <button type="button" class="btn-tool" id="btn-shortcuts-manager" title="Quản lý và bật/tắt viết tắt tự động (Space / Enter)">⚡ Viết tắt</button>
 
                 <div class="divider"></div>
@@ -221,31 +220,7 @@
                                 </div>
                             </th>
 
-                            <!-- 3. CỘT CHÚ THÍCH -->
-                            <th>
-                                <div class="th-wrapper">
-                                    <label class="batch-col-toggle batch-toggle-el" style="display: none;">
-                                        <input type="checkbox" class="batch-col-checkbox" data-col="meaning"> Chọn cột
-                                    </label>
-                                    <span class="th-title">Chú thích</span>
-                                    <span class="col-count" id="count-meaning" title="0 từ • 0 ký tự">0 từ</span>
-                                    <button class="col-copy-btn" data-col="meaning" data-format="single">📋 Copy</button>
-                                </div>
-                            </th>
-
-                            <!-- 4. CỘT BẢN Ê ĐÍT -->
-                            <th>
-                                <div class="th-wrapper">
-                                    <label class="batch-col-toggle batch-toggle-el" style="display: none;">
-                                        <input type="checkbox" class="batch-col-checkbox" data-col="translation"> Chọn cột
-                                    </label>
-                                    <span class="th-title">Bản ê đít</span>
-                                    <span class="col-count" id="count-translation" title="0 từ • 0 ký tự">0 từ</span>
-                                    <button class="col-copy-btn" data-col="translation" data-format="story">📋 Copy</button>
-                                </div>
-                            </th>
-
-                            <!-- 5. CỘT BẢN QT -->
+                            <!-- 3. CỘT BẢN QT (ĐÃ CHUYỂN LÊN VỊ TRÍ SỐ 3) -->
                             <th>
                                 <div class="th-wrapper">
                                     <label class="batch-col-toggle batch-toggle-el" style="display: none;">
@@ -257,7 +232,19 @@
                                 </div>
                             </th>
 
-                            <!-- 6. CỘT BẢN BÊ TA -->
+                            <!-- 4. CỘT BẢN Ê ĐÍT (VỊ TRÍ SỐ 4) -->
+                            <th>
+                                <div class="th-wrapper">
+                                    <label class="batch-col-toggle batch-toggle-el" style="display: none;">
+                                        <input type="checkbox" class="batch-col-checkbox" data-col="translation"> Chọn cột
+                                    </label>
+                                    <span class="th-title">Bản ê đít</span>
+                                    <span class="col-count" id="count-translation" title="0 từ • 0 ký tự">0 từ</span>
+                                    <button class="col-copy-btn" data-col="translation" data-format="story">📋 Copy</button>
+                                </div>
+                            </th>
+
+                            <!-- 5. CỘT BẢN BÊ TA (VỊ TRÍ SỐ 5) -->
                             <th>
                                 <div class="th-wrapper">
                                     <label class="batch-col-toggle batch-toggle-el" style="display: none;">
@@ -268,6 +255,18 @@
                                     <button class="col-copy-btn" data-col="edit" data-format="story">📋 Copy</button>
                                 </div>
                             </th>
+
+                            <!-- 6. CỘT CHÚ THÍCH (BẮT BUỘC Ở VỊ TRÍ CUỐI CÙNG - SỐ 6) -->
+                            <th>
+                                <div class="th-wrapper">
+                                    <label class="batch-col-toggle batch-toggle-el" style="display: none;">
+                                        <input type="checkbox" class="batch-col-checkbox" data-col="meaning"> Chọn cột
+                                    </label>
+                                    <span class="th-title">Chú thích</span>
+                                    <span class="col-count" id="count-meaning" title="0 từ • 0 ký tự">0 từ</span>
+                                    <button class="col-copy-btn" data-col="meaning" data-format="single">📋 Copy</button>
+                                </div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="table-body"></tbody>
@@ -275,7 +274,7 @@
             </div>
         </div>
 
-        <!-- MỤC 2: THÔNG TIN TRUYỆN (DANH SÁCH KHỐI DỌC & TÌM KIẾM THỜI GIAN THỰC) -->
+        <!-- MỤC 2: THÔNG TIN TRUYỆN -->
         <div id="story-info-section" class="tab-section-content">
             <div class="story-title-bar">
                 <span class="title-label">Tên truyện:</span>
@@ -384,7 +383,7 @@
         </div>
     </div>
 
-    <!-- Hộp thoại Tìm và Thay thế -->
+    <!-- Hộp thoại Tìm và Thay thế (ĐÃ CẬP NHẬT MENU CHỌN CỘT THEO THỨ TỰ MỚI) -->
     <div class="modal-overlay" id="modal-replace">
         <div class="modal-content">
             <h3>🔍 Tìm kiếm & Thay thế Nâng cao</h3>
@@ -401,8 +400,10 @@
                     <label>Phạm vi (Cột):</label>
                     <select id="replace-column">
                         <option value="all">-- Toàn bộ các cột --</option>
-                        <option value="translation">Bản ê đít</option>
+                        <option value="raw">Raw</option>
+                        <option value="pinyin">Pinyin</option>
                         <option value="qt">Bản QT</option>
+                        <option value="translation">Bản ê đít</option>
                         <option value="edit">Bản bê ta</option>
                         <option value="meaning">Chú thích</option>
                     </select>
@@ -492,12 +493,9 @@
         </div>
     </div>
 
-    <!-- =============================================================== -->
-    <!-- HỘP THOẠI MODAL: QUẢN LÝ VIẾT TẮT (GIAO DIỆN MỚI CHUẨN ĐỒNG BỘ)  -->
-    <!-- =============================================================== -->
+    <!-- HỘP THOẠI MODAL: QUẢN LÝ VIẾT TẮT -->
     <div class="modal-overlay" id="modal-shortcuts">
         <div class="modal-content shortcut-modal-box">
-            <!-- 1. Tiêu đề và nút Đóng trên cùng 1 hàng -->
             <div class="shortcut-modal-header">
                 <div class="shortcut-header-title-wrap">
                     <span class="shortcut-header-icon">⚡</span>
@@ -506,7 +504,6 @@
                 <button type="button" class="btn-modal-close-icon btn-close-modal-trigger" title="Đóng">&times;</button>
             </div>
 
-            <!-- 2. Hàng cài đặt: Công tắc Bật/Tắt tự động thay thế riêng biệt -->
             <div class="shortcut-setting-row">
                 <div class="shortcut-setting-text">
                     <span class="setting-title">Tự động thay thế khi gõ</span>
@@ -518,7 +515,6 @@
                 </label>
             </div>
 
-            <!-- 3. Nhóm nút thao tác phụ: Đồng bộ Drive, Tải về, Xuất/Nhập JSON -->
             <div class="shortcut-actions-row">
                 <div class="shortcut-btn-group">
                     <button type="button" class="btn-tool-sub" id="btn-sync-shortcuts-gdrive" title="Đồng bộ 2 chiều với tệp VietTat.json trên Google Drive">
@@ -538,7 +534,6 @@
                 <span id="shortcut-sync-status" class="shortcut-sync-status"></span>
             </div>
 
-            <!-- 4. Biểu mẫu thêm / sửa viết tắt (Thẳng hàng trên Desktop, cùng chiều cao) -->
             <div class="shortcut-form-row">
                 <div class="form-inputs-wrap">
                     <input type="text" id="shortcut-key-input" class="shortcut-input-field key-field" placeholder="Từ viết tắt (VD: dc)">
@@ -550,18 +545,14 @@
                 </div>
             </div>
 
-            <!-- 5. Tìm kiếm và Danh sách viết tắt -->
             <div class="shortcut-list-wrap">
                 <div class="shortcut-search-bar">
                     <span class="search-icon">🔍</span>
                     <input type="text" id="shortcut-search-input" placeholder="Tìm kiếm viết tắt hoặc nội dung thay thế...">
                 </div>
-                <div class="shortcut-list-scroll" id="shortcut-list-body">
-                    <!-- Danh sách viết tắt render tự động -->
-                </div>
+                <div class="shortcut-list-scroll" id="shortcut-list-body"></div>
             </div>
 
-            <!-- 6. Chân modal -->
             <div class="shortcut-modal-footer">
                 <span id="shortcut-count-summary" class="shortcut-summary-text">Tổng số: 0 viết tắt</span>
                 <button type="button" class="btn-file btn-close-modal-trigger" id="btn-close-shortcuts-modal">Đóng</button>
@@ -569,9 +560,7 @@
         </div>
     </div>
 
-    <!-- =============================================================== -->
-    <!-- HỘP THOẠI MODAL: QUẢN LÝ DỰ ÁN CỦA TÔI                         -->
-    <!-- =============================================================== -->
+    <!-- HỘP THOẠI MODAL: QUẢN LÝ DỰ ÁN CỦA TÔI -->
     <div class="modal-overlay" id="modal-my-data">
         <div class="modal-content modal-projects-box">
             <h3>📂 Dự án của tôi</h3>
@@ -619,7 +608,6 @@
             </div>
         </div>
 
-        <!-- MENU BA CHẤM ĐỊNH VỊ NỔI -->
         <div id="project-dropdown-menu" class="proj-dropdown-menu" style="display: none;">
             <button type="button" class="proj-menu-item" data-action="rename">
                 <span class="proj-menu-icon">✏️</span> Đổi tên
@@ -637,9 +625,7 @@
         </div>
     </div>
 
-    <!-- =============================================================== -->
-    <!-- CỬA SỔ RIÊNG GOOGLE DRIVE                                      -->
-    <!-- =============================================================== -->
+    <!-- CỬA SỔ GOOGLE DRIVE -->
     <div class="modal-overlay" id="modal-gdrive-auth">
         <div class="modal-content sage-gdrive-card">
             <div class="sage-gdrive-header">
@@ -670,7 +656,6 @@
     <div id="toast"></div>
 
     <script>
-        // Khởi chạy tải dữ liệu khi mở trang
         window.addEventListener('load', () => {
             if (typeof loadSavedProjects === 'function') {
                 loadSavedProjects();

@@ -1,5 +1,6 @@
 // =========================================================================
 // QUẢN LÝ TÌM KIẾM VÀ THAY THẾ CHUẨN XÁC
+// THỨ TỰ DUYỆT CỘT: 1. Raw -> 2. Pinyin -> 3. Bản QT -> 4. Bản ê đít -> 5. Bản bê ta -> 6. Chú thích
 // =========================================================================
 
 // 1. MỞ VÀ ĐÓNG MODAL TÌM & THAY THẾ
@@ -54,8 +55,14 @@ function runHighlightAll() {
 
     if (typeof saveEditorUndoState === 'function') saveEditorUndoState();
 
+    // DANH SÁCH CỘT THEO THỨ TỰ MỚI (CHÚ THÍCH Ở CUỐI CÙNG)
+    const defaultCols = ['raw', 'pinyin', 'qt', 'translation', 'edit', 'meaning'];
+
     targetIndices.forEach(rowIndex => {
-        const cols = colTarget === 'all' ? (typeof columns !== 'undefined' ? columns : ['raw', 'pinyin', 'meaning', 'translation', 'qt', 'edit']) : [colTarget];
+        const cols = colTarget === 'all' 
+            ? (typeof columns !== 'undefined' ? columns : defaultCols) 
+            : [colTarget];
+
         cols.forEach(col => {
             const originalHTML = data[rowIndex][col] || '';
             const highlightedHTML = highlightInHTMLString(originalHTML, regex);
@@ -80,8 +87,10 @@ function clearAllHighlights() {
     if (typeof saveEditorUndoState === 'function') saveEditorUndoState();
     let cleared = false;
 
+    const defaultCols = ['raw', 'pinyin', 'qt', 'translation', 'edit', 'meaning'];
+
     if (typeof data !== 'undefined' && Array.isArray(data)) {
-        const cols = typeof columns !== 'undefined' ? columns : ['raw', 'pinyin', 'meaning', 'translation', 'qt', 'edit'];
+        const cols = typeof columns !== 'undefined' ? columns : defaultCols;
         data.forEach((row, rowIndex) => {
             cols.forEach(col => {
                 if (row[col] && row[col].includes('search-highlight')) {
@@ -135,7 +144,8 @@ function runReplaceNext() {
     };
 
     const colTarget = document.getElementById('replace-column')?.value || 'all';
-    const colsList = typeof columns !== 'undefined' ? columns : ['raw', 'pinyin', 'meaning', 'translation', 'qt', 'edit'];
+    const defaultCols = ['raw', 'pinyin', 'qt', 'translation', 'edit', 'meaning'];
+    const colsList = typeof columns !== 'undefined' ? columns : defaultCols;
 
     for (let rowIndex of targetIndices) {
         const cols = colTarget === 'all' ? colsList : [colTarget];
@@ -156,11 +166,12 @@ function runReplaceNext() {
                     
                     data[rowIndex][col] = newHTML;
                     
-                    // Định vị an toàn ô bảng bằng selector data-col (chống lệch cột checkbox)
-                    const cellElement = document.querySelector(`#table-body tr:nth-child(${rowIndex + 1}) td[data-col="${col}"]`);
-                    if (cellElement) {
-                        cellElement.innerHTML = newHTML;
-                        cellElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Cập nhật an toàn vào phần tử DOM (.cell-content để bảo vệ thẻ mobile)
+                    const targetTd = document.querySelector(`#table-body tr:nth-child(${rowIndex + 1}) td[data-col="${col}"]`);
+                    if (targetTd) {
+                        const contentEl = targetTd.querySelector('.cell-content') || targetTd;
+                        contentEl.innerHTML = newHTML;
+                        contentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }
 
                     if (typeof debounceSave === 'function') debounceSave();
@@ -202,7 +213,8 @@ function runReplaceAll() {
         : (typeof data !== 'undefined' ? data.map((_, idx) => idx) : []);
     
     const colTarget = document.getElementById('replace-column')?.value || 'all';
-    const colsList = typeof columns !== 'undefined' ? columns : ['raw', 'pinyin', 'meaning', 'translation', 'qt', 'edit'];
+    const defaultCols = ['raw', 'pinyin', 'qt', 'translation', 'edit', 'meaning'];
+    const colsList = typeof columns !== 'undefined' ? columns : defaultCols;
 
     targetIndices.forEach(rowIndex => {
         const cols = colTarget === 'all' ? colsList : [colTarget];
@@ -306,7 +318,7 @@ function highlightInHTMLString(htmlString, regex) {
 }
 
 // =========================================================================
-// 7. KHỞI TẠO VÀ GÁN SỰ KIỆN TẤT CẢ NÚT BẤM (ĐÃ BỔ SUNG ĐẦY ĐỦ)
+// 7. KHỞI TẠO VÀ GÁN SỰ KIỆN TẤT CẢ NÚT BẤM
 // =========================================================================
 function initSearchReplace() {
     // Nút mở modal trên toolbar

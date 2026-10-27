@@ -1,5 +1,6 @@
 // =========================================================================
-// KHAI BÁO BIẾN TOÀN CỤC VÀ TRẠNG THÁI HỆ THỐNG (CHỐNG SẬP BỞI PINYIN)
+// KHAI BÁO BIẾN TOÀN CỤC VÀ TRẠNG THÁI HỆ THỐNG
+// THỨ TỰ CỘT CHUẨN MỰC MỚI: Raw -> Pinyin -> Bản QT -> Bản ê đít -> Bản bê ta -> Chú thích
 // =========================================================================
 
 // Hàm lấy Pinyin an toàn - Không bao giờ làm sập phần mềm
@@ -12,22 +13,51 @@ function safePinyin(text) {
     return '';
 }
 
-const columns = ['raw', 'pinyin', 'meaning', 'translation', 'qt', 'edit'];
+// 1. MẢNG CỘT CHUẨN MỰC MỚI (BẮT BUỘC CHÚ THÍCH 'meaning' Ở VỊ TRÍ CUỐI CÙNG)
+const columns = ['raw', 'pinyin', 'qt', 'translation', 'edit', 'meaning'];
 let activeTab = 'edit-tool'; 
 
 let modalReplace;
 let modalHistory;
 let modalNameQT;
 
-function createEmptyRow() {
-    return { raw: '', pinyin: '', meaning: '', translation: '', qt: '', edit: '' };
+// HÀM CHUẨN HÓA DỮ LIỆU TỪNG HÀNG (MIGRATION AN TOÀN TUYỆT ĐỐI)
+function normalizeRowObject(row) {
+    if (!row) {
+        return { raw: '', pinyin: '', qt: '', translation: '', edit: '', meaning: '' };
+    }
+
+    // Trường hợp 1: Dữ liệu cũ dạng mảng index [0: raw, 1: pinyin, 2: meaning, 3: translation, 4: qt, 5: edit]
+    if (Array.isArray(row)) {
+        return {
+            raw: row[0] || '',
+            pinyin: row[1] || '',
+            qt: row[4] || '',
+            translation: row[3] || '',
+            edit: row[5] || '',
+            meaning: row[2] || ''
+        };
+    }
+
+    // Trường hợp 2: Dữ liệu dạng Object theo key (Bảo toàn 100% nội dung gốc)
+    return {
+        raw: row.raw || '',
+        pinyin: row.pinyin || '',
+        qt: row.qt || '',
+        translation: row.translation || '',
+        edit: row.edit || '',
+        meaning: row.meaning || ''
+    };
 }
 
-// Dữ liệu và trạng thái Mục 1 (Biên dịch) - BẢO VỆ CHỐNG RỖNG MẢNG
+function createEmptyRow() {
+    return { raw: '', pinyin: '', qt: '', translation: '', edit: '', meaning: '' };
+}
+
+// Dữ liệu và trạng thái Mục 1 (Biên dịch)
 let chapterTitle = localStorage.getItem('chapterTitle') || 'Chương 1';
 let currentProjectId = localStorage.getItem('currentProjectId') || null;
 
-// Cầu nối đảm bảo tương thích 100% dù file khác gọi chapterTitle hay currentChapterTitle
 Object.defineProperty(window, 'currentChapterTitle', {
     get() { return chapterTitle; },
     set(val) { chapterTitle = val; }
@@ -40,7 +70,10 @@ try {
     console.error("Lỗi đọc translationData từ LocalStorage:", e);
 }
 
-let data = (Array.isArray(savedData) && savedData.length > 0) ? savedData : [createEmptyRow()];
+// Khởi tạo data với chuẩn hóa toàn diện
+let data = (Array.isArray(savedData) && savedData.length > 0) 
+    ? savedData.map(r => normalizeRowObject(r)) 
+    : [createEmptyRow()];
 
 let currentRowIndex = -1;
 let selectedRowIndices = [];
@@ -53,7 +86,7 @@ let editorRedoStack = [];
 let editorTypingUndoTimeout = null;
 let editorIsTyping = false;
 
-// Trạng thái Name QT & Đồng bộ Bôi đen (Lưu vào máy để chống ghi đè khi F5)
+// Trạng thái Name QT & Đồng bộ Bôi đen
 let manualQTState = JSON.parse(localStorage.getItem('manualQTState')) || {};
 let rowTokensMap = {}; 
 
@@ -72,9 +105,8 @@ let metaTypingUndoTimeout = null;
 let metaIsTyping = false;
 let lastMetaHistoryTime = 0;
 
-// Bộ màu sắc giao diện (Đã bổ sung màu focusBorder và focusBg chuẩn hóa cho từng theme)
+// Bộ màu sắc giao diện hệ thống
 const themes = {
-    // Sáng & Pastel
     light:   { bg: '#f8fafc', text: '#334155', active: '#cbd5e1', hover: 'rgba(0,0,0,0.03)', focusBorder: '#2563eb', focusBg: '#ffffff' },
     sepia:   { bg: '#f5eedc', text: '#4a3622', active: '#d6c5a3', hover: '#ebdcb9',         focusBorder: '#965b2a', focusBg: '#fffdf9' },
     sage:    { bg: '#e3ede3', text: '#1e301e', active: '#b8ccb8', hover: '#d1dfd1',         focusBorder: '#2d6a4f', focusBg: '#f7faf7' },
@@ -92,17 +124,14 @@ const themes = {
         focusBorder: '#1a92a6',
         focusBg: '#ffffff'
     },
-
-    // Tối & Dịu mắt
     dark:    { bg: '#1e293b', text: '#cbd5e1', active: '#24344d', hover: '#24304a', focusBorder: '#38bdf8', focusBg: '#1e293b' },
     night:   { bg: '#0d1b2a', text: '#e0e1dd', active: '#1b2d42', hover: '#12253b', focusBorder: '#38bdf8', focusBg: '#0d1b2a' },
     oled:    { bg: '#000000', text: '#e2e8f0', active: '#2d2d30', hover: '#161618', focusBorder: '#38bdf8', focusBg: '#000000' }
 };
-// =========================================================================
-// HÀM LƯU & KHÔI PHỤC PHIÊN LÀM VIỆC AN TOÀN (CHỐNG MẤT DỮ LIỆU)
-// =========================================================================
 
-// Lưu toàn bộ trạng thái hiện tại xuống LocalStorage
+// =========================================================================
+// LƯU & KHÔI PHỤC DỮ LIỆU AN TOÀN
+// =========================================================================
 function saveActiveStateToStorage() {
     try {
         localStorage.setItem('translationData', JSON.stringify(data));
@@ -117,7 +146,7 @@ function saveActiveStateToStorage() {
 
         // Tự động đồng bộ vào bản ghi trong 'savedProjects' nếu đang mở 1 dự án
         if (currentProjectId) {
-            const rawProjects = localStorage.getItem('savedProjects_v2') || localStorage.getItem('savedProjects') || localStorage.getItem('mySavedProjects');
+            const rawProjects = localStorage.getItem('savedProjects_v2') || localStorage.getItem('savedProjects');
             if (rawProjects) {
                 let projects = JSON.parse(rawProjects);
                 if (Array.isArray(projects)) {
@@ -139,14 +168,13 @@ function saveActiveStateToStorage() {
     }
 }
 
-// Khôi phục lại phiên làm việc gần nhất từ LocalStorage
 function restoreActiveStateFromStorage() {
     try {
         const rawData = localStorage.getItem('translationData');
         if (rawData) {
             const parsed = JSON.parse(rawData);
             if (Array.isArray(parsed) && parsed.length > 0) {
-                data = parsed;
+                data = parsed.map(r => normalizeRowObject(r));
             }
         }
         chapterTitle = localStorage.getItem('chapterTitle') || chapterTitle || 'Chương 1';

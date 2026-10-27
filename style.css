@@ -430,8 +430,14 @@ textarea.is-invalid:focus {
    ========================================================================= */
 @media screen and (min-width: 769px) {
     #table-container { 
-        flex-grow: 1; overflow: auto; position: relative;
-        display: block !important; padding: 0 !important; margin: 0 !important;
+        flex-grow: 1; 
+        overflow: auto; 
+        position: relative;
+        display: block !important; 
+        padding: 0 !important; 
+        margin: 0 !important;
+        -webkit-overflow-scrolling: touch !important;
+        scroll-behavior: smooth !important;
     }
     
     #table-container table { 
@@ -465,17 +471,17 @@ textarea.is-invalid:focus {
     .col-copy-btn { background-color: var(--btn-success); color: white; }
     .col-copy-btn:hover { background-color: var(--btn-success-hover); transform: scale(1.05); }
 
-    /* 2. CĂN CHỮ BẮT BUỘC Ở ĐẦU Ô (TOP-LEFT) CHO TẤT CẢ 6 CỘT DỮ LIỆU */
+    /* 2. CĂN CHỮ BẮT BUỘC Ở ĐẦU Ô (TOP-LEFT) CHO TẤT CẢ 6 CỘT DỮ LIỆU (THỨ TỰ MỚI) */
     body #table-body td,
     body #table-body td[data-col],
     body[data-current-theme] #table-body td,
     body[data-current-theme] #table-body td[data-col],
     #table-body td[data-col="raw"],
     #table-body td[data-col="pinyin"],
-    #table-body td[data-col="meaning"],
-    #table-body td[data-col="translation"],
     #table-body td[data-col="qt"],
-    #table-body td[data-col="edit"] {
+    #table-body td[data-col="translation"],
+    #table-body td[data-col="edit"],
+    #table-body td[data-col="meaning"] {
         display: table-cell !important; 
         vertical-align: top !important; 
         text-align: left !important;     
@@ -838,7 +844,6 @@ td.batch-intersection-selected { background-color: rgba(239, 68, 68, 0.2) !impor
    LÀM ĐẸP GIAO DIỆN HỘP THOẠI: LỊCH SỬ SỬA ĐỔI (MODAL HISTORY)
    ========================================================================= */
 
-/* Định hình tổng thể hộp thoại Lịch sử */
 #modal-history .modal-content {
     width: 700px !important;
     max-width: 95vw !important;
@@ -865,7 +870,6 @@ td.batch-intersection-selected { background-color: rgba(239, 68, 68, 0.2) !impor
     line-height: 1.5 !important;
 }
 
-/* Khung cuộn chứa danh sách */
 .history-container {
     flex-grow: 1;
     overflow-y: auto;
@@ -888,13 +892,11 @@ td.batch-intersection-selected { background-color: rgba(239, 68, 68, 0.2) !impor
     overflow: hidden;
     transition: all 0.25s ease;
 }
-/* Hiệu ứng khi thẻ ngày tháng được mở ra */
 .history-date-group[open] {
     border-color: var(--btn-primary);
     box-shadow: 0 4px 15px rgba(59, 130, 246, 0.08);
 }
 
-/* Thanh tiêu đề Ngày tháng */
 .history-date-header {
     font-weight: 700;
     padding: 12px 16px;
@@ -910,7 +912,6 @@ td.batch-intersection-selected { background-color: rgba(239, 68, 68, 0.2) !impor
 }
 .history-date-header:hover { background-color: var(--row-hover); }
 .history-date-header::-webkit-details-marker { display: none; }
-/* Nút mũi tên xoay mượt mà */
 .history-date-header::before {
     content: '▶';
     font-size: 0.75rem;
@@ -920,7 +921,6 @@ td.batch-intersection-selected { background-color: rgba(239, 68, 68, 0.2) !impor
 }
 details[open] > .history-date-header::before { transform: rotate(90deg); }
 
-/* Bọc chứa các bản lưu bên trong ngày */
 .history-items-wrapper {
     padding: 12px;
     display: flex;
@@ -930,7 +930,6 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     border-top: 1px dashed var(--border-color);
 }
 
-/* Từng thẻ bản lưu (Item) */
 .history-item {
     display: flex;
     justify-content: space-between;
@@ -941,7 +940,6 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     background: var(--bg-color);
     transition: all 0.2s ease;
 }
-/* Hiệu ứng nổi nhẹ khi rê chuột vào bản lưu */
 .history-item:hover {
     border-color: var(--btn-primary);
     box-shadow: 0 4px 12px rgba(0,0,0,0.06);
@@ -952,7 +950,6 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
 
 .history-actions { display: flex; gap: 8px; align-items: center; }
 
-/* ================= LÀM ĐẸP NÚT BẤM TRONG LỊCH SỬ ================= */
 .history-item .btn-add, 
 .history-item .btn-delete, 
 .history-date-header .btn-danger {
@@ -966,7 +963,6 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
 }
 
-/* Nút Khôi phục (Màu Xanh Đậm) */
 .history-item .btn-add { 
     background: var(--btn-primary) !important; 
     color: white !important; 
@@ -977,7 +973,6 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     box-shadow: 0 4px 8px rgba(37, 99, 235, 0.25) !important;
 }
 
-/* Nút Xóa bản lưu (Dạng viền thanh lịch) */
 .history-item .btn-delete { 
     background: transparent !important; 
     color: var(--btn-danger) !important; 
@@ -988,7 +983,6 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     background: rgba(239, 68, 68, 0.1) !important; 
 }
 
-/* Nút Xóa cả ngày (Nền đỏ nhạt) */
 .history-date-header .btn-danger { 
     background: rgba(239, 68, 68, 0.1) !important; 
     color: var(--btn-danger) !important; 
@@ -999,7 +993,6 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
     color: white !important; 
 }
 
-/* ================= THANH NÚT DƯỚI CÙNG (FOOTER MODAL) ================= */
 #modal-history .modal-actions {
     display: flex !important;
     justify-content: flex-end !important;
@@ -1070,7 +1063,7 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
 /* GIAO DIỆN DANH SÁCH FILE NAME QT TRONG MODAL */
 .nameqt-file-list { display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; margin-bottom: 12px; padding-right: 4px; }
 .nameqt-file-item {
-    display: flex; /* ĐÃ SỬA LỖI THIẾU CHẤM PHẨY */
+    display: flex;
     align-items: center; 
     justify-content: space-between;
     background: var(--bg-color); 
@@ -1179,28 +1172,23 @@ details[open] > .history-date-header::before { transform: rotate(90deg); }
 .story-section-box.collapsed .info-cards-scroll { display: none !important; }
 /* ================= CHỦ ĐỀ: 🌊 MÂY LAM NGỌC 2.0 (FRESH & GLASSY VIBE) ================= */
 body[data-current-theme="aqua"] {
-    /* Bộ biến màu mới: Tươi sáng, trong trẻo và độ tương phản cao hơn */
-    --mist: #E6F4F4;          /* Sương trắng ngọc (sáng hơn) */
-    --jade: #55C7D6;          /* Ngọc lục bảo tươi */
-    --jade-deep: #1A92A6;     /* Accent đậm để nhấn viền, dễ nhìn */
-    --line: #B5DFE3;          /* Viền mảnh thanh lịch */
-    --bar-glass: rgba(255, 255, 255, 0.82); /* Kính trắng mờ cho Toolbar (Tách biệt khỏi nền) */
+    --mist: #E6F4F4;          
+    --jade: #55C7D6;          
+    --jade-deep: #1A92A6;     
+    --line: #B5DFE3;          
+    --bar-glass: rgba(255, 255, 255, 0.82); 
     
-    /* Ô bảng: Gần như trắng để chữ nổi bật, không bị đục */
     --cell-1: rgba(255, 255, 255, 0.85); 
     --cell-2: rgba(240, 251, 252, 0.85); 
-    --th-solid: #D1EEF0;      /* Tiêu đề cột */
-    --text-aqua: #12363D;     /* Chữ xanh đen cực thẫm -> Đọc lâu không mỏi */
+    --th-solid: #D1EEF0;      
+    --text-aqua: #12363D;     
 }
 
-/* 1. NỀN TỔNG THỂ CỦA TAB EDIT (Gradient chéo, tươi tắn) */
 body[data-current-theme="aqua"] #edit-tool-section,
 body[data-current-theme="aqua"] #edit-tool-toolbars {
     background: linear-gradient(135deg, var(--mist) 0%, #CDEBED 50%, var(--jade) 100%) fixed !important;
 }
 
-/* 2. HIỆU ỨNG KÍNH MỜ (GLASSMORPHISM) CHO CÁC THANH CÔNG CỤ */
-/* Làm cho Header và Toolbar nổi bật, tách biệt hoàn toàn khỏi nền */
 body[data-current-theme="aqua"] header,
 body[data-current-theme="aqua"] .top-nav-bar,
 body[data-current-theme="aqua"] #edit-tool-toolbars .story-title-bar,
@@ -1212,7 +1200,6 @@ body[data-current-theme="aqua"] #edit-tool-toolbars .format-toolbar {
     border-color: var(--line) !important;
 }
 
-/* Fix nền trong suốt cho các thành phần con trên thanh menu */
 body[data-current-theme="aqua"] .nav-tabs {
     background: transparent !important;
     border-color: var(--line) !important;
@@ -1230,7 +1217,6 @@ body[data-current-theme="aqua"] .tab-btn.active {
     background: transparent !important;
 }
 
-/* Ô nhập liệu trên thanh công cụ */
 body[data-current-theme="aqua"] #edit-tool-toolbars input[type="text"],
 body[data-current-theme="aqua"] #edit-tool-toolbars select {
     background: #ffffff !important;
@@ -1243,57 +1229,42 @@ body[data-current-theme="aqua"] #edit-tool-toolbars select:focus {
     box-shadow: 0 0 0 3px rgba(85, 199, 214, 0.25) !important;
 }
 
-/* 3. LÀM SÁNG BẢNG BIÊN TẬP (MÀU NỀN MẶC ĐỊNH ÊM DỊU, CHỐNG CHÓI) */
 body[data-current-theme="aqua"] #table-container table thead th {
-    background: #D1EEF0 !important;
+    background: var(--th-solid) !important;
     color: var(--text-aqua) !important;
     border-color: var(--line) !important; 
     font-weight: 800 !important;
 }
-/* Ô bình thường (Hàng lẻ): Màu trắng sương ngọc dịu mắt */
 body[data-current-theme="aqua"] #table-container table tbody td[data-col] {
-    background: #F3F9FA !important;
+    background: var(--cell-1) !important;
     color: var(--text-aqua) !important;
     border-color: var(--line) !important;
-    transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
-/* Hàng chẵn (Zebra nhạt): Hơi đậm hơn một chút để phân biệt dòng */
 body[data-current-theme="aqua"] #table-container table tbody tr:nth-child(even) td[data-col] {
-    background: #EAF5F6 !important;
+    background: var(--cell-2) !important;
 }
 
-/* Xóa màu nền rác của thẻ con */
 body[data-current-theme="aqua"] #table-container table tbody td[data-col] div,
 body[data-current-theme="aqua"] #table-container table tbody td[data-col] p,
 body[data-current-theme="aqua"] #table-container table tbody td[data-col] span:not(.sync-highlight):not(.search-highlight) {
     background-color: transparent !important;
 }
 
-/* 4. TƯƠNG TÁC PHÂN CẤP RÕ RÀNG (CHỐNG LÓA 100%) */
-
-/* [CẤP 1] LIA CHUỘT (Hover cả dòng): 
-   Dùng màu xanh sương êm ái, KHÔNG dùng màu trắng tinh để không bị chớp lóa mắt khi lướt chuột */
 body[data-current-theme="aqua"] #table-container #table-body tr:hover:not(.active-row):not(.batch-row-selected) td[data-col] {
     background: #D8F1F4 !important;      
 }
 
-/* [CẤP 2] HÀNG ĐANG LÀM VIỆC (Active Row): 
-   Chuyển sang nền lam ngọc mát mắt + 2 đường chỉ ngọc trên dưới để định vị hàng */
 body[data-current-theme="aqua"] #table-container #table-body tr.active-row td[data-col] {
     background: #DCF2F5 !important;      
     box-shadow: inset 0 1px 0 var(--jade-deep), inset 0 -1px 0 var(--jade-deep) !important;
 }
 
-/* [CẤP 3] DUY NHẤT Ô ĐANG GÕ CHỮ (Focus): 
-   ĐÂY LÀ NƠI DUY NHẤT BIẾN THÀNH MÀU TRẮNG TINH + VIỀN NGỌC ĐẬM!
-   Tạo độ tương phản cực mạnh với 5 ô còn lại cùng hàng, nhìn phát biết ngay đang gõ chữ ở đâu */
 body[data-current-theme="aqua"] #table-container #table-body tr td[data-col]:focus-within {
     background: #FFFFFF !important;                        
     box-shadow: inset 0 0 0 2px var(--jade-deep) !important;
     outline: none !important;
 }
 
-/* Chọn để xóa hàng loạt: Giữ nguyên chuẩn cảnh báo */
 body[data-current-theme="aqua"] #table-container #table-body tr.batch-row-selected td[data-col],
 body[data-current-theme="aqua"] #table-container #table-body tr td.batch-col-selected[data-col] {
     background: rgba(239, 68, 68, 0.08) !important;
@@ -1303,7 +1274,6 @@ body[data-current-theme="aqua"] #table-container #table-body tr td.batch-interse
     box-shadow: inset 0 0 0 2px var(--btn-danger) !important;
 }
 
-/* 5. KHUNG TỪ ĐIỂN NỔI & TÌM KIẾM */
 body[data-current-theme="aqua"] .dict-lookup-panel {
     background: #ffffff !important; 
     border: 1px solid var(--line) !important;
@@ -1317,7 +1287,6 @@ body[data-current-theme="aqua"] .dict-lookup-title {
     color: var(--text-aqua) !important;
 }
 
-/* 6. THANH CUỘN (SCROLLBAR) */
 body[data-current-theme="aqua"] #table-container::-webkit-scrollbar { width: 12px; height: 12px; }
 body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-track { background: var(--mist); }
 body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb {
@@ -1326,6 +1295,7 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb {
     border-radius: 6px;
 }
 body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover { background: var(--jade); }
+
 /* =========================================================================
    GIAO DIỆN QUẢN LÝ VIẾT TẮT (SHORTCUTS) - PHONG CÁCH TỐI GIẢN & ĐỒNG BỘ
    ========================================================================= */
@@ -1338,7 +1308,6 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
     border: 1px solid var(--border-color) !important;
 }
 
-/* 1. Header (Biểu tượng & Tiêu đề trên cùng 1 hàng) */
 .shortcut-modal-header {
     display: flex;
     align-items: center;
@@ -1376,7 +1345,6 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
     color: var(--btn-danger);
 }
 
-/* 2. Cài đặt tự động thay thế */
 .shortcut-setting-row {
     display: flex;
     justify-content: space-between;
@@ -1402,7 +1370,6 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
     margin-top: 2px;
 }
 
-/* Nút Switch Bật/Tắt */
 .switch-toggle {
     position: relative;
     display: inline-block;
@@ -1434,7 +1401,6 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
 .switch-toggle input:checked + .slider-toggle { background: var(--btn-success); }
 .switch-toggle input:checked + .slider-toggle:before { transform: translateX(18px); }
 
-/* 3. Nút Thao tác Drive & JSON */
 .shortcut-actions-row {
     display: flex;
     align-items: center;
@@ -1469,7 +1435,6 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
 }
 .shortcut-sync-status { font-size: 0.85rem; font-weight: 600; }
 
-/* 4. Khung Thêm / Sửa viết tắt (Ô nhập liệu viết tắt) */
 .shortcut-form-row {
     display: flex;
     gap: 10px;
@@ -1538,7 +1503,6 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
 .shortcut-cancel-btn { background: var(--btn-secondary); color: white; border: 1px solid var(--border-color); }
 .shortcut-cancel-btn:hover { background: var(--btn-secondary-hover); }
 
-/* 5. Khung Danh sách và Ô tìm kiếm viết tắt */
 .shortcut-list-wrap {
     display: flex;
     flex-direction: column;
@@ -1596,7 +1560,6 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
 .shortcut-list-scroll::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
 .shortcut-list-scroll.is-empty { padding: 0; justify-content: center; }
 
-/* Item Phím Tắt */
 .shortcut-item-row {
     display: flex;
     align-items: center;
@@ -1664,7 +1627,6 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
 .btn-action-icon:hover { background: var(--row-hover); color: var(--text-color); }
 .btn-action-icon.danger:hover { background: rgba(239, 68, 68, 0.1); color: var(--btn-danger); }
 
-/* Khóa chặn Emoji/Icon khổng lồ */
 .shortcut-empty-compact {
     text-align: center;
     padding: 40px 20px;
@@ -1693,7 +1655,6 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
 }
 [data-theme="dark"] .shortcut-empty-compact code { background: rgba(255, 255, 255, 0.1); }
 
-/* 6. Footer Modal */
 .shortcut-modal-footer {
     display: flex;
     align-items: center;
@@ -1734,8 +1695,16 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
     .toolbar button, .format-toolbar button { flex-shrink: 0 !important; white-space: nowrap !important; padding: 6px 10px !important; font-size: 0.8rem !important; }
     .format-toolbar { display: none !important; }
 
-    /* 3. BẢNG TRUYỆN MỤC 1 TRÊN MOBILE */
-    #table-container { height: auto !important; overflow: visible !important; width: 100% !important; padding: 8px 10px 80px 10px !important; }
+    /* 3. BẢNG TRUYỆN MỤC 1 TRÊN MOBILE (CẤU HÌNH CUỘN MƯỢT MÀ VÀ THOẢI MÁI) */
+    #table-container { 
+        height: auto !important; 
+        overflow-x: auto !important; 
+        overflow-y: visible !important; 
+        -webkit-overflow-scrolling: touch !important;
+        scroll-behavior: smooth !important;
+        width: 100% !important; 
+        padding: 8px 10px 80px 10px !important; 
+    }
     table { min-width: 100% !important; width: 100% !important; display: block !important; border: none !important; height: auto !important; }
     thead { display: none !important; }
     tbody { display: flex !important; flex-direction: column !important; gap: 12px !important; width: 100% !important; height: auto !important; }
@@ -1758,12 +1727,16 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
     .btn-m-row-add { background: rgba(59, 130, 246, 0.12) !important; color: var(--btn-primary) !important; border: 1px solid var(--border-color) !important; }
     .btn-m-row-del { background: rgba(239, 68, 68, 0.1) !important; color: var(--btn-danger) !important; border: 1px solid rgba(239, 68, 68, 0.2) !important; }
 
+    /* =========================================================================
+       ĐỒNG BỘ THỨ TỰ CỘT TRÊN GIAO DIỆN DI ĐỘNG (CHUẨN 100% NHƯ DESKTOP)
+       1. Raw -> 2. Pinyin -> 3. Bản QT -> 4. Bản ê đít -> 5. Bản bê ta -> 6. Chú thích
+       ========================================================================= */
     td[data-col="raw"]         { order: 1 !important; }
     td[data-col="pinyin"]      { order: 2 !important; }
     td[data-col="qt"]          { order: 3 !important; }
     td[data-col="translation"] { order: 4 !important; }
     td[data-col="edit"]        { order: 5 !important; }
-    td[data-col="meaning"]     { order: 6 !important; }
+    td[data-col="meaning"]     { order: 6 !important; } /* Chú thích luôn ở cuối cùng */
 
     td[data-col] {
         display: flex !important; flex-direction: column !important; align-items: stretch !important; justify-content: flex-start !important;
@@ -1860,11 +1833,11 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
     .modal-actions, .sage-gdrive-actions { flex-wrap: wrap !important; justify-content: center !important; }
     .modal-actions button { flex: 1 1 auto !important; text-align: center !important; }
 }
+
 /* =========================================================================
    LÀM ĐẸP GIAO DIỆN HỘP THOẠI: TÌM KIẾM & THAY THẾ (MODAL REPLACE)
    ========================================================================= */
 
-/* Định hình lại tổng thể hộp thoại */
 #modal-replace .modal-content {
     width: 600px !important;
     max-width: 95vw !important;
@@ -1875,7 +1848,6 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
     border: 1px solid var(--border-color) !important;
 }
 
-/* Tiêu đề Modal (Căn trái, thêm icon dễ nhìn) */
 #modal-replace h3 {
     font-size: 1.35rem !important;
     font-weight: 800 !important;
@@ -1888,7 +1860,6 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
     gap: 8px;
 }
 
-/* Các nhóm Input và Nhãn (Labels) */
 #modal-replace .modal-group {
     margin-bottom: 16px !important;
 }
@@ -1900,7 +1871,6 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
     opacity: 0.9;
 }
 
-/* Box nhập liệu Tìm kiếm / Thay thế */
 #modal-replace input[type="text"],
 #modal-replace select {
     width: 100% !important;
@@ -1920,7 +1890,6 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
     background: var(--header-bg) !important;
 }
 
-/* Phần Tiêu đề phụ (Tùy chọn nâng cao) */
 #modal-replace .modal-sub-title {
     font-size: 1rem !important;
     font-weight: 800 !important;
@@ -1930,10 +1899,9 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
     border-bottom: 1.5px solid var(--border-color) !important;
 }
 
-/* Căn chỉnh các Checkbox Tùy chọn */
 #modal-replace .modal-checkbox-grid {
     display: grid !important;
-    grid-template-columns: 1fr 1fr !important; /* Xếp thành 2 cột cho gọn */
+    grid-template-columns: 1fr 1fr !important; 
     gap: 12px 16px !important;
     background: var(--bg-color);
     padding: 16px !important;
@@ -1950,9 +1918,9 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
     cursor: pointer !important;
     margin: 0 !important;
 }
-/* Trọng tâm check "Chỉ thay thế chữ tô sáng" (Giữ màu xanh nổi bật) */
+
 #modal-replace .modal-checkbox-grid label:last-child {
-    grid-column: 1 / -1 !important; /* Cho hàng cuối chiếm toàn bộ chiều rộng */
+    grid-column: 1 / -1 !important; 
     color: var(--btn-primary) !important;
     font-weight: 700 !important;
     background: rgba(59, 130, 246, 0.08) !important;
@@ -1961,7 +1929,6 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
     border: 1px dashed rgba(59, 130, 246, 0.3) !important;
 }
 
-/* Các Nút Bấm Thao Tác (Actions) */
 #modal-replace .modal-actions {
     display: flex !important;
     justify-content: flex-end !important;
@@ -1987,13 +1954,12 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
 }
 
-/* Mobile Responsive riêng cho Modal Replace */
 @media screen and (max-width: 768px) {
     #modal-replace .modal-content {
         padding: 16px !important;
     }
     #modal-replace .modal-checkbox-grid {
-        grid-template-columns: 1fr !important; /* Thu về 1 cột trên Mobile */
+        grid-template-columns: 1fr !important;
     }
     #modal-replace .modal-actions {
         flex-direction: column !important;
@@ -2005,6 +1971,6 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
     }
     #modal-replace #btn-close-modal {
         margin-right: 0 !important;
-        order: 5 !important; /* Đẩy nút Hủy xuống cuối cùng */
+        order: 5 !important;
     }
 }

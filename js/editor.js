@@ -1,6 +1,6 @@
 // =========================================================================
 // QUẢN LÝ BẢNG DỊCH CHÍNH (MỤC 1) - KIẾN TRÚC ZERO-DOM CHO DESKTOP
-// TỐI ƯU BỘ NHỚ RAM - BẢO VỆ CHỐNG EXTENSION - BẢO TOÀN DỮ LIỆU TUYỆT ĐỐI
+// THỨ TỰ CỘT: 1. Raw -> 2. Pinyin -> 3. Bản QT -> 4. Bản ê đít -> 5. Bản bê ta -> 6. Chú thích
 // =========================================================================
 let saveTimeout;
 let countTimeout;
@@ -10,7 +10,7 @@ let isBatchDeleteMode = false;
 let selectedBatchRows = new Set(); 
 let selectedBatchCols = new Set(); 
 
-// 2. CẤU HÌNH CỘT TRÊN MOBILE
+// 2. CẤU HÌNH CỘT TRÊN MOBILE (CHUẨN HÓA THEO THỨ TỰ MỚI)
 const COLUMN_META = {
     raw:         { label: 'RAW',         badgeClass: 'badge-raw' },
     pinyin:      { label: 'PINYIN',      badgeClass: 'badge-pinyin' },
@@ -104,7 +104,7 @@ function debounceSave() {
 }
 
 // =========================================================================
-// HỆ THỐNG RENDER ĐỘNG (LOẠI BỎ HOÀN TOÀN CELL-HEADER TRÊN DESKTOP)
+// HỆ THỐNG RENDER ĐỘNG (THỨ TỰ CỘT THỐNG NHẤT 100% TRÊN MỌI THIẾT BỊ)
 // =========================================================================
 let currentIsMobile = window.innerWidth <= 768;
 
@@ -137,7 +137,7 @@ function generateRowHTML(rowObj, rowIndex, isMobile) {
                  </td>`;
     }
 
-    // Các cột dữ liệu
+    // Các cột dữ liệu theo đúng mảng 'columns': raw -> pinyin -> qt -> translation -> edit -> meaning
     columns.forEach(col => {
         const isColCollapsed = !!mobileColCollapsed[col];
         const collapsedClass = (isMobile && isColCollapsed) ? 'col-collapsed' : '';
@@ -572,7 +572,8 @@ function initEditorEvents() {
                 while (rIdx >= data.length) data.push(createEmptyRow());
                 data[rIdx][columns[colIndex]] = normalizeUnicodeText(paragraphs[i]);
 
-                if (colIndex === 0) {
+                // Nếu dán vào cột Raw
+                if (columns[colIndex] === 'raw') {
                     if (typeof safePinyin === 'function') data[rIdx]['pinyin'] = safePinyin(paragraphs[i]);
                     if (!manualQTState[rIdx] && typeof nameQTEngine !== 'undefined' && nameQTEngine.process) {
                         const res = nameQTEngine.process(paragraphs[i]);
@@ -585,7 +586,7 @@ function initEditorEvents() {
             return;
         }
 
-        // B. Dán Ma trận Bảng
+        // B. Dán Ma trận Bảng (Khớp theo đúng tên cột, không phụ thuộc chỉ số cứng)
         if (tableMatrix.length > 0) {
             e.preventDefault();
             if (typeof clearSyncHighlights === 'function') clearSyncHighlights();
@@ -600,11 +601,13 @@ function initEditorEvents() {
                 let rawUpdated = false, pinyinUpdated = false;
                 for (let j = 0; j < cells.length; j++) {
                     const cIdx = colIndex + j;
-                    if (cIdx >= 6) break;
+                    if (cIdx >= columns.length) break;
                     let rawVal = cells[j];
-                    data[rIdx][columns[cIdx]] = normalizeUnicodeText(rawVal).replace(/\n/g, '<br>');
-                    if (cIdx === 0) rawUpdated = true;
-                    if (cIdx === 1 && rawVal.trim() !== '') pinyinUpdated = true;
+                    const colName = columns[cIdx];
+                    
+                    data[rIdx][colName] = normalizeUnicodeText(rawVal).replace(/\n/g, '<br>');
+                    if (colName === 'raw') rawUpdated = true;
+                    if (colName === 'pinyin' && rawVal.trim() !== '') pinyinUpdated = true;
                 }
 
                 if (rawUpdated) {
@@ -657,12 +660,12 @@ function initEditorEvents() {
         
         data[rowIndex][colName] = rawHtml;
 
-        // Auto QT & Pinyin
+        // Auto QT & Pinyin khi gõ cột Raw
         if (colName === 'raw') {
             if (typeof safePinyin === 'function') {
                 const pinyinVal = safePinyin(plainText);
                 data[rowIndex]['pinyin'] = pinyinVal;
-                const pinyinTd = tr.querySelector('td[data-col="pinyin"] .cell-content');
+                const pinyinTd = tr.querySelector('td[data-col="pinyin"] .cell-content') || tr.querySelector('td[data-col="pinyin"]');
                 if (pinyinTd) pinyinTd.innerText = pinyinVal;
             }
 
@@ -670,12 +673,15 @@ function initEditorEvents() {
                 const res = nameQTEngine.process(plainText);
                 const qtVal = res.text.normalize('NFC');
                 data[rowIndex]['qt'] = qtVal;
-                const qtTd = tr.querySelector('td[data-col="qt"] .cell-content');
+                const qtTd = tr.querySelector('td[data-col="qt"] .cell-content') || tr.querySelector('td[data-col="qt"]');
                 if (qtTd) qtTd.innerText = qtVal;
                 rowTokensMap[rowIndex] = res.tokens;
             }
         }
+        
+        // Đánh dấu sửa tay cột QT
         if (colName === 'qt') manualQTState[rowIndex] = true;
+        
         debounceSave();
     });
 
@@ -813,17 +819,18 @@ function initEditorEvents() {
         }
     });
 
-    // EXPORT JSON ĐẦY ĐỦ CẢ METADATA VÀ DATA
+    // EXPORT JSON ĐẦY ĐỦ CẢ METADATA VÀ DATA (TỰ ĐỘNG LƯU CHUẨN SCHEMA V3.0)
     document.getElementById('btn-export')?.addEventListener('click', (e) => {
         e.preventDefault();
         flushSave();
 
         const exportPayload = {
             app: "công cụ edit",
-            version: "2.0",
+            version: "3.0",
             exportedAt: new Date().toISOString(),
             id: (typeof currentProjectId !== 'undefined' && currentProjectId) ? currentProjectId : ('proj_' + Date.now()),
             title: (typeof chapterTitle !== 'undefined' && chapterTitle) ? chapterTitle : 'Chương 1',
+            columns: columns,
             data: data,
             metadata: (typeof metadata !== 'undefined') ? metadata : null
         };
@@ -837,7 +844,7 @@ function initEditorEvents() {
         showToast(`💾 Đã xuất file "${safeTitle}.json" đầy đủ!`, 'var(--btn-success)');
     });
 
-    // IMPORT JSON ĐA ĐỊNH DẠNG (NHẬN CẢ ARRAY VÀ OBJECT DỰ ÁN)
+    // IMPORT JSON ĐA ĐỊNH DẠNG (BẢO TOÀN DỮ LIỆU CŨ QUA HÀM NORMALIZE)
     const fileInput = document.getElementById('file-input');
     document.getElementById('btn-import')?.addEventListener('click', (e) => { e.preventDefault(); fileInput?.click(); });
     fileInput?.addEventListener('change', (e) => {
@@ -847,19 +854,19 @@ function initEditorEvents() {
         reader.onload = function(evt) {
             try {
                 const parsed = JSON.parse(evt.target.result);
-                let loadedData = null;
+                let rawList = null;
                 let loadedTitle = file.name.replace(/\.[^/.]+$/, "");
                 let loadedMeta = null;
 
                 if (Array.isArray(parsed)) {
-                    loadedData = parsed;
+                    rawList = parsed;
                 } else if (parsed && Array.isArray(parsed.data)) {
-                    loadedData = parsed.data;
+                    rawList = parsed.data;
                     if (parsed.title) loadedTitle = parsed.title;
                     if (parsed.metadata) loadedMeta = parsed.metadata;
                 }
 
-                if (!loadedData || loadedData.length === 0) {
+                if (!rawList || rawList.length === 0) {
                     alert("⚠️ File JSON không chứa dữ liệu hàng hợp lệ!");
                     return;
                 }
@@ -868,7 +875,22 @@ function initEditorEvents() {
                 if (typeof pushToCloudHistory === 'function') pushToCloudHistory('editor', data);
 
                 saveEditorUndoState();
-                data = loadedData.map(row => ({ ...row, qt: row.qt || '' }));
+                
+                // Chuẩn hóa dữ liệu đọc vào: dù là file cũ dạng Array hay Object đều rơi đúng 6 cột mới
+                data = rawList.map(row => {
+                    if (typeof normalizeRowObject === 'function') {
+                        return normalizeRowObject(row);
+                    }
+                    return {
+                        raw: row.raw || '',
+                        pinyin: row.pinyin || '',
+                        qt: row.qt || '',
+                        translation: row.translation || '',
+                        edit: row.edit || '',
+                        meaning: row.meaning || ''
+                    };
+                });
+
                 chapterTitle = loadedTitle;
                 if (typeof currentProjectId !== 'undefined') {
                     currentProjectId = null;
@@ -991,8 +1013,17 @@ function execFormat(command, value = null) {
     if (activeCell && activeCell.closest('td')) activeCell.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
+// ĐẾM TỪ CHUẨN XÁC: Chỉ đếm ký tự tiếng Trung ở cột Raw, tất cả các cột khác đều đếm số từ
 function updateWordCounts() {
-    let counts = { raw: { w: 0, c: 0 }, pinyin: { w: 0, c: 0 }, meaning: { w: 0, c: 0 }, translation: { w: 0, c: 0 }, qt: { w: 0, c: 0 }, edit: { w: 0, c: 0 } };
+    let counts = { 
+        raw: { w: 0, c: 0 }, 
+        pinyin: { w: 0, c: 0 }, 
+        qt: { w: 0, c: 0 }, 
+        translation: { w: 0, c: 0 }, 
+        edit: { w: 0, c: 0 }, 
+        meaning: { w: 0, c: 0 } 
+    };
+
     for (let i = 0; i < data.length; i++) {
         for (let j = 0; j < columns.length; j++) {
             const col = columns[j];
@@ -1000,10 +1031,13 @@ function updateWordCounts() {
             if (!val) continue;
             const text = val.replace(/<[^>]+>/g, '').trim();
             if (!text) continue;
+
             counts[col].c += text.length;
-            counts[col].w += (j === 0 || j === 4) ? text.length : text.split(/\s+/).length;
+            // CHỈ CỘT RAW MỚI ĐẾM KÝ TỰ, CÁC CỘT TIẾNG VIỆT/PINYIN ĐẾM THEO TỪ
+            counts[col].w += (col === 'raw') ? text.length : text.split(/\s+/).filter(Boolean).length;
         }
     }
+
     for (let j = 0; j < columns.length; j++) {
         const col = columns[j];
         const el = document.getElementById(`count-${col}`);
@@ -1025,3 +1059,6 @@ window.refreshAllQT = refreshAllQT;
 window.toggleBatchDeleteMode = toggleBatchDeleteMode;
 window.flushSave = flushSave;
 window.syncActiveCellToData = syncActiveCellToData;
+window.updateWordCounts = updateWordCounts;
+window.editorUndo = editorUndo;
+window.editorRedo = editorRedo;

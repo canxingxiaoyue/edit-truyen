@@ -685,7 +685,7 @@ function initEditorEvents() {
         debounceSave();
     });
 
-    // 4. BẮT SỰ KIỆN CLICK (DELEGATION)
+    // 4. BẮT SỰ KIỆN CLICK VÀ COPY (DELEGATION)
     tbody.addEventListener('click', (e) => {
         const collapseTrigger = e.target.closest('.btn-cell-collapse') || e.target.closest('.cell-label');
         if (collapseTrigger) {
@@ -697,15 +697,20 @@ function initEditorEvents() {
             return;
         }
 
+        // Nút Copy trên Mobile Cell
         const copyBtn = e.target.closest('.btn-cell-copy');
         if (copyBtn) {
             e.preventDefault(); e.stopPropagation();
             const td = copyBtn.closest('td[data-col]');
             const contentEl = td ? td.querySelector('.cell-content') : null;
-            const textToCopy = contentEl ? contentEl.innerText.trim() : '';
-            if (textToCopy && navigator.clipboard) {
-                navigator.clipboard.writeText(textToCopy);
-                if (typeof showToast === 'function') showToast(`📋 Đã copy nội dung!`, 'var(--btn-success)');
+            if (contentEl) {
+                // Trích xuất cả text thuần và HTML để giữ định dạng in đậm, màu sắc...
+                const extracted = extractBothCellContents(contentEl.innerHTML);
+                if (extracted.plain !== '') {
+                    copyAdvancedToClipboardV2([extracted.plain], [`<div style="font-family: inherit; font-size: 11pt;">${extracted.html}</div>`], `📋 Đã copy nội dung!`);
+                } else {
+                    if (typeof showToast === 'function') showToast(`⚠️ Ô này đang trống!`, 'var(--btn-warning)');
+                }
             }
             return;
         }
@@ -777,7 +782,6 @@ function initEditorEvents() {
             currentRowIndex = -1; selectedRowIndices = []; manualQTState = {}; rowTokensMap = {};
             selectedBatchRows.clear(); selectedBatchCols.clear();
             
-            // Xóa mã ID dự án hiện tại để không ghi đè dự án cũ
             if (typeof currentProjectId !== 'undefined') {
                 currentProjectId = null;
                 localStorage.removeItem('currentProjectId');
@@ -918,19 +922,31 @@ function initEditorEvents() {
         }
     });
 
-    // SAO CHÉP TỪNG CỘT
+    // SAO CHÉP TỪNG CỘT TỪ HEAD (NÂNG CẤP COPY GIỮ NGUYÊN ĐỊNH DẠNG HTML)
     document.querySelectorAll('.col-copy-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
             const colKey = btn.getAttribute('data-col');
             if (!colKey) return;
-            const textBlocks = [];
+            
+            const plainBlocks = [];
+            const htmlBlocks = [];
+            
             data.forEach((row) => {
-                const text = extractCellContent(row[colKey]);
-                if (text !== '') textBlocks.push(text);
+                const extracted = extractBothCellContents(row[colKey]);
+                if (extracted.plain !== '') {
+                    plainBlocks.push(extracted.plain);
+                    // Bọc block div với margin-bottom để văn bản giãn cách đẹp như trong Word
+                    htmlBlocks.push(`<div style="margin-bottom: 14px; font-family: inherit; font-size: 11pt;">${extracted.html}</div>`);
+                }
             });
-            if (textBlocks.length === 0) { showToast(`⚠️ Cột ${colKey.toUpperCase()} đang trống!`, 'var(--btn-warning)'); return; }
-            await copyAdvancedToClipboard(textBlocks, `✅ Đã copy cột ${colKey.toUpperCase()}!`);
+            
+            if (plainBlocks.length === 0) { 
+                if (typeof showToast === 'function') showToast(`⚠️ Cột ${colKey.toUpperCase()} đang trống!`, 'var(--btn-warning)'); 
+                return; 
+            }
+            
+            await copyAdvancedToClipboardV2(plainBlocks, htmlBlocks, `✅ Đã copy cột ${colKey.toUpperCase()}!`);
         });
     });
 
@@ -944,7 +960,7 @@ function initEditorEvents() {
 }
 
 // =========================================================================
-// HÀM BỔ TRỢ
+// HÀM BỔ TRỢ & CƠ CHẾ SAO CHÉP NÂNG CẤP (CLIPBOARD V2)
 // =========================================================================
 function insertRowAt(index) {
     saveEditorUndoState();
@@ -963,33 +979,92 @@ function deleteSingleRow(index) {
     if (typeof showToast === 'function') showToast('🗑️ Đã xóa dòng!', 'var(--btn-danger)');
 }
 
-function extractCellContent(html) {
-    if (!html) return '';
-    let str = String(html);
-    str = str.replace(/<br\s*[\/]?>/gi, '\n').replace(/<\/div>\s*<div>/gi, '\n').replace(/<div[^>]*>/gi, '\n').replace(/<\/div>/gi, '').replace(/<p[^>]*>/gi, '\n').replace(/<\/p>/gi, '').replace(/&nbsp;/gi, ' ');
+// Hàm trích xuất đồng thời Văn bản thuần và HTML sạch (GIỮ NGUYÊN ĐỊNH DẠNG)
+function extractBothCellContents(rawHtml) {
+    if (!rawHtml) return { plain: '', html: '' };
+
     const temp = document.createElement('div');
-    temp.innerHTML = str;
-    let plain = temp.textContent || temp.innerText || '';
-    return plain.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+    temp.innerHTML = rawHtml;
+
+    // Xóa các span bôi vàng tìm kiếm/bôi đen để khi paste ra Word không bị dính vệt vàng xấu xí
+    const highlights = temp.querySelectorAll('.search-highlight, .sync-highlight');
+    highlights.forEach(hl => {
+        const parent = hl.parentNode;
+        while(hl.firstChild) parent.insertBefore(hl.firstChild, hl);
+        parent.removeChild(hl);
+    });
+    
+    let cleanedHtml = temp.innerHTML.trim();
+
+    // Tạo Plain Text thuần túy (Dành cho Notepad)
+    let strForPlain = String(cleanedHtml).replace(/<br\s*[\/]?>/gi, '\n')
+                                     .replace(/<\/div>\s*<div>/gi, '\n')
+                                     .replace(/<div[^>]*>/gi, '\n')
+                                     .replace(/<\/div>/gi, '')
+                                     .replace(/<p[^>]*>/gi, '\n')
+                                     .replace(/<\/p>/gi, '')
+                                     .replace(/&nbsp;/gi, ' ');
+    const tempPlain = document.createElement('div');
+    tempPlain.innerHTML = strForPlain;
+    let plain = tempPlain.textContent || tempPlain.innerText || '';
+    plain = plain.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+
+    return { plain: plain, html: cleanedHtml };
 }
 
-async function copyAdvancedToClipboard(textBlocks, successMsg) {
-    if (!textBlocks || textBlocks.length === 0) return;
-    const plainText = textBlocks.join('\r\n\r\n');
-    const htmlText = textBlocks.map(block => {
-        return `<p>${block.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</p>`;
-    }).join('<p><br></p>');
+// CƠ CHẾ CLIPBOARD MỚI HỖ TRỢ ĐA ĐỊNH DẠNG (BẢO TOÀN IN ĐẬM, IN NGHIÊNG, MÀU SẮC KHI SANG WORD)
+async function copyAdvancedToClipboardV2(plainBlocks, htmlBlocks, successMsg) {
+    if (!plainBlocks || plainBlocks.length === 0) return;
+    const plainText = plainBlocks.join('\r\n\r\n');
+    
+    // Bọc HTML tiêu chuẩn để MS Word và Google Docs nhận dạng chuẩn cấu trúc Rich Text
+    const htmlText = `
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"></head>
+        <body>
+            ${htmlBlocks.join('\n')}
+        </body>
+        </html>
+    `.trim();
 
     try {
         if (navigator.clipboard && window.ClipboardItem) {
             const textBlob = new Blob([plainText], { type: 'text/plain' });
             const htmlBlob = new Blob([htmlText], { type: 'text/html' });
-            await navigator.clipboard.write([new ClipboardItem({ 'text/plain': textBlob, 'text/html': htmlBlob })]);
+            await navigator.clipboard.write([
+                new ClipboardItem({ 
+                    'text/plain': textBlob, 
+                    'text/html': htmlBlob 
+                })
+            ]);
+            if (typeof showToast === 'function') showToast(successMsg, 'var(--btn-success)');
         } else if (navigator.clipboard && navigator.clipboard.writeText) {
             await navigator.clipboard.writeText(plainText);
+            if (typeof showToast === 'function') showToast(successMsg, 'var(--btn-success)');
+        } else {
+            fallbackCopyText(plainText);
         }
-        showToast(successMsg, 'var(--btn-success)');
-    } catch (err) { showToast('❌ Không thể truy cập bộ nhớ tạm!', 'var(--btn-danger)'); }
+    } catch (err) { 
+        console.warn("Lỗi Clipboard API, dùng cơ chế fallback copy dự phòng:", err);
+        fallbackCopyText(plainText); 
+    }
+}
+
+function fallbackCopyText(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+        document.execCommand('copy');
+        if (typeof showToast === 'function') showToast(`📋 Đã copy (Plain Text)!`, 'var(--btn-success)');
+    } catch (e) {
+        alert("Trình duyệt chặn sao chép tự động!");
+    }
+    document.body.removeChild(ta);
 }
 
 function refreshAllQT(forceOverwrite = false) {
@@ -1013,7 +1088,6 @@ function execFormat(command, value = null) {
     if (activeCell && activeCell.closest('td')) activeCell.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-// ĐẾM TỪ CHUẨN XÁC: Chỉ đếm ký tự tiếng Trung ở cột Raw, tất cả các cột khác đều đếm số từ
 function updateWordCounts() {
     let counts = { 
         raw: { w: 0, c: 0 }, 
@@ -1033,7 +1107,6 @@ function updateWordCounts() {
             if (!text) continue;
 
             counts[col].c += text.length;
-            // CHỈ CỘT RAW MỚI ĐẾM KÝ TỰ, CÁC CỘT TIẾNG VIỆT/PINYIN ĐẾM THEO TỪ
             counts[col].w += (col === 'raw') ? text.length : text.split(/\s+/).filter(Boolean).length;
         }
     }
@@ -1049,7 +1122,7 @@ function updateWordCounts() {
 }
 
 // =========================================================================
-// MỞ RỘNG TOÀN CỤC CHO CÁC MODULE KHÁC GỌI
+// MỞ RỘNG TOÀN CỤC
 // =========================================================================
 window.renderTable = renderTable;
 window.initEditorEvents = initEditorEvents;

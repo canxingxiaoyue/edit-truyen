@@ -330,7 +330,7 @@ button {
 .format-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
 
 /* =========================================================================
-   HỆ THỐNG CHÚ THÍCH HAI CHIỀU TỰ ĐỘNG (FOOTNOTES)
+   HỆ THỐNG CHÚ THÍCH HAI CHIỀU KIỂU MICROSOFT WORD FOOTNOTE
    ========================================================================= */
 #btn-add-footnote {
     min-width: 30px;
@@ -338,22 +338,23 @@ button {
     line-height: 1;
 }
 
-/* Ký hiệu [n] trong văn bản chính: 65-75% cỡ chữ, nằm trên bên phải, không làm giãn dòng */
+/* Ký hiệu chú thích trong văn bản chính: chỉ số trên, không ngoặc vuông, ~70% cỡ chữ */
 #table-body sup.fn-marker {
     font-size: 0.7em;
     line-height: 0;
     vertical-align: super;
-    color: var(--btn-primary, #2563eb);
-    font-weight: 700;
+    color: inherit;
+    font-weight: 600;
     cursor: pointer;
-    padding: 0 2px;
+    padding: 0 1.5px;
     border-radius: 3px;
     user-select: none;
     -webkit-user-select: none;
     transition: background-color 0.15s ease, color 0.15s ease;
 }
 #table-body sup.fn-marker:hover {
-    background-color: rgba(59, 130, 246, 0.14);
+    color: var(--btn-primary, #2563eb);
+    background-color: rgba(59, 130, 246, 0.12);
     text-decoration: underline;
 }
 #table-body sup.fn-marker.fn-marker-flash {
@@ -362,102 +363,73 @@ button {
     box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.65);
 }
 
-/* Khu vực chú thích ngay bên dưới đoạn văn */
+/* Khu vực chú thích kiểu Footnote: nằm trực tiếp dưới văn bản chính, không khung/bảng */
 #table-body .cell-footnotes-area,
 #table-body .cell-footnotes-area * {
     white-space: normal !important;
 }
 #table-body .cell-footnotes-area {
-    margin-top: 8px;
-    padding: 6px 8px;
-    border-top: 1px dashed var(--border-color, #cbd5e1);
-    background-color: rgba(0, 0, 0, 0.025);
-    border-radius: 6px;
-    font-size: 0.85em;
+    margin-top: 12px;
+    padding: 0;
+    background: transparent !important;
+    border: none !important;
+    font-size: 0.9em;
+    line-height: 1.55;
     user-select: none;
     -webkit-user-select: none;
 }
-[data-theme="dark"] #table-body .cell-footnotes-area {
-    background-color: rgba(255, 255, 255, 0.04);
-}
-#table-body .fn-area-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    cursor: pointer;
-    padding: 2px 0;
-    margin-bottom: 5px;
-    color: var(--text-color);
-    opacity: 0.82;
-    font-size: 0.75rem;
-    font-weight: 800;
-    letter-spacing: 0.4px;
-}
-#table-body .fn-area-header:hover {
-    opacity: 1;
-    color: var(--btn-primary);
-}
-#table-body .fn-collapse-icon {
-    font-style: normal;
-    display: inline-block;
-    margin-right: 4px;
-    font-size: 0.7rem;
-}
-#table-body .cell-footnotes-area.fn-collapsed .fn-area-header {
-    margin-bottom: 0;
-}
-#table-body .cell-footnotes-area.fn-collapsed .fn-area-list {
-    display: none;
-}
+
 #table-body .fn-area-list {
     display: flex;
     flex-direction: column;
     gap: 5px;
 }
+
 #table-body .fn-item {
     display: flex;
-    align-items: flex-start;
-    gap: 6px;
-    padding: 4px 6px;
-    border-radius: 5px;
-    background: var(--header-bg, #ffffff);
-    border: 1px solid var(--border-color, #cbd5e1);
-    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.25s ease;
+    align-items: baseline;
+    gap: 5px;
+    padding: 1px 4px;
+    margin: 0 -4px;
+    border-radius: 4px;
+    background: transparent;
+    border: none;
+    transition: background-color 0.25s ease, box-shadow 0.2s ease;
 }
 #table-body .fn-item.fn-flash {
-    border-color: var(--btn-primary) !important;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.28) !important;
-    background: rgba(59, 130, 246, 0.08) !important;
+    background: rgba(59, 130, 246, 0.12) !important;
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35) !important;
 }
+
+/* Ký hiệu [²] ở phần chú thích bên dưới */
 #table-body .fn-item-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(59, 130, 246, 0.1);
-    color: var(--btn-primary);
-    border: 1px solid rgba(59, 130, 246, 0.25);
-    padding: 1px 6px;
-    border-radius: 4px;
-    font-size: 0.78rem;
-    font-weight: 700;
+    display: inline;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 2px 0 0;
+    margin: 0;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 400;
+    font-style: italic;
+    color: var(--text-color);
     cursor: pointer;
     flex-shrink: 0;
-    line-height: 1.4;
+    line-height: inherit;
+    box-shadow: none !important;
+}
+#table-body .fn-item-badge sup {
+    font-size: 0.72em;
+    line-height: 0;
+    vertical-align: super;
 }
 #table-body .fn-item-badge:hover {
-    background: var(--btn-primary);
-    color: #ffffff;
+    color: var(--btn-primary, #2563eb);
+    text-decoration: underline;
 }
-#table-body .fn-item-sep {
-    color: var(--border-color);
-    font-weight: 600;
-    line-height: 1.45;
-    user-select: none;
-}
-#table-body .fn-note-input,
-#table-body .fn-note-input:hover,
-#table-body .fn-note-input:focus,
-#table-body .fn-note-input:focus-visible {
+
+/* Nội dung giải thích: in nghiêng mặc định, cho phép sửa trực tiếp và giữ định dạng */
+#table-body .fn-note-editor {
     flex: 1;
     min-width: 0;
     border: none !important;
@@ -465,16 +437,25 @@ button {
     box-shadow: none !important;
     color: var(--text-color);
     font-family: inherit;
-    font-size: 0.92em;
-    line-height: 1.45;
-    padding: 1px 4px;
-    resize: none;
-    overflow: hidden;
+    font-size: inherit;
+    font-style: italic;
+    line-height: inherit;
+    padding: 0;
+    min-height: 1.45em;
     outline: none !important;
+    word-break: break-word;
     white-space: pre-wrap !important;
-    user-select: text;
-    -webkit-user-select: text;
+    user-select: text !important;
+    -webkit-user-select: text !important;
 }
+#table-body .fn-note-editor:empty::before {
+    content: attr(data-placeholder);
+    opacity: 0.45;
+    font-style: italic;
+    pointer-events: none;
+}
+
+/* Nút xóa ẩn gọn, chỉ hiện khi rê chuột hoặc đang sửa dòng chú thích */
 #table-body .btn-fn-delete {
     display: inline-flex;
     align-items: center;
@@ -482,14 +463,21 @@ button {
     background: transparent;
     border: none;
     color: #94a3b8;
-    padding: 1px 5px;
+    padding: 0 4px;
     border-radius: 4px;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     cursor: pointer;
     flex-shrink: 0;
-    line-height: 1.4;
+    line-height: 1.3;
+    opacity: 0;
+    transition: opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+#table-body .fn-item:hover .btn-fn-delete,
+#table-body .fn-item:focus-within .btn-fn-delete {
+    opacity: 0.75;
 }
 #table-body .btn-fn-delete:hover {
+    opacity: 1 !important;
     color: var(--btn-danger);
     background: rgba(239, 68, 68, 0.12);
 }
@@ -1956,7 +1944,10 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
     td.col-collapsed .btn-cell-collapse { transform: rotate(-90deg); }
 
     #table-body .cell-footnotes-area {
-        margin: 0 10px 10px 10px;
+        margin: 0 12px 12px 12px;
+    }
+    #table-body .btn-fn-delete {
+        opacity: 0.6;
     }
 
     /* 4. MỤC THÔNG TIN TRUYỆN TRÊN MOBILE */

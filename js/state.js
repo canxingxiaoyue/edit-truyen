@@ -21,7 +21,7 @@ let modalReplace;
 let modalHistory;
 let modalNameQT;
 
-// HÀM CHUẨN HÓA DỮ LIỆU TỪNG HÀNG (BẢO TOÀN DỮ LIỆU CŨ + LIÊN KẾT CHÚ THÍCH HAI CHIỀU)
+// HÀM CHUẨN HÓA DỮ LIỆU TỪNG HÀNG (BẢO TOÀN DỮ LIỆU CŨ + CHUYỂN ĐỔI SANG KIỂU WORD FOOTNOTE)
 function normalizeRowObject(row) {
     const genRowId = () => 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
     if (!row) {
@@ -42,8 +42,26 @@ function normalizeRowObject(row) {
         };
     }
 
-    // Trường hợp 2: Dữ liệu dạng Object theo key (Bảo toàn 100% nội dung gốc + chú thích liên kết)
+    // Trường hợp 2: Dữ liệu dạng Object theo key (Bảo toàn 100% nội dung gốc + chuyển đổi chú thích cũ sang Word Footnote)
     const rowId = row.id || genRowId();
+
+    const migrateLegacyMarkers = (html) => {
+        if (typeof html !== 'string' || !html.includes('fn-marker')) return html || '';
+        return html.replace(/(<sup\b[^>]*\bclass=(["'])[^"']*\bfn-marker\b[^"']*\2[^>]*>)\s*\[(\d+)\]\s*(<\/sup>)/gi, '$1$3$4');
+    };
+
+    const escapePlainNoteToHtml = (noteStr) => {
+        if (!noteStr) return '';
+        if (/<(?:b|strong|i|em|u|s|span|font|br|div|p|sup|sub)\b[^>]*>/i.test(noteStr)) {
+            return noteStr; // Đã là HTML rich text
+        }
+        return String(noteStr)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\r\n|\r|\n/g, '<br>');
+    };
+
     const footnotes = Array.isArray(row.footnotes)
         ? row.footnotes.map(fn => ({
             id: fn.id || ('fn_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4)),
@@ -51,19 +69,19 @@ function normalizeRowObject(row) {
             rowId: fn.rowId || rowId,
             col: fn.col || 'translation',
             targetText: fn.targetText || '',
-            note: fn.note || '',
+            note: escapePlainNoteToHtml(fn.note || ''),
             createdAt: fn.createdAt || Date.now()
         }))
         : [];
 
     return {
         id: rowId,
-        raw: row.raw || '',
-        pinyin: row.pinyin || '',
-        qt: row.qt || '',
-        translation: row.translation || '',
-        edit: row.edit || '',
-        meaning: row.meaning || '',
+        raw: migrateLegacyMarkers(row.raw),
+        pinyin: migrateLegacyMarkers(row.pinyin),
+        qt: migrateLegacyMarkers(row.qt),
+        translation: migrateLegacyMarkers(row.translation),
+        edit: migrateLegacyMarkers(row.edit),
+        meaning: migrateLegacyMarkers(row.meaning),
         footnotes: footnotes
     };
 }

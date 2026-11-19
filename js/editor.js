@@ -34,10 +34,9 @@ function normalizeUnicodeText(text) {
 function syncActiveCellToData() {
     const activeEl = document.activeElement;
     if (!activeEl) return;
-    const contentEl = activeEl.closest('.cell-content') || activeEl.closest('td[data-col]');
-    if (!contentEl) return;
-    const targetTd = contentEl.closest('td[data-col]');
+    const targetTd = activeEl.closest('td[data-col]');
     if (!targetTd) return;
+    const contentEl = activeEl.closest('.cell-content') || targetTd.querySelector('.cell-content') || targetTd;
     const tr = targetTd.closest('tr');
     if (!tr) return;
 
@@ -624,25 +623,32 @@ function initEditorEvents() {
             return;
         }
 
-        // C. Dán câu đơn lẻ
+        // C. Dán câu / đoạn đơn lẻ (ĐÃ FIX: phát sự kiện input trên đúng .cell-content)
         if (!textData.includes('\n') && !textData.includes('\t')) {
             e.preventDefault();
+            const contentEl = e.target.closest('.cell-content') || targetCell.querySelector('.cell-content') || targetCell;
             const selection = window.getSelection();
-            if (!selection.rangeCount) return;
-            selection.deleteFromDocument();
+            if (!selection || !selection.rangeCount) return;
+
+            const range = selection.getRangeAt(0);
+            range.deleteContents();
             const textNode = document.createTextNode(textData.trim());
-            selection.getRangeAt(0).insertNode(textNode);
-            selection.getRangeAt(0).setStartAfter(textNode);
-            targetCell.dispatchEvent(new Event('input', { bubbles: true }));
+            range.insertNode(textNode);
+            range.setStartAfter(textNode);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+
+            contentEl.dispatchEvent(new Event('input', { bubbles: true }));
         }
     });
 
-    // 3. NHẬP LIỆU GÕ TAY REAL-TIME
+    // 3. NHẬP LIỆU GÕ TAY REAL-TIME (ĐÃ FIX: nhận cả sự kiện từ .cell-content lẫn td[data-col])
     tbody.addEventListener('input', (e) => {
-        const contentEl = e.target.closest('.cell-content');
-        if (!contentEl) return;
-        const targetTd = contentEl.closest('td[data-col]');
+        const targetTd = e.target.closest('td[data-col]');
         if (!targetTd) return;
+        const contentEl = e.target.closest('.cell-content') || targetTd.querySelector('.cell-content');
+        if (!contentEl) return;
 
         const tr = targetTd.closest('tr');
         const rowIndex = parseInt(tr.dataset.index, 10);
@@ -660,7 +666,7 @@ function initEditorEvents() {
         
         data[rowIndex][colName] = rawHtml;
 
-        // Auto QT & Pinyin khi gõ cột Raw
+        // Auto QT & Pinyin khi gõ hoặc dán vào cột Raw
         if (colName === 'raw') {
             if (typeof safePinyin === 'function') {
                 const pinyinVal = safePinyin(plainText);
@@ -697,14 +703,13 @@ function initEditorEvents() {
             return;
         }
 
-        // Nút Copy trên Mobile Cell
+        // Nút Copy trên Mobile Cell (Giữ nguyên định dạng in đậm, in nghiêng, màu sắc)
         const copyBtn = e.target.closest('.btn-cell-copy');
         if (copyBtn) {
             e.preventDefault(); e.stopPropagation();
             const td = copyBtn.closest('td[data-col]');
             const contentEl = td ? td.querySelector('.cell-content') : null;
             if (contentEl) {
-                // Trích xuất cả text thuần và HTML để giữ định dạng in đậm, màu sắc...
                 const extracted = extractBothCellContents(contentEl.innerHTML);
                 if (extracted.plain !== '') {
                     copyAdvancedToClipboardV2([extracted.plain], [`<div style="font-family: inherit; font-size: 11pt;">${extracted.html}</div>`], `📋 Đã copy nội dung!`);
@@ -823,7 +828,7 @@ function initEditorEvents() {
         }
     });
 
-    // EXPORT JSON ĐẦY ĐỦ CẢ METADATA VÀ DATA (TỰ ĐỘNG LƯU CHUẨN SCHEMA V3.0)
+    // EXPORT JSON ĐẦY ĐỦ CẢ METADATA VÀ DATA
     document.getElementById('btn-export')?.addEventListener('click', (e) => {
         e.preventDefault();
         flushSave();
@@ -880,7 +885,6 @@ function initEditorEvents() {
 
                 saveEditorUndoState();
                 
-                // Chuẩn hóa dữ liệu đọc vào: dù là file cũ dạng Array hay Object đều rơi đúng 6 cột mới
                 data = rawList.map(row => {
                     if (typeof normalizeRowObject === 'function') {
                         return normalizeRowObject(row);
@@ -922,7 +926,7 @@ function initEditorEvents() {
         }
     });
 
-    // SAO CHÉP TỪNG CỘT TỪ HEAD (NÂNG CẤP COPY GIỮ NGUYÊN ĐỊNH DẠNG HTML)
+    // SAO CHÉP TỪNG CỘT TỪ HEAD (GIỮ NGUYÊN ĐỊNH DẠNG HTML KHI DÁN RA WORD/DOCS)
     document.querySelectorAll('.col-copy-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -936,7 +940,6 @@ function initEditorEvents() {
                 const extracted = extractBothCellContents(row[colKey]);
                 if (extracted.plain !== '') {
                     plainBlocks.push(extracted.plain);
-                    // Bọc block div với margin-bottom để văn bản giãn cách đẹp như trong Word
                     htmlBlocks.push(`<div style="margin-bottom: 14px; font-family: inherit; font-size: 11pt;">${extracted.html}</div>`);
                 }
             });
@@ -950,7 +953,7 @@ function initEditorEvents() {
         });
     });
 
-    // ÉP LƯU TỨC THÌ KHI TẮT TAB HOẶC RỜI TRANG (CHỐNG MẤT DỮ LIỆU HOÀN TOÀN)
+    // ÉP LƯU TỨC THÌ KHI TẮT TAB HOẶC RỜI TRANG
     window.addEventListener('beforeunload', () => flushSave());
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'hidden') {
@@ -979,24 +982,21 @@ function deleteSingleRow(index) {
     if (typeof showToast === 'function') showToast('🗑️ Đã xóa dòng!', 'var(--btn-danger)');
 }
 
-// Hàm trích xuất đồng thời Văn bản thuần và HTML sạch (GIỮ NGUYÊN ĐỊNH DẠNG)
 function extractBothCellContents(rawHtml) {
     if (!rawHtml) return { plain: '', html: '' };
 
     const temp = document.createElement('div');
     temp.innerHTML = rawHtml;
 
-    // Xóa các span bôi vàng tìm kiếm/bôi đen để khi paste ra Word không bị dính vệt vàng xấu xí
     const highlights = temp.querySelectorAll('.search-highlight, .sync-highlight');
     highlights.forEach(hl => {
         const parent = hl.parentNode;
-        while(hl.firstChild) parent.insertBefore(hl.firstChild, hl);
+        while (hl.firstChild) parent.insertBefore(hl.firstChild, hl);
         parent.removeChild(hl);
     });
     
     let cleanedHtml = temp.innerHTML.trim();
 
-    // Tạo Plain Text thuần túy (Dành cho Notepad)
     let strForPlain = String(cleanedHtml).replace(/<br\s*[\/]?>/gi, '\n')
                                      .replace(/<\/div>\s*<div>/gi, '\n')
                                      .replace(/<div[^>]*>/gi, '\n')
@@ -1012,12 +1012,10 @@ function extractBothCellContents(rawHtml) {
     return { plain: plain, html: cleanedHtml };
 }
 
-// CƠ CHẾ CLIPBOARD MỚI HỖ TRỢ ĐA ĐỊNH DẠNG (BẢO TOÀN IN ĐẬM, IN NGHIÊNG, MÀU SẮC KHI SANG WORD)
 async function copyAdvancedToClipboardV2(plainBlocks, htmlBlocks, successMsg) {
     if (!plainBlocks || plainBlocks.length === 0) return;
     const plainText = plainBlocks.join('\r\n\r\n');
     
-    // Bọc HTML tiêu chuẩn để MS Word và Google Docs nhận dạng chuẩn cấu trúc Rich Text
     const htmlText = `
         <!DOCTYPE html>
         <html>
@@ -1084,8 +1082,10 @@ function refreshAllQT(forceOverwrite = false) {
 function execFormat(command, value = null) {
     saveEditorUndoState();
     document.execCommand(command, false, value);
-    const activeCell = document.activeElement;
-    if (activeCell && activeCell.closest('td')) activeCell.dispatchEvent(new Event('input', { bubbles: true }));
+    const activeEl = document.activeElement;
+    const targetTd = activeEl ? activeEl.closest('td[data-col]') : null;
+    const contentEl = activeEl ? (activeEl.closest('.cell-content') || (targetTd ? targetTd.querySelector('.cell-content') : null)) : null;
+    if (contentEl) contentEl.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 function updateWordCounts() {
@@ -1122,7 +1122,7 @@ function updateWordCounts() {
 }
 
 // =========================================================================
-// MỞ RỘNG TOÀN CỤC
+// MỞ RỘNG TOÀN CỤC CHO CÁC MODULE KHÁC GỌI
 // =========================================================================
 window.renderTable = renderTable;
 window.initEditorEvents = initEditorEvents;

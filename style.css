@@ -329,6 +329,171 @@ button {
 .format-btn:hover { background-color: var(--row-active); border-color: var(--text-color); transform: translateY(-1px); }
 .format-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
 
+/* =========================================================================
+   HỆ THỐNG CHÚ THÍCH HAI CHIỀU TỰ ĐỘNG (FOOTNOTES)
+   ========================================================================= */
+#btn-add-footnote {
+    min-width: 30px;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+/* Ký hiệu [n] trong văn bản chính: 65-75% cỡ chữ, nằm trên bên phải, không làm giãn dòng */
+#table-body sup.fn-marker {
+    font-size: 0.7em;
+    line-height: 0;
+    vertical-align: super;
+    color: var(--btn-primary, #2563eb);
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0 2px;
+    border-radius: 3px;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+#table-body sup.fn-marker:hover {
+    background-color: rgba(59, 130, 246, 0.14);
+    text-decoration: underline;
+}
+#table-body sup.fn-marker.fn-marker-flash {
+    background-color: #fde047 !important;
+    color: #000000 !important;
+    box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.65);
+}
+
+/* Khu vực chú thích ngay bên dưới đoạn văn */
+#table-body .cell-footnotes-area,
+#table-body .cell-footnotes-area * {
+    white-space: normal !important;
+}
+#table-body .cell-footnotes-area {
+    margin-top: 8px;
+    padding: 6px 8px;
+    border-top: 1px dashed var(--border-color, #cbd5e1);
+    background-color: rgba(0, 0, 0, 0.025);
+    border-radius: 6px;
+    font-size: 0.85em;
+    user-select: none;
+    -webkit-user-select: none;
+}
+[data-theme="dark"] #table-body .cell-footnotes-area {
+    background-color: rgba(255, 255, 255, 0.04);
+}
+#table-body .fn-area-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    padding: 2px 0;
+    margin-bottom: 5px;
+    color: var(--text-color);
+    opacity: 0.82;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+}
+#table-body .fn-area-header:hover {
+    opacity: 1;
+    color: var(--btn-primary);
+}
+#table-body .fn-collapse-icon {
+    font-style: normal;
+    display: inline-block;
+    margin-right: 4px;
+    font-size: 0.7rem;
+}
+#table-body .cell-footnotes-area.fn-collapsed .fn-area-header {
+    margin-bottom: 0;
+}
+#table-body .cell-footnotes-area.fn-collapsed .fn-area-list {
+    display: none;
+}
+#table-body .fn-area-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+#table-body .fn-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 4px 6px;
+    border-radius: 5px;
+    background: var(--header-bg, #ffffff);
+    border: 1px solid var(--border-color, #cbd5e1);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.25s ease;
+}
+#table-body .fn-item.fn-flash {
+    border-color: var(--btn-primary) !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.28) !important;
+    background: rgba(59, 130, 246, 0.08) !important;
+}
+#table-body .fn-item-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--btn-primary);
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+    line-height: 1.4;
+}
+#table-body .fn-item-badge:hover {
+    background: var(--btn-primary);
+    color: #ffffff;
+}
+#table-body .fn-item-sep {
+    color: var(--border-color);
+    font-weight: 600;
+    line-height: 1.45;
+    user-select: none;
+}
+#table-body .fn-note-input,
+#table-body .fn-note-input:hover,
+#table-body .fn-note-input:focus,
+#table-body .fn-note-input:focus-visible {
+    flex: 1;
+    min-width: 0;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--text-color);
+    font-family: inherit;
+    font-size: 0.92em;
+    line-height: 1.45;
+    padding: 1px 4px;
+    resize: none;
+    overflow: hidden;
+    outline: none !important;
+    white-space: pre-wrap !important;
+    user-select: text;
+    -webkit-user-select: text;
+}
+#table-body .btn-fn-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    line-height: 1.4;
+}
+#table-body .btn-fn-delete:hover {
+    color: var(--btn-danger);
+    background: rgba(239, 68, 68, 0.12);
+}
+
 .color-input-wrapper {
     display: inline-flex; align-items: center; gap: 4px; font-size: 0.85rem; font-weight: 600;
     border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 5px;
@@ -1244,8 +1409,8 @@ body[data-current-theme="aqua"] #table-container table tbody tr:nth-child(even) 
     background: var(--cell-2) !important;
 }
 
-body[data-current-theme="aqua"] #table-container table tbody td[data-col] div,
-body[data-current-theme="aqua"] #table-container table tbody td[data-col] p,
+body[data-current-theme="aqua"] #table-container table tbody td[data-col] .cell-content div,
+body[data-current-theme="aqua"] #table-container table tbody td[data-col] .cell-content p,
 body[data-current-theme="aqua"] #table-container table tbody td[data-col] span:not(.sync-highlight):not(.search-highlight) {
     background-color: transparent !important;
 }
@@ -1785,9 +1950,14 @@ body[data-current-theme="aqua"] #table-container::-webkit-scrollbar-thumb:hover 
         font-size: inherit !important; line-height: 1.65 !important; min-height: 36px !important;
         outline: none !important; word-break: break-word !important; white-space: pre-wrap !important; margin: 0 !important;
     }
-    .cell-content:focus { background: var(--bg-color, #ffffff) !important; box-shadow: inset 0 0 0 1.5px var(--btn-primary) !important; border-radius: 6px; }
-    td.col-collapsed .cell-content { display: none !important; }
+    .cell-content:focus { background: var(--cell-focus-bg, #ffffff) !important; box-shadow: inset 0 0 0 2px var(--cell-focus-border, var(--btn-primary)) !important; color: var(--cell-focus-text, var(--text-color)) !important; border-radius: 6px; }
+    td.col-collapsed .cell-content,
+    td.col-collapsed .cell-footnotes-area { display: none !important; }
     td.col-collapsed .btn-cell-collapse { transform: rotate(-90deg); }
+
+    #table-body .cell-footnotes-area {
+        margin: 0 10px 10px 10px;
+    }
 
     /* 4. MỤC THÔNG TIN TRUYỆN TRÊN MOBILE */
     .story-tables-wrapper { display: flex !important; flex-direction: column !important; height: auto !important; overflow: visible !important; padding: 10px !important; gap: 15px !important; }

@@ -1,6 +1,7 @@
 // =========================================================================
 // QUẢN LÝ BẢNG DỊCH CHÍNH (MỤC 1) - KIẾN TRÚC ZERO-DOM CHO DESKTOP
 // THỨ TỰ CỘT: 1. Raw -> 2. Pinyin -> 3. Bản QT -> 4. Bản ê đít -> 5. Bản bê ta -> 6. Chú thích
+// TÍCH HỢP: HỆ THỐNG CHÚ THÍCH HAI CHIỀU TỰ ĐỘNG & COPY ĐA ĐỊNH DẠNG
 // =========================================================================
 let saveTimeout;
 let countTimeout;
@@ -9,6 +10,10 @@ let countTimeout;
 let isBatchDeleteMode = false;
 let selectedBatchRows = new Set(); 
 let selectedBatchCols = new Set(); 
+
+// Bộ nhớ tạm bảo vệ chú thích khi người dùng Cắt/Dán (Ctrl+X / Ctrl+V) di chuyển đoạn văn
+let lastFootnoteSelection = null;
+window._footnoteTrashCache = window._footnoteTrashCache || new Map();
 
 // 2. CẤU HÌNH CỘT TRÊN MOBILE (CHUẨN HÓA THEO THỨ TỰ MỚI)
 const COLUMN_META = {
@@ -30,27 +35,51 @@ function normalizeUnicodeText(text) {
     try { return text.normalize('NFC'); } catch (e) { return text; }
 }
 
+function escapeFootnoteHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function ensureRowFootnoteStructure(row) {
+    if (!row) return;
+    if (!row.id) row.id = 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    if (!Array.isArray(row.footnotes)) row.footnotes = [];
+}
+
 // Ép lấy dữ liệu từ ô đang đặt con trỏ vào mảng data ngay lập tức
 function syncActiveCellToData() {
     const activeEl = document.activeElement;
     if (!activeEl) return;
+
     const targetTd = activeEl.closest('td[data-col]');
     if (!targetTd) return;
-    const contentEl = activeEl.closest('.cell-content') || targetTd.querySelector('.cell-content') || targetTd;
     const tr = targetTd.closest('tr');
     if (!tr) return;
 
     const rowIndex = parseInt(tr.dataset.index, 10);
     const colName = targetTd.dataset.col;
+    if (isNaN(rowIndex) || !colName || !data[rowIndex]) return;
 
-    if (!isNaN(rowIndex) && colName && data[rowIndex]) {
-        let rawHtml = contentEl.innerHTML;
-        let plainText = normalizeUnicodeText(contentEl.innerText);
-        if (rawHtml === '<br>' || plainText.trim() === '') {
-            rawHtml = '';
-        }
-        data[rowIndex][colName] = rawHtml;
+    // Nếu đang gõ trong ô giải thích chú thích
+    if (activeEl.classList.contains('fn-note-input')) {
+        const fnId = activeEl.dataset.fnId;
+        ensureRowFootnoteStructure(data[rowIndex]);
+        const fn = data[rowIndex].footnotes.find(f => f.id === fnId);
+        if (fn) fn.note = activeEl.value;
     }
+
+    const contentEl = activeEl.closest('.cell-content') || targetTd.querySelector('.cell-content') || targetTd;
+    let rawHtml = contentEl.innerHTML;
+    let plainText = normalizeUnicodeText(contentEl.innerText);
+    if (rawHtml === '<br>' || plainText.trim() === '') {
+        rawHtml = '';
+    }
+    data[rowIndex][colName] = rawHtml;
 }
 
 // Lưu đồng bộ lập tức xuống LocalStorage (Dùng khi F5, đóng tab hoặc bấm Lưu)
@@ -103,6 +132,386 @@ function debounceSave() {
 }
 
 // =========================================================================
+// HỆ THỐNG CHÚ THÍCH HAI CHIỀU TỰ ĐỘNG (FOOTNOTE ENGINE)
+// =========================================================================
+function captureFootnoteSelection() {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    const node = range.commonAncestorContainer;
+    const el = node.nodeType === 3 ? node.parentElement : node;
+    const contentEl = el ? el.closest('#table-body .cell-content') : null;
+    if (!contentEl) return;
+
+    const targetTd = contentEl.closest('td[data-col]');
+    const tr = targetTd ? targetTd.closest('tr') : null;
+    if (!targetTd || !tr) return;
+
+    lastFootnoteSelection = {
+        contentEl,
+        targetTd,
+        rowIndex: parseInt(tr.dataset.index, 10),
+        colName: targetTd.dataset.col,
+        range: range.cloneRange()
+    };
+}
+
+function getNextFootnoteNumber() {
+    let maxNum = 0;
+    if (Array.isArray(data)) {
+        data.forEach(row => {
+            if (row && Array.isArray(row.footnotes)) {
+                row.footnotes.forEach(fn => {
+                    const n = parseInt(fn.num, 10);
+                    if (!isNaN(n) && n > maxNum) maxNum = n;
+                });
+            }
+        });
+    }
+    document.querySelectorAll('#table-body sup.fn-marker').forEach(sup => {
+        const n = parseInt(sup.dataset.fnNum || (sup.textContent || '').replace(/\D/g, ''), 10);
+        if (!isNaN(n) && n > maxNum) maxNum = n;
+    });
+    return maxNum + 1;
+}
+
+function autoResizeFootnoteInput(el) {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+}
+
+function buildCellFootnotesHTML(rowObj, col) {
+    const allFn = (rowObj && Array.isArray(rowObj.footnotes)) ? rowObj.footnotes : [];
+    const cellFn = allFn.filter(fn => (fn.col || 'translation') === col);
+    if (cellFn.length === 0) return '';
+
+    const isCollapsed = !!(rowObj._fnCollapsed && rowObj._fnCollapsed[col]);
+    const itemsHtml = cellFn.map(fn => {
+        const safeId = escapeFootnoteHtml(fn.id);
+        const safeTarget = escapeFootnoteHtml(fn.targetText || '');
+        const safeNote = escapeFootnoteHtml(fn.note || '');
+        const titleAttr = safeTarget
+            ? `title="Nhấn để quay lại từ được chú thích: ${safeTarget}"`
+            : `title="Nhấn để quay lại vị trí [${fn.num}] trong văn bản"`;
+        return `<div class="fn-item" data-fn-id="${safeId}"><button type="button" class="fn-item-badge" data-fn-id="${safeId}" ${titleAttr}>[${fn.num}]</button><span class="fn-item-sep">|</span><textarea class="fn-note-input" rows="1" data-fn-id="${safeId}" placeholder="Nhập nội dung chú giải tại đây...">${safeNote}</textarea><button type="button" class="btn-fn-delete" data-fn-id="${safeId}" title="Xóa chú thích [${fn.num}]">✕</button></div>`;
+    }).join('');
+
+    return `<div class="cell-footnotes-area ${isCollapsed ? 'fn-collapsed' : ''}" data-fn-col="${col}" contenteditable="false"><div class="fn-area-header" title="Thu gọn / Mở rộng khu vực chú thích"><span class="fn-area-title"><i class="fn-collapse-icon">${isCollapsed ? '▶' : '▼'}</i> CHÚ THÍCH (${cellFn.length})</span></div><div class="fn-area-list">${itemsHtml}</div></div>`;
+}
+
+function renderCellFootnotes(targetTd, rowIndex, colName) {
+    if (!targetTd || !data[rowIndex]) return;
+    const oldArea = targetTd.querySelector('.cell-footnotes-area');
+    if (oldArea) oldArea.remove();
+
+    const html = buildCellFootnotesHTML(data[rowIndex], colName);
+    if (html) {
+        targetTd.insertAdjacentHTML('beforeend', html);
+        targetTd.querySelectorAll('.fn-note-input').forEach(autoResizeFootnoteInput);
+    }
+}
+
+// Đồng bộ hai chiều khi xóa / cắt / dán trực tiếp ký hiệu [n] trong văn bản chính
+function reconcileCellFootnotes(targetTd, rowIndex, colName, contentEl) {
+    if (!data[rowIndex] || !contentEl) return;
+    ensureRowFootnoteStructure(data[rowIndex]);
+
+    const markers = Array.from(contentEl.querySelectorAll('sup.fn-marker'));
+    const presentIds = new Set();
+    let changed = false;
+
+    markers.forEach(marker => {
+        let fnId = marker.dataset.fnId;
+        let fnNum = parseInt(marker.dataset.fnNum || (marker.textContent || '').replace(/\D/g, ''), 10);
+
+        // Nếu marker bị nhân bản trong cùng một ô -> cấp ID mới để giữ liên kết độc lập
+        if (fnId && presentIds.has(fnId)) {
+            const origFn = data[rowIndex].footnotes.find(f => f.id === fnId) || window._footnoteTrashCache.get(fnId);
+            fnNum = getNextFootnoteNumber();
+            fnId = 'fn_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+            marker.dataset.fnId = fnId;
+            marker.dataset.fnNum = String(fnNum);
+            marker.textContent = `[${fnNum}]`;
+            data[rowIndex].footnotes.push({
+                id: fnId,
+                num: fnNum,
+                rowId: data[rowIndex].id,
+                col: colName,
+                targetText: origFn ? origFn.targetText : '',
+                note: origFn ? origFn.note : '',
+                createdAt: Date.now()
+            });
+            changed = true;
+        }
+
+        if (!fnId) {
+            fnId = 'fn_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+            marker.dataset.fnId = fnId;
+        }
+        presentIds.add(fnId);
+
+        // Nếu marker xuất hiện từ Cắt/Dán hoặc Undo mà chưa có trong footnotes của ô này -> tự khôi phục
+        let existing = data[rowIndex].footnotes.find(f => f.id === fnId);
+        if (!existing) {
+            let recovered = window._footnoteTrashCache.get(fnId);
+            if (!recovered) {
+                for (let r = 0; r < data.length; r++) {
+                    if (r === rowIndex || !Array.isArray(data[r].footnotes)) continue;
+                    const idx = data[r].footnotes.findIndex(f => f.id === fnId);
+                    if (idx >= 0) {
+                        recovered = data[r].footnotes.splice(idx, 1)[0];
+                        const oldRowTr = document.querySelector(`#table-body tr[data-index="${r}"]`);
+                        const oldTd = oldRowTr ? oldRowTr.querySelector(`td[data-col="${recovered.col || colName}"]`) : null;
+                        if (oldTd) renderCellFootnotes(oldTd, r, recovered.col || colName);
+                        break;
+                    }
+                }
+            }
+
+            if (recovered) {
+                recovered.rowId = data[rowIndex].id;
+                recovered.col = colName;
+                data[rowIndex].footnotes.push(recovered);
+                window._footnoteTrashCache.delete(fnId);
+            } else {
+                const safeNum = !isNaN(fnNum) && fnNum > 0 ? fnNum : getNextFootnoteNumber();
+                marker.dataset.fnNum = String(safeNum);
+                marker.textContent = `[${safeNum}]`;
+                data[rowIndex].footnotes.push({
+                    id: fnId,
+                    num: safeNum,
+                    rowId: data[rowIndex].id,
+                    col: colName,
+                    targetText: '',
+                    note: '',
+                    createdAt: Date.now()
+                });
+            }
+            changed = true;
+        } else if (existing.col !== colName) {
+            existing.col = colName;
+            existing.rowId = data[rowIndex].id;
+            changed = true;
+        }
+    });
+
+    // Bất kỳ mục chú thích nào thuộc ô này không còn marker trong văn bản -> đưa vào cache & ẩn khỏi danh sách
+    const kept = [];
+    data[rowIndex].footnotes.forEach(fn => {
+        if ((fn.col || 'translation') === colName && !presentIds.has(fn.id)) {
+            window._footnoteTrashCache.set(fn.id, { ...fn });
+            changed = true;
+        } else {
+            kept.push(fn);
+        }
+    });
+    if (kept.length !== data[rowIndex].footnotes.length) {
+        data[rowIndex].footnotes = kept;
+    }
+
+    if (changed) {
+        data[rowIndex][colName] = contentEl.innerHTML;
+        renderCellFootnotes(targetTd, rowIndex, colName);
+    }
+}
+
+function addFootnoteAtCursor() {
+    let targetInfo = null;
+    const sel = window.getSelection();
+
+    if (sel && sel.rangeCount) {
+        const range = sel.getRangeAt(0);
+        const node = range.commonAncestorContainer;
+        const el = node.nodeType === 3 ? node.parentElement : node;
+        const contentEl = el ? el.closest('#table-body .cell-content') : null;
+        if (contentEl) {
+            const targetTd = contentEl.closest('td[data-col]');
+            const tr = targetTd ? targetTd.closest('tr') : null;
+            if (targetTd && tr) {
+                targetInfo = {
+                    contentEl,
+                    targetTd,
+                    rowIndex: parseInt(tr.dataset.index, 10),
+                    colName: targetTd.dataset.col,
+                    range: range.cloneRange()
+                };
+            }
+        }
+    }
+
+    if (!targetInfo && lastFootnoteSelection && document.contains(lastFootnoteSelection.contentEl)) {
+        targetInfo = lastFootnoteSelection;
+    }
+
+    if (!targetInfo || isNaN(targetInfo.rowIndex) || !data[targetInfo.rowIndex]) {
+        if (typeof showToast === 'function') {
+            showToast('⚠️ Hãy đặt con trỏ hoặc chọn từ trong ô văn bản cần chú thích!', 'var(--btn-warning)');
+        }
+        return;
+    }
+
+    const { contentEl, targetTd, rowIndex, colName } = targetInfo;
+    let range = targetInfo.range;
+
+    // Không cho chèn vào bên trong ký hiệu [n] có sẵn
+    const startEl = range.startContainer.nodeType === 3 ? range.startContainer.parentElement : range.startContainer;
+    const existingSup = startEl ? startEl.closest('sup.fn-marker') : null;
+    if (existingSup) {
+        range.setStartAfter(existingSup);
+        range.collapse(true);
+    }
+
+    // Xác định từ/cụm từ được chú thích
+    let targetText = '';
+    if (!range.collapsed) {
+        targetText = range.toString().trim();
+        range.collapse(false); // Đưa con trỏ ra ngay sau từ được chọn (không xóa từ gốc)
+    } else if (range.startContainer.nodeType === 3) {
+        const beforeText = range.startContainer.textContent.slice(0, range.startOffset).trim();
+        const wordMatch = beforeText.match(/([^\s]+)$/);
+        if (wordMatch) targetText = wordMatch[1];
+    }
+
+    saveEditorUndoState();
+    ensureRowFootnoteStructure(data[rowIndex]);
+
+    const nextNum = getNextFootnoteNumber();
+    const fnId = 'fn_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+
+    const sup = document.createElement('sup');
+    sup.className = 'fn-marker';
+    sup.dataset.fnId = fnId;
+    sup.dataset.fnNum = String(nextNum);
+    sup.setAttribute('contenteditable', 'false');
+    sup.title = `Nhấn để đi tới chú thích [${nextNum}]`;
+    sup.textContent = `[${nextNum}]`;
+
+    range.insertNode(sup);
+    range.setStartAfter(sup);
+    range.collapse(true);
+
+    if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+
+    // Cập nhật dữ liệu văn bản chính & thêm đối tượng chú thích liên kết
+    data[rowIndex][colName] = contentEl.innerHTML;
+    if (!data[rowIndex]._fnCollapsed) data[rowIndex]._fnCollapsed = {};
+    data[rowIndex]._fnCollapsed[colName] = false; // Tự động mở rộng khu vực chú thích
+
+    data[rowIndex].footnotes.push({
+        id: fnId,
+        num: nextNum,
+        rowId: data[rowIndex].id,
+        col: colName,
+        targetText: targetText,
+        note: '',
+        createdAt: Date.now()
+    });
+
+    renderCellFootnotes(targetTd, rowIndex, colName);
+    debounceSave();
+
+    // Đưa con trỏ vào ngay ô nhập chú giải vừa tạo
+    const newInput = targetTd.querySelector(`.fn-note-input[data-fn-id="${fnId}"]`);
+    const newItem = targetTd.querySelector(`.fn-item[data-fn-id="${fnId}"]`);
+    if (newItem) {
+        newItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        newItem.classList.add('fn-flash');
+        setTimeout(() => newItem.classList.remove('fn-flash'), 1200);
+    }
+    if (newInput) {
+        newInput.focus();
+    }
+}
+
+function jumpToFootnoteItem(targetTd, rowIndex, colName, fnId) {
+    if (!targetTd || !data[rowIndex]) return;
+    if (data[rowIndex]._fnCollapsed && data[rowIndex]._fnCollapsed[colName]) {
+        data[rowIndex]._fnCollapsed[colName] = false;
+        const area = targetTd.querySelector('.cell-footnotes-area');
+        if (area) {
+            area.classList.remove('fn-collapsed');
+            const icon = area.querySelector('.fn-collapse-icon');
+            if (icon) icon.textContent = '▼';
+        }
+    }
+
+    const item = targetTd.querySelector(`.fn-item[data-fn-id="${fnId}"]`);
+    const input = targetTd.querySelector(`.fn-note-input[data-fn-id="${fnId}"]`);
+    if (item) {
+        item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        item.classList.add('fn-flash');
+        setTimeout(() => item.classList.remove('fn-flash'), 1200);
+    }
+    if (input) {
+        input.focus();
+    }
+}
+
+function jumpToFootnoteMarker(targetTd, colName, fnId) {
+    if (!targetTd) return;
+    if (targetTd.classList.contains('col-collapsed')) {
+        toggleColumnCollapse(colName);
+        return;
+    }
+
+    const contentEl = targetTd.querySelector('.cell-content');
+    if (!contentEl) return;
+    const marker = contentEl.querySelector(`sup.fn-marker[data-fn-id="${fnId}"]`);
+    if (!marker) {
+        if (typeof showToast === 'function') {
+            showToast('⚠️ Không tìm thấy ký hiệu chú thích tương ứng trong văn bản!', 'var(--btn-warning)');
+        }
+        return;
+    }
+
+    marker.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    marker.classList.add('fn-marker-flash');
+    setTimeout(() => marker.classList.remove('fn-marker-flash'), 1300);
+
+    contentEl.focus();
+    const range = document.createRange();
+    range.setStartBefore(marker);
+    range.collapse(true);
+    const sel = window.getSelection();
+    if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+    captureFootnoteSelection();
+}
+
+function deleteFootnoteById(targetTd, rowIndex, colName, fnId) {
+    if (!targetTd || !data[rowIndex]) return;
+    ensureRowFootnoteStructure(data[rowIndex]);
+
+    const fn = data[rowIndex].footnotes.find(f => f.id === fnId);
+    const numLabel = fn ? `[${fn.num}]` : '';
+
+    if (!confirm(`🗑️ Xóa chú thích ${numLabel} và ký hiệu tương ứng trong văn bản?`)) return;
+
+    saveEditorUndoState();
+
+    const contentEl = targetTd.querySelector('.cell-content');
+    if (contentEl) {
+        contentEl.querySelectorAll(`sup.fn-marker[data-fn-id="${fnId}"]`).forEach(sup => sup.remove());
+        data[rowIndex][colName] = contentEl.innerHTML;
+    }
+
+    if (fn) window._footnoteTrashCache.set(fnId, { ...fn });
+    data[rowIndex].footnotes = data[rowIndex].footnotes.filter(f => f.id !== fnId);
+
+    renderCellFootnotes(targetTd, rowIndex, colName);
+    debounceSave();
+    if (typeof showToast === 'function') {
+        showToast(`🗑️ Đã xóa chú thích ${numLabel}!`, 'var(--btn-info)');
+    }
+}
+
+// =========================================================================
 // HỆ THỐNG RENDER ĐỘNG (THỨ TỰ CỘT THỐNG NHẤT 100% TRÊN MỌI THIẾT BỊ)
 // =========================================================================
 let currentIsMobile = window.innerWidth <= 768;
@@ -116,6 +525,7 @@ window.addEventListener('resize', () => {
 });
 
 function generateRowHTML(rowObj, rowIndex, isMobile) {
+    ensureRowFootnoteStructure(rowObj);
     let html = '';
     
     // Ô Checkbox chọn hàng
@@ -142,6 +552,7 @@ function generateRowHTML(rowObj, rowIndex, isMobile) {
         const collapsedClass = (isMobile && isColCollapsed) ? 'col-collapsed' : '';
         const meta = COLUMN_META[col] || { label: col.toUpperCase(), badgeClass: 'badge-default' };
         const contentHtml = normalizeUnicodeText(rowObj[col] || '');
+        const footnotesHtml = buildCellFootnotesHTML(rowObj, col);
         
         html += `<td data-col="${col}" class="${collapsedClass}">`;
         
@@ -156,9 +567,8 @@ function generateRowHTML(rowObj, rowIndex, isMobile) {
                 </div>`;
         }
         
-        // Khóa extension dịch tự động can thiệp làm hỏng chữ
-        html += `<div class="cell-content" contenteditable="true" spellcheck="false" translate="no" data-gramm="false">${contentHtml}</div>
-             </td>`;
+        // Khóa extension dịch tự động can thiệp làm hỏng chữ + Gắn khu vực chú thích ngay bên dưới đoạn văn
+        html += `<div class="cell-content" contenteditable="true" spellcheck="false" translate="no" data-gramm="false">${contentHtml}</div>${footnotesHtml}</td>`;
     });
     
     return html;
@@ -174,6 +584,7 @@ function renderTable() {
     const fragment = document.createDocumentFragment();
     
     data.forEach((row, rowIndex) => {
+        ensureRowFootnoteStructure(row);
         if (!row._sanitized) {
             columns.forEach(col => {
                 if (typeof row[col] === 'string') {
@@ -194,6 +605,7 @@ function renderTable() {
     });
 
     tbody.appendChild(fragment);
+    tbody.querySelectorAll('.fn-note-input').forEach(autoResizeFootnoteInput);
     
     // Đồng bộ lại tiêu đề chương lên ô input
     const titleInput = document.getElementById('chapter-title-input');
@@ -219,6 +631,7 @@ function appendRowToDOM(rowObj, index) {
     tr.dataset.index = index;
     tr.innerHTML = generateRowHTML(rowObj, index, currentIsMobile);
     tbody.appendChild(tr);
+    tr.querySelectorAll('.fn-note-input').forEach(autoResizeFootnoteInput);
 }
 
 // =========================================================================
@@ -410,7 +823,14 @@ function executeBatchDelete() {
 
     if (rowCount > 0 && colCount > 0) {
         selectedBatchRows.forEach(rIdx => {
-            if (data[rIdx]) selectedBatchCols.forEach(c => data[rIdx][c] = '');
+            if (data[rIdx]) {
+                selectedBatchCols.forEach(c => {
+                    data[rIdx][c] = '';
+                    if (Array.isArray(data[rIdx].footnotes)) {
+                        data[rIdx].footnotes = data[rIdx].footnotes.filter(fn => (fn.col || 'translation') !== c);
+                    }
+                });
+            }
             if (selectedBatchCols.has('raw')) rowTokensMap[rIdx] = [];
         });
         showToast(`🗑️ Đã xóa nội dung ${rowCount * colCount} ô!`, 'var(--btn-success)');
@@ -421,7 +841,12 @@ function executeBatchDelete() {
         showToast(`🗑️ Đã xóa ${rowCount} hàng!`, 'var(--btn-success)');
     } else if (rowCount === 0 && colCount > 0) {
         data.forEach((row, rIdx) => {
-            selectedBatchCols.forEach(c => row[c] = '');
+            selectedBatchCols.forEach(c => {
+                row[c] = '';
+                if (Array.isArray(row.footnotes)) {
+                    row.footnotes = row.footnotes.filter(fn => (fn.col || 'translation') !== c);
+                }
+            });
             if (selectedBatchCols.has('raw')) rowTokensMap[rIdx] = [];
         });
         showToast(`🗑️ Đã xóa sạch ${colCount} cột!`, 'var(--btn-success)');
@@ -526,8 +951,25 @@ function initEditorEvents() {
         });
     }
 
+    // LƯU VÙNG CHỌN / CON TRỎ ĐỂ NÚT CHÚ THÍCH HOẠT ĐỘNG CHÍNH XÁC
+    document.addEventListener('selectionchange', captureFootnoteSelection);
+
+    const btnAddFootnote = document.getElementById('btn-add-footnote');
+    if (btnAddFootnote) {
+        btnAddFootnote.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // Giữ nguyên con trỏ và vùng bôi đen trong ô đang edit
+        });
+        btnAddFootnote.addEventListener('click', (e) => {
+            e.preventDefault();
+            addFootnoteAtCursor();
+        });
+    }
+
     const tbody = document.getElementById('table-body');
     if (!tbody) return;
+
+    tbody.addEventListener('mouseup', captureFootnoteSelection);
+    tbody.addEventListener('keyup', captureFootnoteSelection);
 
     // 1. SỰ KIỆN CHỌN CHECKBOX
     document.getElementById('btn-toggle-batch')?.addEventListener('click', () => toggleBatchDeleteMode());
@@ -545,16 +987,33 @@ function initEditorEvents() {
 
     // 2. SỰ KIỆN DÁN THÔNG MINH
     tbody.addEventListener('paste', (e) => {
+        // Nếu đang dán vào ô nhập giải thích chú thích thì để mặc định trình duyệt xử lý
+        if (e.target && e.target.classList && e.target.classList.contains('fn-note-input')) return;
+
         const targetCell = e.target.closest('td[data-col]');
         if (!targetCell) return;
         const clipboard = (e.originalEvent || e).clipboardData;
         if (!clipboard) return;
 
         const textData = clipboard.getData('text/plain') || '';
+        const htmlData = clipboard.getData('text/html') || '';
         const tableMatrix = parseClipboardToSmartMatrix(clipboard);
         const tr = targetCell.closest('tr');
         let startRowIndex = parseInt(tr.dataset.index, 10);
         const colIndex = columns.indexOf(targetCell.dataset.col);
+
+        // Nếu dán HTML nội bộ có chứa ký hiệu chú thích sup.fn-marker -> cho phép dán HTML rồi reconcile đồng bộ chú thích
+        if (htmlData && /fn-marker/i.test(htmlData)) {
+            setTimeout(() => {
+                const contentEl = targetCell.querySelector('.cell-content');
+                if (contentEl) {
+                    data[startRowIndex][targetCell.dataset.col] = contentEl.innerHTML;
+                    reconcileCellFootnotes(targetCell, startRowIndex, targetCell.dataset.col, contentEl);
+                    debounceSave();
+                }
+            }, 0);
+            return;
+        }
 
         // A. Dán văn bản chia đoạn
         if (tableMatrix.length === 0 && /[\r\n]/.test(textData)) {
@@ -571,7 +1030,6 @@ function initEditorEvents() {
                 while (rIdx >= data.length) data.push(createEmptyRow());
                 data[rIdx][columns[colIndex]] = normalizeUnicodeText(paragraphs[i]);
 
-                // Nếu dán vào cột Raw
                 if (columns[colIndex] === 'raw') {
                     if (typeof safePinyin === 'function') data[rIdx]['pinyin'] = safePinyin(paragraphs[i]);
                     if (!manualQTState[rIdx] && typeof nameQTEngine !== 'undefined' && nameQTEngine.process) {
@@ -585,7 +1043,7 @@ function initEditorEvents() {
             return;
         }
 
-        // B. Dán Ma trận Bảng (Khớp theo đúng tên cột, không phụ thuộc chỉ số cứng)
+        // B. Dán Ma trận Bảng (Khớp theo đúng tên cột)
         if (tableMatrix.length > 0) {
             e.preventDefault();
             if (typeof clearSyncHighlights === 'function') clearSyncHighlights();
@@ -623,7 +1081,7 @@ function initEditorEvents() {
             return;
         }
 
-        // C. Dán câu / đoạn đơn lẻ (ĐÃ FIX: phát sự kiện input trên đúng .cell-content)
+        // C. Dán câu / đoạn đơn lẻ (Phát sự kiện input trên đúng .cell-content)
         if (!textData.includes('\n') && !textData.includes('\t')) {
             e.preventDefault();
             const contentEl = e.target.closest('.cell-content') || targetCell.querySelector('.cell-content') || targetCell;
@@ -643,8 +1101,30 @@ function initEditorEvents() {
         }
     });
 
-    // 3. NHẬP LIỆU GÕ TAY REAL-TIME (ĐÃ FIX: nhận cả sự kiện từ .cell-content lẫn td[data-col])
+    // 3. NHẬP LIỆU GÕ TAY REAL-TIME (CHO CẢ Ô CHÚ GIẢI LẪN Ô VĂN BẢN CHÍNH)
     tbody.addEventListener('input', (e) => {
+        // A. Nếu người dùng đang gõ vào ô giải thích chú thích (.fn-note-input)
+        if (e.target && e.target.classList && e.target.classList.contains('fn-note-input')) {
+            const noteEl = e.target;
+            const targetTd = noteEl.closest('td[data-col]');
+            const tr = targetTd ? targetTd.closest('tr') : null;
+            if (!targetTd || !tr) return;
+
+            const rowIndex = parseInt(tr.dataset.index, 10);
+            const fnId = noteEl.dataset.fnId;
+            if (!isNaN(rowIndex) && data[rowIndex] && Array.isArray(data[rowIndex].footnotes)) {
+                handleEditorTypingInput();
+                const fn = data[rowIndex].footnotes.find(f => f.id === fnId);
+                if (fn) {
+                    fn.note = noteEl.value;
+                }
+                autoResizeFootnoteInput(noteEl);
+                debounceSave();
+            }
+            return;
+        }
+
+        // B. Nếu người dùng đang gõ vào văn bản chính (.cell-content)
         const targetTd = e.target.closest('td[data-col]');
         if (!targetTd) return;
         const contentEl = e.target.closest('.cell-content') || targetTd.querySelector('.cell-content');
@@ -658,13 +1138,16 @@ function initEditorEvents() {
 
         let rawHtml = contentEl.innerHTML;
         let plainText = normalizeUnicodeText(contentEl.innerText);
-        if (rawHtml === '<br>' || plainText.trim() === '') {
+        if ((rawHtml === '<br>' || plainText.trim() === '') && !contentEl.querySelector('sup.fn-marker')) {
             contentEl.innerHTML = ''; 
             rawHtml = ''; 
             plainText = '';
         }
         
         data[rowIndex][colName] = rawHtml;
+
+        // Đồng bộ liên kết chú thích hai chiều (xử lý khi người dùng xóa/cắt/dán ký hiệu [n])
+        reconcileCellFootnotes(targetTd, rowIndex, colName, contentEl);
 
         // Auto QT & Pinyin khi gõ hoặc dán vào cột Raw
         if (colName === 'raw') {
@@ -685,14 +1168,74 @@ function initEditorEvents() {
             }
         }
         
-        // Đánh dấu sửa tay cột QT
         if (colName === 'qt') manualQTState[rowIndex] = true;
         
         debounceSave();
     });
 
-    // 4. BẮT SỰ KIỆN CLICK VÀ COPY (DELEGATION)
+    // 4. BẮT SỰ KIỆN CLICK (LIÊN KẾT HAI CHIỀU CHÚ THÍCH, COPY & MOBILE)
     tbody.addEventListener('click', (e) => {
+        // Chiều 1: Click ký hiệu [n] trong văn bản -> Nhảy tới ô chú giải bên dưới
+        const fnMarker = e.target.closest('sup.fn-marker');
+        if (fnMarker) {
+            e.preventDefault();
+            e.stopPropagation();
+            const td = fnMarker.closest('td[data-col]');
+            const tr = td ? td.closest('tr') : null;
+            if (td && tr) {
+                jumpToFootnoteItem(td, parseInt(tr.dataset.index, 10), td.dataset.col, fnMarker.dataset.fnId);
+            }
+            return;
+        }
+
+        // Chiều 2: Click số [n] ở khu vực chú thích -> Đưa con trỏ lên đúng từ trong văn bản
+        const fnBadge = e.target.closest('.fn-item-badge');
+        if (fnBadge) {
+            e.preventDefault();
+            e.stopPropagation();
+            const td = fnBadge.closest('td[data-col]');
+            if (td) {
+                jumpToFootnoteMarker(td, td.dataset.col, fnBadge.dataset.fnId);
+            }
+            return;
+        }
+
+        // Thu gọn / Mở rộng khu vực chú thích của đoạn
+        const fnHeader = e.target.closest('.fn-area-header');
+        if (fnHeader) {
+            e.preventDefault();
+            e.stopPropagation();
+            const area = fnHeader.closest('.cell-footnotes-area');
+            const td = fnHeader.closest('td[data-col]');
+            const tr = td ? td.closest('tr') : null;
+            if (area && td && tr) {
+                const rIdx = parseInt(tr.dataset.index, 10);
+                const colName = td.dataset.col;
+                const willCollapse = !area.classList.contains('fn-collapsed');
+                area.classList.toggle('fn-collapsed', willCollapse);
+                const icon = area.querySelector('.fn-collapse-icon');
+                if (icon) icon.textContent = willCollapse ? '▶' : '▼';
+                if (data[rIdx]) {
+                    if (!data[rIdx]._fnCollapsed) data[rIdx]._fnCollapsed = {};
+                    data[rIdx]._fnCollapsed[colName] = willCollapse;
+                }
+            }
+            return;
+        }
+
+        // Xóa chú thích từ nút ✕ trong khu vực chú thích (xóa đồng bộ cả ký hiệu [n])
+        const fnDelBtn = e.target.closest('.btn-fn-delete');
+        if (fnDelBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const td = fnDelBtn.closest('td[data-col]');
+            const tr = td ? td.closest('tr') : null;
+            if (td && tr) {
+                deleteFootnoteById(td, parseInt(tr.dataset.index, 10), td.dataset.col, fnDelBtn.dataset.fnId);
+            }
+            return;
+        }
+
         const collapseTrigger = e.target.closest('.btn-cell-collapse') || e.target.closest('.cell-label');
         if (collapseTrigger) {
             e.preventDefault(); e.stopPropagation();
@@ -703,7 +1246,6 @@ function initEditorEvents() {
             return;
         }
 
-        // Nút Copy trên Mobile Cell (Giữ nguyên định dạng in đậm, in nghiêng, màu sắc)
         const copyBtn = e.target.closest('.btn-cell-copy');
         if (copyBtn) {
             e.preventDefault(); e.stopPropagation();
@@ -758,8 +1300,11 @@ function initEditorEvents() {
             selectedRowIndices = [currentRowIndex];
         }
         const contentEl = e.target.closest('.cell-content');
-        if (contentEl && window.innerWidth <= 768) {
-            setTimeout(() => { contentEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
+        if (contentEl) {
+            captureFootnoteSelection();
+            if (window.innerWidth <= 768) {
+                setTimeout(() => { contentEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
+            }
         }
     });
 
@@ -853,7 +1398,7 @@ function initEditorEvents() {
         showToast(`💾 Đã xuất file "${safeTitle}.json" đầy đủ!`, 'var(--btn-success)');
     });
 
-    // IMPORT JSON ĐA ĐỊNH DẠNG (BẢO TOÀN DỮ LIỆU CŨ QUA HÀM NORMALIZE)
+    // IMPORT JSON ĐA ĐỊNH DẠNG (BẢO TOÀN DỮ LIỆU CŨ VÀ CHÚ THÍCH)
     const fileInput = document.getElementById('file-input');
     document.getElementById('btn-import')?.addEventListener('click', (e) => { e.preventDefault(); fileInput?.click(); });
     fileInput?.addEventListener('change', (e) => {
@@ -890,12 +1435,14 @@ function initEditorEvents() {
                         return normalizeRowObject(row);
                     }
                     return {
+                        id: row.id || ('row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)),
                         raw: row.raw || '',
                         pinyin: row.pinyin || '',
                         qt: row.qt || '',
                         translation: row.translation || '',
                         edit: row.edit || '',
-                        meaning: row.meaning || ''
+                        meaning: row.meaning || '',
+                        footnotes: Array.isArray(row.footnotes) ? row.footnotes : []
                     };
                 });
 
@@ -1103,7 +1650,9 @@ function updateWordCounts() {
             const col = columns[j];
             const val = data[i][col];
             if (!val) continue;
-            const text = val.replace(/<[^>]+>/g, '').trim();
+            // Loại bỏ ký hiệu [n] của chú thích khỏi thống kê đếm từ để giữ số từ văn bản chính xác
+            const cleanVal = String(val).replace(/<sup[^>]*class="[^"]*fn-marker[^"]*"[^>]*>.*?<\/sup>/gi, '');
+            const text = cleanVal.replace(/<[^>]+>/g, '').trim();
             if (!text) continue;
 
             counts[col].c += text.length;
@@ -1122,7 +1671,7 @@ function updateWordCounts() {
 }
 
 // =========================================================================
-// MỞ RỘNG TOÀN CỤC CHO CÁC MODULE KHÁC GỌI
+// MỞ RỘNG TOÀN CỤC
 // =========================================================================
 window.renderTable = renderTable;
 window.initEditorEvents = initEditorEvents;
@@ -1135,3 +1684,4 @@ window.syncActiveCellToData = syncActiveCellToData;
 window.updateWordCounts = updateWordCounts;
 window.editorUndo = editorUndo;
 window.editorRedo = editorRedo;
+window.addFootnoteAtCursor = addFootnoteAtCursor;

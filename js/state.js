@@ -21,37 +21,64 @@ let modalReplace;
 let modalHistory;
 let modalNameQT;
 
-// HÀM CHUẨN HÓA DỮ LIỆU TỪNG HÀNG (MIGRATION AN TOÀN TUYỆT ĐỐI)
+// HÀM CHUẨN HÓA DỮ LIỆU TỪNG HÀNG (BẢO TOÀN DỮ LIỆU CŨ + LIÊN KẾT CHÚ THÍCH HAI CHIỀU)
 function normalizeRowObject(row) {
+    const genRowId = () => 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
     if (!row) {
-        return { raw: '', pinyin: '', qt: '', translation: '', edit: '', meaning: '' };
+        return createEmptyRow();
     }
 
     // Trường hợp 1: Dữ liệu cũ dạng mảng index [0: raw, 1: pinyin, 2: meaning, 3: translation, 4: qt, 5: edit]
     if (Array.isArray(row)) {
         return {
+            id: genRowId(),
             raw: row[0] || '',
             pinyin: row[1] || '',
             qt: row[4] || '',
             translation: row[3] || '',
             edit: row[5] || '',
-            meaning: row[2] || ''
+            meaning: row[2] || '',
+            footnotes: []
         };
     }
 
-    // Trường hợp 2: Dữ liệu dạng Object theo key (Bảo toàn 100% nội dung gốc)
+    // Trường hợp 2: Dữ liệu dạng Object theo key (Bảo toàn 100% nội dung gốc + chú thích liên kết)
+    const rowId = row.id || genRowId();
+    const footnotes = Array.isArray(row.footnotes)
+        ? row.footnotes.map(fn => ({
+            id: fn.id || ('fn_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4)),
+            num: Number(fn.num) || 1,
+            rowId: fn.rowId || rowId,
+            col: fn.col || 'translation',
+            targetText: fn.targetText || '',
+            note: fn.note || '',
+            createdAt: fn.createdAt || Date.now()
+        }))
+        : [];
+
     return {
+        id: rowId,
         raw: row.raw || '',
         pinyin: row.pinyin || '',
         qt: row.qt || '',
         translation: row.translation || '',
         edit: row.edit || '',
-        meaning: row.meaning || ''
+        meaning: row.meaning || '',
+        footnotes: footnotes
     };
 }
 
 function createEmptyRow() {
-    return { raw: '', pinyin: '', qt: '', translation: '', edit: '', meaning: '' };
+    return {
+        id: 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        raw: '',
+        pinyin: '',
+        qt: '',
+        translation: '',
+        edit: '',
+        meaning: '',
+        footnotes: []
+    };
 }
 
 // Dữ liệu và trạng thái Mục 1 (Biên dịch)

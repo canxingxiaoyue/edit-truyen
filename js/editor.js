@@ -1610,7 +1610,7 @@ function extractBothCellContents(rawHtml, useUnicodeSuperscriptInPlain = false) 
     return { plain: plain, html: cleanedHtml };
 }
 
-// Tổng hợp văn bản chính + chú thích kiểu Word Footnote (dùng thẻ <i> và <sup> thuần tương thích Word & Wattpad)
+// Tổng hợp văn bản chính + chú thích kiểu Word Footnote (dùng [¹], [²] Unicode để không văng số lên trên ngoặc)
 function extractCellCopyPayload(rowObj, colKey) {
     if (!rowObj) return { plain: '', html: '', footnoteCount: 0 };
     const rawHtml = rowObj[colKey] || '';
@@ -1667,7 +1667,7 @@ function extractCellCopyPayload(rowObj, colKey) {
             : plainNotes;
     }
 
-    // HTML Rich Text: Dùng thẻ <p>, <i>, <sup> thuần để Word, Docs và Wattpad đều hiển thị đúng chuẩn
+    // HTML Rich Text: Dùng [¹], [²] Unicode trong ngoặc và <i> để Word, Docs và Wattpad đều hiển thị gọn chuẩn
     let combinedHtml = '';
     if (orderedFootnotes.length > 0) {
         const mainBlockHtml = base.html !== ''
@@ -1675,7 +1675,7 @@ function extractCellCopyPayload(rowObj, colKey) {
             : '';
         const notesHtml = orderedFootnotes.map((fn, idx) => {
             const mb = (idx === orderedFootnotes.length - 1) ? '12pt' : '4pt';
-            return `<p style="margin: 0 0 ${mb} 0; font-size: 10pt;"><i>[<sup>${fn.num}</sup>] ${fn.htmlNote}</i></p>`;
+            return `<p style="margin: 0 0 ${mb} 0; font-size: 10pt;"><i>[${toUnicodeSuperscript(fn.num)}] ${fn.htmlNote}</i></p>`;
         }).join('\n');
         combinedHtml = `${mainBlockHtml}\n${notesHtml}`.trim();
     } else {
